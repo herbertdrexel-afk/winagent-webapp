@@ -35,8 +35,17 @@ export interface Customer {
   ku_nr?: string;
   name: string;
   country_code?: string;
+  zip?: string;
   city?: string;
+  phone?: string;
+  fax?: string;
   email?: string;
+  url?: string;
+  language?: string;
+  contact_name?: string;
+  contact_title?: string;
+  contact_position?: string;
+  notes?: string;
 }
 
 export interface Transaction {
@@ -80,10 +89,32 @@ export interface CommissionStatement {
 export const api = {
   suppliers: {
     list: () => get<Supplier[]>("/suppliers"),
+    create: (data: Omit<Supplier, "id">) =>
+      post<Supplier>("/suppliers", data),
+    update: (code: string, data: Partial<Omit<Supplier, "id" | "code">>) =>
+      fetch(`${BASE}/suppliers/${code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then(async (r) => {
+        if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); }
+        return r.json() as Promise<Supplier>;
+      }),
   },
   customers: {
     list: (search?: string) =>
       get<Customer[]>("/customers" + (search ? `?q=${encodeURIComponent(search)}` : "")),
+    create: (data: Omit<Customer, "id" | "ku_nr">) =>
+      post<Customer>("/customers", data),
+    update: (code: string, data: Partial<Omit<Customer, "id" | "code" | "ku_nr">>) =>
+      fetch(`${BASE}/customers/${code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then(async (r) => {
+        if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); }
+        return r.json() as Promise<Customer>;
+      }),
   },
   transactions: {
     list: (supplierCode: string, from: string, to: string) =>

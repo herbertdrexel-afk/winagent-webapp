@@ -19,7 +19,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import (
-    BaseDocTemplate, Frame, PageTemplate,
+    SimpleDocTemplate,
     Paragraph, Spacer, Table, TableStyle,
 )
 
@@ -111,7 +111,7 @@ def build_pdf(statement: "models.CommissionStatement") -> bytes:
 
     hf = _HeaderFooterCanvas(statement)
 
-    doc = BaseDocTemplate(
+    doc = SimpleDocTemplate(
         buf,
         pagesize=A4,
         leftMargin=_MARGIN_LEFT,
@@ -120,13 +120,6 @@ def build_pdf(statement: "models.CommissionStatement") -> bytes:
         bottomMargin=_MARGIN_BOT + 4 * mm,
         title=f"Provisionsabrechnung {statement.statement_number or 'Entwurf'}",
     )
-    frame = Frame(
-        _MARGIN_LEFT, doc.bottomMargin,
-        _CONTENT_W, _H - doc.topMargin - doc.bottomMargin,
-        id="main",
-    )
-    doc.addPageTemplates([PageTemplate(id="main", frames=[frame],
-                                       onPage=hf, onLaterPages=hf)])
 
     styles = getSampleStyleSheet()
     story = []
@@ -156,6 +149,9 @@ def build_pdf(statement: "models.CommissionStatement") -> bytes:
             _fmt_amount(item.provision_amount),
             item.currency or "–",
         ])
+
+    if len(rows) == 1:
+        rows.append(["", "Keine Positionen vorhanden", "", "–", "–", "–"])
 
     # Summenzeile
     rows.append([
@@ -196,6 +192,6 @@ def build_pdf(statement: "models.CommissionStatement") -> bytes:
     ]))
 
     story.append(tbl)
-    doc.build(story)
+    doc.build(story, onFirstPage=hf, onLaterPages=hf)
 
     return buf.getvalue()

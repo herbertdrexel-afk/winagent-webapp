@@ -24,11 +24,35 @@ def list_suppliers(db: Session = Depends(get_db)):
     return db.query(models.Supplier).order_by(models.Supplier.name).all()
 
 
+@router.post("", response_model=schemas.SupplierOut, status_code=201)
+def create_supplier(payload: schemas.SupplierCreate, db: Session = Depends(get_db)):
+    code = payload.code.upper().strip()
+    if db.query(models.Supplier).filter(models.Supplier.code == code).first():
+        raise HTTPException(409, f"Code '{code}' ist bereits vergeben")
+    supplier = models.Supplier(**{**payload.model_dump(), "code": code})
+    db.add(supplier)
+    db.commit()
+    db.refresh(supplier)
+    return supplier
+
+
 @router.get("/{code}", response_model=schemas.SupplierOut)
 def get_supplier(code: str, db: Session = Depends(get_db)):
     supplier = db.query(models.Supplier).filter(models.Supplier.code == code.upper()).first()
     if not supplier:
         raise HTTPException(404, "Lieferant nicht gefunden")
+    return supplier
+
+
+@router.patch("/{code}", response_model=schemas.SupplierOut)
+def update_supplier(code: str, payload: schemas.SupplierUpdate, db: Session = Depends(get_db)):
+    supplier = db.query(models.Supplier).filter(models.Supplier.code == code.upper()).first()
+    if not supplier:
+        raise HTTPException(404, "Lieferant nicht gefunden")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(supplier, field, value)
+    db.commit()
+    db.refresh(supplier)
     return supplier
 
 

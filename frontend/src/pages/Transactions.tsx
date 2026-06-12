@@ -3,7 +3,7 @@ import { api, type Supplier, type Transaction } from "../api";
 import TransactionEditModal from "../components/TransactionEditModal";
 
 function today() { return new Date().toISOString().slice(0, 10); }
-function yearStart() { return "2005-01-01"; }
+function yearStart() { return new Date().getFullYear() + "-01-01"; }
 
 export default function Transactions() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);

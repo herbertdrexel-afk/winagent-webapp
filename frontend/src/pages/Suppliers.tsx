@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { api, type Supplier } from "../api";
+import SupplierEditModal from "../components/SupplierEditModal";
 
 export default function Suppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Supplier | null | undefined>(undefined);
+  // undefined = modal geschlossen, null = Neuanlage, Supplier = bearbeiten
 
   useEffect(() => {
     api.suppliers.list()
@@ -13,12 +16,35 @@ export default function Suppliers() {
       .finally(() => setLoading(false));
   }, []);
 
+  function handleSaved(saved: Supplier) {
+    setSuppliers((prev) => {
+      const idx = prev.findIndex((s) => s.id === saved.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = saved;
+        return next.sort((a, b) => a.name.localeCompare(b.name));
+      }
+      return [...prev, saved].sort((a, b) => a.name.localeCompare(b.name));
+    });
+    setEditing(undefined);
+  }
+
   if (loading) return <div className="text-gray-500">Lade Lieferanten…</div>;
   if (error)   return <div className="text-red-600">Fehler: {error}</div>;
 
   return (
+    <>
     <div>
-      <h1 className="text-2xl font-semibold text-gray-800 mb-4">Lieferanten</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-semibold text-gray-800">Lieferanten</h1>
+        <button
+          onClick={() => setEditing(null)}
+          className="bg-[#1a3a5c] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/80 transition-colors"
+        >
+          + Neuer Lieferant
+        </button>
+      </div>
+
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-[#1a3a5c] text-white">
@@ -30,7 +56,15 @@ export default function Suppliers() {
           </thead>
           <tbody>
             {suppliers.map((s, i) => (
-              <tr key={s.id} className={i % 2 === 0 ? "bg-white" : "bg-[#dce8f5]/40"}>
+              <tr
+                key={s.id}
+                onClick={() => setEditing(s)}
+                className={
+                  (i % 2 === 0 ? "bg-white" : "bg-[#dce8f5]/40") +
+                  " cursor-pointer hover:bg-[#1a3a5c]/10 transition-colors"
+                }
+                title="Klicken zum Bearbeiten"
+              >
                 <td className="px-4 py-2 font-mono font-semibold text-[#1a3a5c]">{s.code}</td>
                 <td className="px-4 py-2 font-medium">{s.name}</td>
                 <td className="px-4 py-2 text-gray-600">{s.default_currency ?? "–"}</td>
@@ -54,5 +88,14 @@ export default function Suppliers() {
         </table>
       </div>
     </div>
+
+    {editing !== undefined && (
+      <SupplierEditModal
+        supplier={editing}
+        onClose={() => setEditing(undefined)}
+        onSaved={handleSaved}
+      />
+    )}
+    </>
   );
 }

@@ -17,6 +17,29 @@ class SupplierOut(BaseModel):
     is_active: bool
 
 
+class SupplierCreate(BaseModel):
+    code: str
+    name: str
+    address: Optional[str] = None
+    default_currency: Optional[str] = None
+    provision_splits: Optional[Any] = None
+    representative_code: Optional[str] = None
+    contact_person: Optional[str] = None
+    is_active: bool = True
+    notes: Optional[str] = None
+
+
+class SupplierUpdate(BaseModel):
+    name: Optional[str] = None
+    address: Optional[str] = None
+    default_currency: Optional[str] = None
+    provision_splits: Optional[Any] = None
+    representative_code: Optional[str] = None
+    contact_person: Optional[str] = None
+    is_active: Optional[bool] = None
+    notes: Optional[str] = None
+
+
 class CustomerOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -24,8 +47,50 @@ class CustomerOut(BaseModel):
     ku_nr: Optional[str] = None
     name: str
     country_code: Optional[str] = None
+    zip: Optional[str] = None
     city: Optional[str] = None
+    phone: Optional[str] = None
+    fax: Optional[str] = None
     email: Optional[str] = None
+    url: Optional[str] = None
+    language: Optional[str] = None
+    contact_name: Optional[str] = None
+    contact_title: Optional[str] = None
+    contact_position: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CustomerCreate(BaseModel):
+    code: str
+    name: str
+    country_code: Optional[str] = None
+    zip: Optional[str] = None
+    city: Optional[str] = None
+    phone: Optional[str] = None
+    fax: Optional[str] = None
+    email: Optional[str] = None
+    url: Optional[str] = None
+    language: Optional[str] = None
+    contact_name: Optional[str] = None
+    contact_title: Optional[str] = None
+    contact_position: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CustomerUpdate(BaseModel):
+    name: Optional[str] = None
+    country_code: Optional[str] = None
+    zip: Optional[str] = None
+    city: Optional[str] = None
+    phone: Optional[str] = None
+    fax: Optional[str] = None
+    email: Optional[str] = None
+    url: Optional[str] = None
+    language: Optional[str] = None
+    contact_name: Optional[str] = None
+    contact_title: Optional[str] = None
+    contact_position: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class TransactionOut(BaseModel):
