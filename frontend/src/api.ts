@@ -1,4 +1,6 @@
-const BASE = "/api";
+// Im Dev-Modus: Vite-Proxy auf localhost:8000
+// In Produktion: VITE_API_URL=https://winagent-backend.up.railway.app
+const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(BASE + path);

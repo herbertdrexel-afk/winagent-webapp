@@ -1,4 +1,6 @@
+import os
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import suppliers, customers, commission
 
@@ -7,6 +9,17 @@ app = FastAPI(
     description="Neuentwicklung des Lieferanten-/Provisionsabrechnungssystems "
                  "(ehemals Delphi/dBase) als Web-API.",
     version="0.1.0",
+)
+
+# Erlaubte Frontend-Origins: ALLOWED_ORIGINS=https://winagent.vercel.app,...
+_origins_env = os.environ.get("ALLOWED_ORIGINS", "*")
+_origins = [o.strip() for o in _origins_env.split(",")] if _origins_env != "*" else ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(suppliers.router)
