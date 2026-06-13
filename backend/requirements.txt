@@ -11,6 +11,7 @@ python-multipart==0.0.*
 
 python-jose[cryptography]==3.3.*
 passlib[bcrypt]==1.7.*
+bcrypt==3.2.2
 
 # nur für die Migration benötigt:
 dbfread==2.0.*
