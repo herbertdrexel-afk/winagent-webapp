@@ -2,8 +2,27 @@
 // In Produktion: VITE_API_URL=https://winagent-backend.up.railway.app
 const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
+// ── Auth helpers ───────────────────────────────────────────────────────────
+export interface AuthUser {
+  id: number;
+  username: string;
+  role: "admin" | "user";
+  is_approved: boolean;
+}
+
+export const token = {
+  get: () => localStorage.getItem("token"),
+  set: (t: string) => localStorage.setItem("token", t),
+  clear: () => localStorage.removeItem("token"),
+};
+
+function authHeaders(): Record<string, string> {
+  const t = token.get();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(BASE + path);
+  const res = await fetch(BASE + path, { headers: authHeaders() });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return res.json();
 }
@@ -11,7 +30,7 @@ async function get<T>(path: string): Promise<T> {
 async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(BASE + path, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -103,6 +122,27 @@ export interface CommissionStatement {
 
 // ── Endpoints ──────────────────────────────────────────────────────────────
 export const api = {
+  auth: {
+    login: async (username: string, password: string): Promise<{ access_token: string; user: AuthUser }> => {
+      const form = new URLSearchParams({ username, password });
+      const res = await fetch(`${BASE}/auth/login`, { method: "POST", body: form });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.detail ?? res.statusText); }
+      return res.json();
+    },
+    register: (username: string, password: string) =>
+      post<AuthUser>("/auth/register", { username, password }),
+    me: () => get<AuthUser>("/auth/me"),
+    users: () => get<AuthUser[]>("/auth/users"),
+    updateUser: (id: number, data: { is_approved?: boolean; role?: string; password?: string }) =>
+      fetch(`${BASE}/auth/users/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(data),
+      }).then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json() as Promise<AuthUser>; }),
+    deleteUser: (id: number) =>
+      fetch(`${BASE}/auth/users/${id}`, { method: "DELETE", headers: authHeaders() })
+        .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
+  },
   suppliers: {
     list: () => get<Supplier[]>("/suppliers"),
     create: (data: Omit<Supplier, "id">) =>
@@ -110,7 +150,7 @@ export const api = {
     update: (code: string, data: Partial<Omit<Supplier, "id" | "code">>) =>
       fetch(`${BASE}/suppliers/${code}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(data),
       }).then(async (r) => {
         if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); }
@@ -125,7 +165,7 @@ export const api = {
     update: (code: string, data: Partial<Omit<Customer, "id" | "code" | "ku_nr">>) =>
       fetch(`${BASE}/customers/${code}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(data),
       }).then(async (r) => {
         if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); }
@@ -140,17 +180,17 @@ export const api = {
     update: (id: number, data: TransactionUpdate) =>
       fetch(`${BASE}/suppliers/transactions/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(data),
       }).then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json() as Promise<Transaction>; }),
     delete: (id: number) =>
-      fetch(`${BASE}/suppliers/transactions/${id}`, { method: "DELETE" })
+      fetch(`${BASE}/suppliers/transactions/${id}`, { method: "DELETE", headers: authHeaders() })
         .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
     parsePdf: (supplierCode: string, file: File) => {
       const fd = new FormData();
       fd.append("file", file);
       return fetch(`${BASE}/suppliers/${supplierCode}/transactions/parse-pdf`, {
-        method: "POST", body: fd,
+        method: "POST", body: fd, headers: authHeaders(),
       }).then(async (r) => {
         if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); }
         return r.json() as Promise<PdfEntry[]>;

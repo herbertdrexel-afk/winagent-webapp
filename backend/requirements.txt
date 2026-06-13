@@ -9,5 +9,8 @@ reportlab==4.*
 pdfplumber==0.11.*
 python-multipart==0.0.*
 
+python-jose[cryptography]==3.3.*
+passlib[bcrypt]==1.7.*
+
 # nur für die Migration benötigt:
 dbfread==2.0.*

@@ -1,10 +1,20 @@
 from sqlalchemy import (
     Column, Integer, BigInteger, SmallInteger, String, Numeric, Date, DateTime,
-    Boolean, Text, ForeignKey, CHAR
+    Boolean, Text, ForeignKey, CHAR, func
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from .database import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True)
+    username = Column(String(50), unique=True, nullable=False)
+    password_hash = Column(String(200), nullable=False)
+    role = Column(String(20), nullable=False, default="user")  # "admin" | "user"
+    is_approved = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class Country(Base):
