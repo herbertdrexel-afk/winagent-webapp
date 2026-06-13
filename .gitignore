@@ -1,3 +1,4 @@
 .claude/settings.local.json
 .env
 backend/.env
+docker-compose.override.yml
