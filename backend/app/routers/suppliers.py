@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
 from ..database import get_db
-from ..pdf_import_parser import parse_provisionsabrechnung
+from ..pdf_import_parser import parse_pdf_auto
 
 router = APIRouter(prefix="/suppliers", tags=["suppliers"])
 
@@ -141,11 +141,11 @@ async def parse_pdf(
 
     pdf_bytes = await file.read()
     try:
-        entries = parse_provisionsabrechnung(pdf_bytes)
+        entries = parse_pdf_auto(pdf_bytes)
     except Exception as e:
         raise HTTPException(400, f"PDF konnte nicht gelesen werden: {e}")
 
-    # For each unique customer name find DB matches
+    # For each unique customer find DB matches (by ku_nr first, then by name)
     name_cache: dict[str, list] = {}
     for entry in entries:
         clean = entry["customer_name_clean"]
@@ -154,13 +154,24 @@ async def parse_pdf(
         if not clean:
             name_cache[clean] = []
             continue
-        first_word = clean.split()[0]
-        customers = (
-            db.query(models.Customer)
-            .filter(models.Customer.name.ilike(f"%{first_word}%"))
-            .limit(5)
-            .all()
-        )
+
+        ku_nr = entry.get("customer_nr", "")
+        customers = []
+        if ku_nr:
+            customers = (
+                db.query(models.Customer)
+                .filter(models.Customer.ku_nr == ku_nr)
+                .limit(5)
+                .all()
+            )
+        if not customers:
+            first_word = clean.split()[0]
+            customers = (
+                db.query(models.Customer)
+                .filter(models.Customer.name.ilike(f"%{first_word}%"))
+                .limit(5)
+                .all()
+            )
         name_cache[clean] = [
             {"id": c.id, "code": c.code, "ku_nr": c.ku_nr, "name": c.name, "city": c.city}
             for c in customers

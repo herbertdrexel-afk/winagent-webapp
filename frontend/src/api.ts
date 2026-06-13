@@ -77,6 +77,7 @@ export type TransactionUpdate = Partial<Omit<Transaction, "id">>;
 export interface PdfEntry {
   customer_name_raw: string;
   customer_name_clean: string;
+  customer_nr?: string;
   invoice_date: string;
   invoice_number: string;
   art_nr: string;
