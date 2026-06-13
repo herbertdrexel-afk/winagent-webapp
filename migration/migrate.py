@@ -430,6 +430,8 @@ def migrate_transactions(cur, supplier_id, customer_map, year, path, encoding):
             clean(rec.get("CUST_ORDNO")), notes,
         ))
     if rows:
+        cur.execute("DELETE FROM transactions WHERE supplier_id = %s AND year = %s",
+                    (rows[0][0], rows[0][2]))
         psycopg2.extras.execute_values(
             cur,
             """INSERT INTO transactions

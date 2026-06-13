@@ -1,9 +1,45 @@
 import { useEffect, useState } from "react";
 import { api, type Supplier, type Transaction } from "../api";
-import TransactionEditModal from "../components/TransactionEditModal";
+import InvoiceModal from "../components/InvoiceModal";
 
 function today() { return new Date().toISOString().slice(0, 10); }
 function yearStart() { return new Date().getFullYear() + "-01-01"; }
+
+export interface Invoice {
+  invoice_number: string;
+  invoice_date: string;
+  customer_id?: number;
+  customer_code?: string;
+  customer_ku_nr?: string;
+  customer_name?: string;
+  currency?: string;
+  total_amount: number;
+  positions: Transaction[];
+}
+
+function groupInvoices(rows: Transaction[]): Invoice[] {
+  const map = new Map<string, Invoice>();
+  for (const r of rows) {
+    const key = r.invoice_number;
+    if (!map.has(key)) {
+      map.set(key, {
+        invoice_number: r.invoice_number,
+        invoice_date: r.invoice_date,
+        customer_id: r.customer_id,
+        customer_code: r.customer_code,
+        customer_ku_nr: r.customer_ku_nr,
+        customer_name: r.customer_name,
+        currency: r.currency,
+        total_amount: 0,
+        positions: [],
+      });
+    }
+    const inv = map.get(key)!;
+    inv.total_amount += parseFloat(r.total_amount as unknown as string);
+    inv.positions.push(r);
+  }
+  return Array.from(map.values());
+}
 
 export default function Transactions() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -13,7 +49,7 @@ export default function Transactions() {
   const [rows, setRows] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editing, setEditing] = useState<Transaction | null>(null);
+  const [editing, setEditing] = useState<Invoice | null | undefined>(undefined);
 
   useEffect(() => {
     api.suppliers.list().then((s) => {
@@ -32,19 +68,39 @@ export default function Transactions() {
       .finally(() => setLoading(false));
   }
 
-  const total = rows.reduce((s, r) => s + parseFloat(r.total_amount), 0);
-
-  function handleSaved(updated: Transaction) {
-    setRows((prev) => prev.map((r) => r.id === updated.id ? updated : r));
-    setEditing(null);
+  function handleSaved(updatedPositions: Transaction[]) {
+    setRows((prev) => {
+      const invoiceNr = updatedPositions[0]?.invoice_number ?? editing?.invoice_number;
+      const withoutOld = prev.filter((r) => r.invoice_number !== invoiceNr);
+      return [...withoutOld, ...updatedPositions].sort(
+        (a, b) => a.invoice_date.localeCompare(b.invoice_date)
+      );
+    });
+    setEditing(undefined);
   }
+
+  function handleDeleted(invoiceNumber: string) {
+    setRows((prev) => prev.filter((r) => r.invoice_number !== invoiceNumber));
+    setEditing(undefined);
+  }
+
+  const invoices = groupInvoices(rows);
+  const total = invoices.reduce((s, i) => s + i.total_amount, 0);
 
   return (
     <>
     <div>
-      <h1 className="text-2xl font-semibold text-gray-800 mb-4">Transaktionen</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-semibold text-gray-800">Rechnungen</h1>
+        <button
+          onClick={() => setEditing(null)}
+          disabled={!supplierCode}
+          className="bg-[#1a3a5c] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/80 disabled:opacity-40 transition-colors"
+        >
+          + Neue Rechnung
+        </button>
+      </div>
 
-      {/* Filter-Leiste */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4 flex flex-wrap gap-3 items-end">
         <div>
           <label className="block text-xs text-gray-500 mb-1">Lieferant</label>
@@ -80,7 +136,7 @@ export default function Transactions() {
         <table className="w-full text-sm">
           <thead className="bg-[#1a3a5c] text-white">
             <tr>
-              {["Rg-Nr", "Datum", "Kd-Nr", "Kunde", "Artikel", "Menge", "Satz %", "Währung", "Betrag"].map((h) => (
+              {["Rg-Nr", "Datum", "Kd-Nr", "Kunde", "Pos.", "Währung", "Betrag"].map((h) => (
                 <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
               ))}
             </tr>
@@ -88,40 +144,37 @@ export default function Transactions() {
           <tbody>
             {loading ? (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Lade…</td></tr>
-            ) : rows.length === 0 ? (
+            ) : invoices.length === 0 ? (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">
-                {supplierCode ? "Keine Transaktionen im Zeitraum" : "Lieferant auswählen"}
+                {supplierCode ? "Keine Rechnungen im Zeitraum" : "Lieferant auswählen"}
               </td></tr>
-            ) : rows.map((r, i) => (
+            ) : invoices.map((inv, i) => (
               <tr
-                key={r.id}
-                onClick={() => setEditing(r)}
+                key={inv.invoice_number}
+                onClick={() => setEditing(inv)}
                 className={
                   (i % 2 === 0 ? "bg-white" : "bg-[#dce8f5]/40") +
                   " cursor-pointer hover:bg-[#1a3a5c]/10 transition-colors"
                 }
-                title="Klicken zum Bearbeiten"
               >
-                <td className="px-4 py-2 font-mono text-xs">{r.invoice_number}</td>
-                <td className="px-4 py-2 text-gray-600">{r.invoice_date}</td>
-                <td className="px-4 py-2 text-gray-500 text-xs">{r.customer_ku_nr ?? r.customer_code ?? "–"}</td>
-                <td className="px-4 py-2 font-medium">{r.customer_name ?? "–"}</td>
-                <td className="px-4 py-2 text-gray-600">{r.art_nr ?? "–"}</td>
-                <td className="px-4 py-2 text-right text-gray-600">{r.quantity ?? "–"}</td>
-                <td className="px-4 py-2 text-right text-gray-600">
-                  {r.provision_rate ? `${r.provision_rate} %` : "–"}
-                </td>
-                <td className="px-4 py-2 text-gray-600">{r.currency ?? "–"}</td>
+                <td className="px-4 py-2 font-mono text-xs">{inv.invoice_number}</td>
+                <td className="px-4 py-2 text-gray-600">{inv.invoice_date}</td>
+                <td className="px-4 py-2 text-gray-500 text-xs">{inv.customer_ku_nr ?? inv.customer_code ?? "–"}</td>
+                <td className="px-4 py-2 font-medium">{inv.customer_name ?? "–"}</td>
+                <td className="px-4 py-2 text-center text-gray-500">{inv.positions.length}</td>
+                <td className="px-4 py-2 text-gray-600">{inv.currency ?? "–"}</td>
                 <td className="px-4 py-2 text-right font-medium">
-                  {parseFloat(r.total_amount).toLocaleString("de-AT", { minimumFractionDigits: 2 })}
+                  {inv.total_amount.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
                 </td>
               </tr>
             ))}
           </tbody>
-          {rows.length > 0 && (
+          {invoices.length > 0 && (
             <tfoot>
               <tr className="border-t-2 border-[#1a3a5c] bg-gray-50 font-semibold">
-                <td colSpan={8} className="px-4 py-2">Gesamt ({rows.length} Positionen)</td>
+                <td colSpan={6} className="px-4 py-2">
+                  Gesamt ({invoices.length} Rechnungen, {rows.length} Positionen)
+                </td>
                 <td className="px-4 py-2 text-right">
                   {total.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
                 </td>
@@ -132,11 +185,13 @@ export default function Transactions() {
       </div>
     </div>
 
-    {editing && (
-      <TransactionEditModal
-        transaction={editing}
-        onClose={() => setEditing(null)}
+    {editing !== undefined && (
+      <InvoiceModal
+        invoice={editing}
+        supplierCode={supplierCode}
+        onClose={() => setEditing(undefined)}
         onSaved={handleSaved}
+        onDeleted={handleDeleted}
       />
     )}
   </>

@@ -3,7 +3,7 @@ import { NavLink, Outlet } from "react-router-dom";
 const NAV = [
   { to: "/suppliers",    label: "Lieferanten" },
   { to: "/customers",    label: "Kunden" },
-  { to: "/transactions", label: "Transaktionen" },
+  { to: "/transactions", label: "Rechnungen" },
   { to: "/commission",   label: "Provisionsabrechnungen" },
 ];
 

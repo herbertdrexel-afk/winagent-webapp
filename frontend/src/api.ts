@@ -121,12 +121,17 @@ export const api = {
   transactions: {
     list: (supplierCode: string, from: string, to: string) =>
       get<Transaction[]>(`/suppliers/${supplierCode}/transactions?from=${from}&to=${to}`),
+    create: (supplierCode: string, data: TransactionUpdate) =>
+      post<Transaction>(`/suppliers/${supplierCode}/transactions`, data),
     update: (id: number, data: TransactionUpdate) =>
       fetch(`${BASE}/suppliers/transactions/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<Transaction>; }),
+      }).then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json() as Promise<Transaction>; }),
+    delete: (id: number) =>
+      fetch(`${BASE}/suppliers/transactions/${id}`, { method: "DELETE" })
+        .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   },
   commission: {
     statements: () => get<CommissionStatement[]>("/commission/statements"),

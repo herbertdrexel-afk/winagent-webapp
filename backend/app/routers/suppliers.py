@@ -56,6 +56,34 @@ def update_supplier(code: str, payload: schemas.SupplierUpdate, db: Session = De
     return supplier
 
 
+@router.post("/{code}/transactions", response_model=schemas.TransactionOut, status_code=201)
+def create_transaction(
+    code: str,
+    payload: schemas.TransactionCreate,
+    db: Session = Depends(get_db),
+):
+    supplier = db.query(models.Supplier).filter(models.Supplier.code == code.upper()).first()
+    if not supplier:
+        raise HTTPException(404, "Lieferant nicht gefunden")
+    from sqlalchemy import extract
+    year = int(payload.invoice_date.split("-")[0]) if isinstance(payload.invoice_date, str) else payload.invoice_date.year
+    tx = models.Transaction(**{**payload.model_dump(), "supplier_id": supplier.id, "year": year})
+    db.add(tx)
+    db.commit()
+    db.refresh(tx)
+    db.refresh(tx, ["customer"])
+    return _tx_to_out(tx)
+
+
+@router.delete("/transactions/{transaction_id}", status_code=204)
+def delete_transaction(transaction_id: int, db: Session = Depends(get_db)):
+    tx = db.query(models.Transaction).filter(models.Transaction.id == transaction_id).first()
+    if not tx:
+        raise HTTPException(404, "Position nicht gefunden")
+    db.delete(tx)
+    db.commit()
+
+
 @router.patch("/transactions/{transaction_id}", response_model=schemas.TransactionOut)
 def update_transaction(
     transaction_id: int,

@@ -116,6 +116,24 @@ class TransactionOut(BaseModel):
     notes: Optional[str] = None
 
 
+class TransactionCreate(BaseModel):
+    customer_id: Optional[int] = None
+    invoice_number: str
+    invoice_date: date
+    art_nr: Optional[str] = None
+    color: Optional[str] = None
+    quantity: Optional[Decimal] = None
+    unit: Optional[str] = None
+    discount: Optional[Decimal] = None
+    provision_rate: Optional[Decimal] = None
+    price: Optional[Decimal] = None
+    currency: Optional[str] = None
+    total_amount: Decimal
+    exchange_rate: Optional[Decimal] = None
+    customer_order_no: Optional[str] = None
+    notes: Optional[str] = None
+
+
 class TransactionUpdate(BaseModel):
     customer_id: Optional[int] = None
     invoice_number: Optional[str] = None
