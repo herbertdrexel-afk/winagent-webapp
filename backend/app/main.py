@@ -12,6 +12,7 @@ from . import models
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
+    debug=True,
     title="WinAgent Webapp API",
     description="Neuentwicklung des Lieferanten-/Provisionsabrechnungssystems "
                  "(ehemals Delphi/dBase) als Web-API.",
