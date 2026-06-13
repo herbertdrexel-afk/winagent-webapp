@@ -96,8 +96,8 @@ def parse_provisionsabrechnung(pdf_bytes: bytes) -> list[dict]:
                 if inv:
                     inv_date = _parse_date(inv.group(1))
                     amount = _parse_num(inv.group(4))
-                    prov_pct = _parse_num(inv.group(6))
-                    provision = _parse_num(inv.group(7))
+                    prov_pct = _parse_num(inv.group(7))
+                    provision = _parse_num(inv.group(8))
 
                     if inv_date and amount is not None:
                         entries.append({
