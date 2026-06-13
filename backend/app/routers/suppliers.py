@@ -1,10 +1,11 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
 from ..database import get_db
+from ..pdf_import_parser import parse_provisionsabrechnung
 
 router = APIRouter(prefix="/suppliers", tags=["suppliers"])
 
@@ -126,3 +127,46 @@ def list_transactions(
         .all()
     )
     return [_tx_to_out(tx) for tx in txs]
+
+
+@router.post("/{code}/transactions/parse-pdf")
+async def parse_pdf(
+    code: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    supplier = db.query(models.Supplier).filter(models.Supplier.code == code.upper()).first()
+    if not supplier:
+        raise HTTPException(404, "Lieferant nicht gefunden")
+
+    pdf_bytes = await file.read()
+    try:
+        entries = parse_provisionsabrechnung(pdf_bytes)
+    except Exception as e:
+        raise HTTPException(400, f"PDF konnte nicht gelesen werden: {e}")
+
+    # For each unique customer name find DB matches
+    name_cache: dict[str, list] = {}
+    for entry in entries:
+        clean = entry["customer_name_clean"]
+        if clean in name_cache:
+            continue
+        if not clean:
+            name_cache[clean] = []
+            continue
+        first_word = clean.split()[0]
+        customers = (
+            db.query(models.Customer)
+            .filter(models.Customer.name.ilike(f"%{first_word}%"))
+            .limit(5)
+            .all()
+        )
+        name_cache[clean] = [
+            {"id": c.id, "code": c.code, "ku_nr": c.ku_nr, "name": c.name, "city": c.city}
+            for c in customers
+        ]
+
+    result = []
+    for entry in entries:
+        result.append({**entry, "customer_suggestions": name_cache[entry["customer_name_clean"]]})
+    return result

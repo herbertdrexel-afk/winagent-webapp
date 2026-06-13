@@ -74,6 +74,19 @@ export interface Transaction {
 
 export type TransactionUpdate = Partial<Omit<Transaction, "id">>;
 
+export interface PdfEntry {
+  customer_name_raw: string;
+  customer_name_clean: string;
+  invoice_date: string;
+  invoice_number: string;
+  art_nr: string;
+  total_amount: number;
+  provision_rate: number;
+  provision_amount: number;
+  currency: string;
+  customer_suggestions: { id: number; code: string; ku_nr?: string; name: string; city?: string }[];
+}
+
 export interface CommissionStatement {
   id: number;
   supplier_id: number;
@@ -132,6 +145,16 @@ export const api = {
     delete: (id: number) =>
       fetch(`${BASE}/suppliers/transactions/${id}`, { method: "DELETE" })
         .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
+    parsePdf: (supplierCode: string, file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      return fetch(`${BASE}/suppliers/${supplierCode}/transactions/parse-pdf`, {
+        method: "POST", body: fd,
+      }).then(async (r) => {
+        if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); }
+        return r.json() as Promise<PdfEntry[]>;
+      });
+    },
   },
   commission: {
     statements: () => get<CommissionStatement[]>("/commission/statements"),

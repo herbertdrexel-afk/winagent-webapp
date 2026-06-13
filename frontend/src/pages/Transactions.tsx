@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type Supplier, type Transaction } from "../api";
 import InvoiceModal from "../components/InvoiceModal";
+import PdfImportModal from "../components/PdfImportModal";
 
 function today() { return new Date().toISOString().slice(0, 10); }
 function yearStart() { return new Date().getFullYear() + "-01-01"; }
@@ -14,6 +15,7 @@ export interface Invoice {
   customer_name?: string;
   currency?: string;
   total_amount: number;
+  provision_amount: number;
   positions: Transaction[];
 }
 
@@ -31,11 +33,15 @@ function groupInvoices(rows: Transaction[]): Invoice[] {
         customer_name: r.customer_name,
         currency: r.currency,
         total_amount: 0,
+        provision_amount: 0,
         positions: [],
       });
     }
     const inv = map.get(key)!;
-    inv.total_amount += parseFloat(r.total_amount as unknown as string);
+    const amount = parseFloat(r.total_amount as unknown as string) || 0;
+    const rate = parseFloat(r.provision_rate as unknown as string) || 0;
+    inv.total_amount += amount;
+    inv.provision_amount += (amount * rate) / 100;
     inv.positions.push(r);
   }
   return Array.from(map.values());
@@ -50,6 +56,7 @@ export default function Transactions() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Invoice | null | undefined>(undefined);
+  const [showPdfImport, setShowPdfImport] = useState(false);
 
   useEffect(() => {
     api.suppliers.list().then((s) => {
@@ -84,21 +91,42 @@ export default function Transactions() {
     setEditing(undefined);
   }
 
+  function handlePdfImported(imported: Transaction[]) {
+    setRows((prev) => {
+      const existingNrs = new Set(imported.map((t) => t.invoice_number));
+      const withoutDupes = prev.filter((r) => !existingNrs.has(r.invoice_number));
+      return [...withoutDupes, ...imported].sort(
+        (a, b) => a.invoice_date.localeCompare(b.invoice_date)
+      );
+    });
+    setShowPdfImport(false);
+  }
+
   const invoices = groupInvoices(rows);
   const total = invoices.reduce((s, i) => s + i.total_amount, 0);
+  const totalProvision = invoices.reduce((s, i) => s + i.provision_amount, 0);
 
   return (
     <>
     <div>
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-semibold text-gray-800">Rechnungen</h1>
-        <button
-          onClick={() => setEditing(null)}
-          disabled={!supplierCode}
-          className="bg-[#1a3a5c] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/80 disabled:opacity-40 transition-colors"
-        >
-          + Neue Rechnung
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowPdfImport(true)}
+            disabled={!supplierCode}
+            className="border border-[#1a3a5c] text-[#1a3a5c] px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/10 disabled:opacity-40 transition-colors"
+          >
+            📄 PDF importieren
+          </button>
+          <button
+            onClick={() => setEditing(null)}
+            disabled={!supplierCode}
+            className="bg-[#1a3a5c] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/80 disabled:opacity-40 transition-colors"
+          >
+            + Neue Rechnung
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4 flex flex-wrap gap-3 items-end">
@@ -136,16 +164,16 @@ export default function Transactions() {
         <table className="w-full text-sm">
           <thead className="bg-[#1a3a5c] text-white">
             <tr>
-              {["Rg-Nr", "Datum", "Kd-Nr", "Kunde", "Pos.", "Währung", "Betrag"].map((h) => (
+              {["Rg-Nr", "Datum", "Kd-Nr", "Kunde", "Pos.", "Währung", "Betrag", "Provision"].map((h) => (
                 <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Lade…</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Lade…</td></tr>
             ) : invoices.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">
                 {supplierCode ? "Keine Rechnungen im Zeitraum" : "Lieferant auswählen"}
               </td></tr>
             ) : invoices.map((inv, i) => (
@@ -166,6 +194,11 @@ export default function Transactions() {
                 <td className="px-4 py-2 text-right font-medium">
                   {inv.total_amount.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
                 </td>
+                <td className="px-4 py-2 text-right text-emerald-700 font-medium">
+                  {inv.provision_amount > 0
+                    ? inv.provision_amount.toLocaleString("de-AT", { minimumFractionDigits: 2 })
+                    : "–"}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -177,6 +210,9 @@ export default function Transactions() {
                 </td>
                 <td className="px-4 py-2 text-right">
                   {total.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
+                </td>
+                <td className="px-4 py-2 text-right text-emerald-700">
+                  {totalProvision.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
                 </td>
               </tr>
             </tfoot>
@@ -192,6 +228,14 @@ export default function Transactions() {
         onClose={() => setEditing(undefined)}
         onSaved={handleSaved}
         onDeleted={handleDeleted}
+      />
+    )}
+
+    {showPdfImport && (
+      <PdfImportModal
+        supplierCode={supplierCode}
+        onClose={() => setShowPdfImport(false)}
+        onImported={handlePdfImported}
       />
     )}
   </>
