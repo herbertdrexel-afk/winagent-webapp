@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type Supplier, type Transaction } from "../api";
 import InvoiceModal from "../components/InvoiceModal";
 import PdfImportModal from "../components/PdfImportModal";
+import CommissionInvoiceModal from "../components/CommissionInvoiceModal";
 
 function today() { return new Date().toISOString().slice(0, 10); }
 function yearStart() { return new Date().getFullYear() + "-01-01"; }
@@ -16,6 +17,7 @@ export interface Invoice {
   currency?: string;
   total_amount: number;
   provision_amount: number;
+  provision_rate: number | null;
   positions: Transaction[];
 }
 
@@ -34,6 +36,7 @@ function groupInvoices(rows: Transaction[]): Invoice[] {
         currency: r.currency,
         total_amount: 0,
         provision_amount: 0,
+        provision_rate: null,
         positions: [],
       });
     }
@@ -43,6 +46,12 @@ function groupInvoices(rows: Transaction[]): Invoice[] {
     inv.total_amount += amount;
     inv.provision_amount += (amount * rate) / 100;
     inv.positions.push(r);
+  }
+  // Derive effective rate after grouping
+  for (const inv of map.values()) {
+    if (inv.total_amount !== 0) {
+      inv.provision_rate = (inv.provision_amount / inv.total_amount) * 100;
+    }
   }
   return Array.from(map.values());
 }
@@ -57,6 +66,7 @@ export default function Transactions() {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Invoice | null | undefined>(undefined);
   const [showPdfImport, setShowPdfImport] = useState(false);
+  const [showCommissionInvoice, setShowCommissionInvoice] = useState(false);
 
   useEffect(() => {
     api.suppliers.list().then((s) => {
@@ -113,6 +123,13 @@ export default function Transactions() {
         <h1 className="text-2xl font-semibold text-gray-800">Rechnungen</h1>
         <div className="flex gap-2">
           <button
+            onClick={() => setShowCommissionInvoice(true)}
+            disabled={!supplierCode || invoices.length === 0}
+            className="border border-emerald-600 text-emerald-700 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-emerald-50 disabled:opacity-40 transition-colors"
+          >
+            🧾 Provisionsrechnung
+          </button>
+          <button
             onClick={() => setShowPdfImport(true)}
             disabled={!supplierCode}
             className="border border-[#1a3a5c] text-[#1a3a5c] px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/10 disabled:opacity-40 transition-colors"
@@ -164,16 +181,16 @@ export default function Transactions() {
         <table className="w-full text-sm">
           <thead className="bg-[#1a3a5c] text-white">
             <tr>
-              {["Rg-Nr", "Datum", "Kd-Nr", "Kunde", "Pos.", "Währung", "Betrag", "Provision"].map((h) => (
+              {["Rg-Nr", "Datum", "Kd-Nr", "Kunde", "Pos.", "Währung", "Betrag", "Prov. %", "Provision"].map((h) => (
                 <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Lade…</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Lade…</td></tr>
             ) : invoices.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">
                 {supplierCode ? "Keine Rechnungen im Zeitraum" : "Lieferant auswählen"}
               </td></tr>
             ) : invoices.map((inv, i) => (
@@ -194,6 +211,11 @@ export default function Transactions() {
                 <td className="px-4 py-2 text-right font-medium">
                   {inv.total_amount.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
                 </td>
+                <td className="px-4 py-2 text-right text-gray-500">
+                  {inv.provision_rate != null && inv.provision_rate > 0
+                    ? `${inv.provision_rate.toLocaleString("de-AT", { minimumFractionDigits: 2 })} %`
+                    : "–"}
+                </td>
                 <td className="px-4 py-2 text-right text-emerald-700 font-medium">
                   {inv.provision_amount > 0
                     ? inv.provision_amount.toLocaleString("de-AT", { minimumFractionDigits: 2 })
@@ -211,6 +233,7 @@ export default function Transactions() {
                 <td className="px-4 py-2 text-right">
                   {total.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
                 </td>
+                <td></td>
                 <td className="px-4 py-2 text-right text-emerald-700">
                   {totalProvision.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
                 </td>
@@ -228,6 +251,15 @@ export default function Transactions() {
         onClose={() => setEditing(undefined)}
         onSaved={handleSaved}
         onDeleted={handleDeleted}
+      />
+    )}
+
+    {showCommissionInvoice && (
+      <CommissionInvoiceModal
+        supplierCode={supplierCode}
+        periodFrom={from}
+        periodTo={to}
+        onClose={() => setShowCommissionInvoice(false)}
       />
     )}
 

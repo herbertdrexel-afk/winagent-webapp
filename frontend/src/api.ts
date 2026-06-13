@@ -163,5 +163,18 @@ export const api = {
     issue: (id: number) =>
       post<CommissionStatement>(`/commission/statements/${id}/issue`, {}),
     pdfUrl: (id: number) => `${BASE}/commission/statements/${id}/pdf`,
+    invoiceSummary: (supplierCode: string, from: string, to: string) =>
+      get<InvoiceSummary>(`/commission/${supplierCode}/invoice-summary?period_from=${from}&period_to=${to}`),
+    invoicePdfUrl: (supplierCode: string) => `${BASE}/commission/${supplierCode}/invoice-pdf`,
+    ubwExportUrl: (supplierCode: string) => `${BASE}/commission/${supplierCode}/ubw-export`,
   },
 };
+
+export interface InvoiceSummary {
+  supplier_code: string;
+  supplier_name: string;
+  period_from: string;
+  period_to: string;
+  next_pr_seq: number;
+  totals: { currency: string; total_amount: number; provision_amount: number }[];
+}

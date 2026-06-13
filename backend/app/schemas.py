@@ -194,3 +194,11 @@ class CommissionStatementOut(BaseModel):
 
 class CommissionStatementIssue(BaseModel):
     statement_date: Optional[date] = None  # default: heute
+
+
+class CommissionInvoiceCreate(BaseModel):
+    invoice_date: date
+    period_from: date
+    period_to: date
+    pr_seq: int
+    totals: list[dict]  # [{"currency": "EUR", "provision_amount": 1234.56, ...}]

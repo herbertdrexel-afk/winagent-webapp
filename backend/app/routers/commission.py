@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..pdf_commission import build_pdf
+from ..pdf_invoice import generate_invoice_pdf
+from ..dbf_writer import write_hdubw_dbf
 
 router = APIRouter(prefix="/commission", tags=["commission"])
 
@@ -150,6 +152,146 @@ def get_statement(statement_id: int, db: Session = Depends(get_db)):
     if not statement:
         raise HTTPException(404, "Abrechnung nicht gefunden")
     return statement
+
+
+@router.get("/{supplier_code}/invoice-summary")
+def invoice_summary(
+    supplier_code: str,
+    period_from: date,
+    period_to: date,
+    db: Session = Depends(get_db),
+):
+    """Provision totals per currency for the given period — used by invoice modal."""
+    supplier = _get_supplier(db, supplier_code)
+    rows = (
+        db.query(
+            models.Transaction.currency,
+            func.sum(models.Transaction.total_amount).label("total_amount"),
+            func.sum(
+                models.Transaction.total_amount * func.coalesce(models.Transaction.provision_rate, 0) / 100
+            ).label("provision_amount"),
+        )
+        .filter(
+            models.Transaction.supplier_id == supplier.id,
+            models.Transaction.invoice_date >= period_from,
+            models.Transaction.invoice_date <= period_to,
+        )
+        .group_by(models.Transaction.currency)
+        .all()
+    )
+
+    # Next PR number from app_settings
+    setting = db.get(models.AppSetting, "commission_statement_number")
+    year_suffix = date.today().strftime("%y")
+    if setting:
+        val = dict(setting.value)
+        if str(val.get("year")) == year_suffix:
+            next_seq = val.get("next_seq", 1)
+        else:
+            next_seq = 1
+    else:
+        next_seq = 174  # fallback based on HDUBW history
+
+    return {
+        "supplier_code": supplier.code,
+        "supplier_name": supplier.name,
+        "period_from": period_from.isoformat(),
+        "period_to": period_to.isoformat(),
+        "next_pr_seq": next_seq,
+        "totals": [
+            {
+                "currency": r.currency or "EUR",
+                "total_amount": float(r.total_amount or 0),
+                "provision_amount": float(r.provision_amount or 0),
+            }
+            for r in rows if (r.provision_amount or 0) != 0
+        ],
+    }
+
+
+@router.post("/{supplier_code}/invoice-pdf")
+def create_invoice_pdf(
+    supplier_code: str,
+    payload: schemas.CommissionInvoiceCreate,
+    db: Session = Depends(get_db),
+):
+    """Generate PR invoice PDF and save statement_number to DB."""
+    supplier = _get_supplier(db, supplier_code)
+
+    # Save PR numbers to app_settings
+    year_suffix = payload.invoice_date.strftime("%y")
+    setting = db.get(models.AppSetting, "commission_statement_number")
+    if setting is None:
+        setting = models.AppSetting(
+            key="commission_statement_number",
+            value={"prefix": "PR", "year": int(year_suffix), "next_seq": payload.pr_seq + len(payload.totals)},
+        )
+        db.add(setting)
+    else:
+        val = dict(setting.value)
+        val["year"] = int(year_suffix)
+        val["next_seq"] = payload.pr_seq + len(payload.totals)
+        setting.value = val
+    db.commit()
+
+    address_lines = []
+    if supplier.address:
+        address_lines.append(supplier.address)
+
+    pdf_bytes = generate_invoice_pdf(
+        pr_number=f"PR{year_suffix}-{payload.pr_seq:04d}",
+        invoice_date=payload.invoice_date,
+        supplier_name=supplier.name,
+        supplier_address=address_lines,
+        period_from=payload.period_from,
+        period_to=payload.period_to,
+        totals=[{"currency": t["currency"], "amount": t["provision_amount"]} for t in payload.totals],
+    )
+    pr_label = f"PR{year_suffix}-{payload.pr_seq:04d}"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{pr_label}.pdf"'},
+    )
+
+
+@router.post("/{supplier_code}/ubw-export")
+def ubw_export(
+    supplier_code: str,
+    payload: schemas.CommissionInvoiceCreate,
+    db: Session = Depends(get_db),
+):
+    """Generate HDUBW.DBF rows for the given period as a downloadable DBF file."""
+    supplier = _get_supplier(db, supplier_code)
+    year_suffix = payload.invoice_date.strftime("%y")
+    period_text = f"Provision {payload.period_from.strftime('%m')}-{payload.period_to.strftime('%m/%y')}"
+
+    records = []
+    for i, t in enumerate(payload.totals):
+        pr_nr = f"PR{year_suffix}-{payload.pr_seq + i:04d}"
+        records.append({
+            "BANK_EIGEN": "",
+            "F_CODE": supplier.code,
+            "UBW_DATUM": payload.invoice_date,
+            "BETRAG": round(t["provision_amount"], 2),
+            "WAEHRUNG": t["currency"],
+            "NAME_KUNDE": supplier.name[:30],
+            "CODE": "NA",
+            "TEXT1": period_text[:30],
+            "TEXT2": supplier.name[:30],
+            "VON_DATUM": payload.period_from,
+            "BIS_DATUM": payload.period_to,
+            "VALUTASOLL": None,
+            "SELECTED": "",
+            "RE_NUMMER": pr_nr,
+        })
+
+    dbf_bytes = write_hdubw_dbf(records)
+    return Response(
+        content=dbf_bytes,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": 'attachment; filename="HDUBW_new.DBF"'},
+    )
 
 
 @router.post("/statements/{statement_id}/issue", response_model=schemas.CommissionStatementOut)
