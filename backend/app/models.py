@@ -110,17 +110,6 @@ class ExchangeRate(Base):
     rate = Column(Numeric(12, 5), nullable=False)
 
 
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True)
-    login_name = Column(String(20), unique=True, nullable=False)
-    full_name = Column(String(60))
-    password_hash = Column(String(255))
-    rep_code = Column(String(2))
-    is_enabled = Column(Boolean, default=True)
-    last_login = Column(DateTime)
-
-
 class Transaction(Base):
     __tablename__ = "transactions"
     id = Column(BigInteger, primary_key=True)
