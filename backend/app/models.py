@@ -195,6 +195,25 @@ class CommissionStatementItem(Base):
     customer = relationship("Customer")
 
 
+class CommissionInvoice(Base):
+    __tablename__ = "commission_invoices"
+    id = Column(Integer, primary_key=True)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=False)
+    pr_number = Column(String(15), unique=True, nullable=False)
+    invoice_date = Column(Date, nullable=False)
+    description = Column(String(60))
+    currency = Column(String(3), nullable=False)
+    amount = Column(Numeric(13, 2), nullable=False)
+    total_amount = Column(Numeric(13, 2))
+    period_from = Column(Date, nullable=False)
+    period_to = Column(Date, nullable=False)
+    v_code = Column(String(5), default="NA")
+    notes = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    supplier = relationship("Supplier")
+
+
 class AppSetting(Base):
     __tablename__ = "app_settings"
     key = Column(String(50), primary_key=True)

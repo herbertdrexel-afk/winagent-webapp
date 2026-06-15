@@ -208,6 +208,18 @@ export const api = {
       get<InvoiceSummary>(`/commission/${supplierCode}/invoice-summary?period_from=${from}&period_to=${to}`),
     invoicePdfUrl: (supplierCode: string) => `${BASE}/commission/${supplierCode}/invoice-pdf`,
     ubwExportUrl: (supplierCode: string) => `${BASE}/commission/${supplierCode}/ubw-export`,
+    invoices: (supplierCode?: string) =>
+      get<CommissionInvoiceRecord[]>(`/commission/invoices${supplierCode ? `?supplier_code=${supplierCode}` : ""}`),
+    updateInvoice: (id: number, data: Partial<CommissionInvoiceRecord>) =>
+      fetch(`${BASE}/commission/invoices/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(data),
+      }).then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json() as Promise<CommissionInvoiceRecord>; }),
+    deleteInvoice: (id: number) =>
+      fetch(`${BASE}/commission/invoices/${id}`, { method: "DELETE", headers: authHeaders() })
+        .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
+    reprintPdfUrl: (id: number) => `${BASE}/commission/invoices/${id}/pdf`,
   },
 };
 
@@ -218,4 +230,21 @@ export interface InvoiceSummary {
   period_to: string;
   next_pr_seq: number;
   totals: { currency: string; total_amount: number; provision_amount: number }[];
+}
+
+export interface CommissionInvoiceRecord {
+  id: number;
+  supplier_id: number;
+  supplier_code?: string;
+  supplier_name?: string;
+  pr_number: string;
+  invoice_date: string;
+  description?: string;
+  currency: string;
+  amount: number;
+  total_amount?: number;
+  period_from: string;
+  period_to: string;
+  v_code?: string;
+  notes?: string;
 }

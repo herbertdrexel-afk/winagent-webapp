@@ -202,3 +202,33 @@ class CommissionInvoiceCreate(BaseModel):
     period_to: date
     pr_seq: int
     totals: list[dict]  # [{"currency": "EUR", "provision_amount": 1234.56, ...}]
+
+
+class CommissionInvoiceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    supplier_id: int
+    supplier_code: Optional[str] = None
+    supplier_name: Optional[str] = None
+    pr_number: str
+    invoice_date: date
+    description: Optional[str] = None
+    currency: str
+    amount: Decimal
+    total_amount: Optional[Decimal] = None
+    period_from: date
+    period_to: date
+    v_code: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CommissionInvoiceUpdate(BaseModel):
+    invoice_date: Optional[date] = None
+    description: Optional[str] = None
+    currency: Optional[str] = None
+    amount: Optional[Decimal] = None
+    total_amount: Optional[Decimal] = None
+    period_from: Optional[date] = None
+    period_to: Optional[date] = None
+    v_code: Optional[str] = None
+    notes: Optional[str] = None

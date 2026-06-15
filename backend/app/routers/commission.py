@@ -238,6 +238,26 @@ def create_invoice_pdf(
     if supplier.address:
         address_lines.append(supplier.address)
 
+    # Save each PR entry to commission_invoices (skip if already exists)
+    period_text = f"Provision {payload.period_from.strftime('%m')}-{payload.period_to.strftime('%m/%y')}"
+    for i, t in enumerate(payload.totals):
+        pr_nr = f"PR{year_suffix}-{payload.pr_seq + i:04d}"
+        existing = db.query(models.CommissionInvoice).filter_by(pr_number=pr_nr).first()
+        if not existing:
+            db.add(models.CommissionInvoice(
+                supplier_id=supplier.id,
+                pr_number=pr_nr,
+                invoice_date=payload.invoice_date,
+                description=period_text,
+                currency=t["currency"],
+                amount=round(t["provision_amount"], 2),
+                total_amount=round(t.get("total_amount", 0), 2),
+                period_from=payload.period_from,
+                period_to=payload.period_to,
+                v_code="NA",
+            ))
+    db.commit()
+
     pdf_bytes = generate_invoice_pdf(
         pr_number=f"PR{year_suffix}-{payload.pr_seq:04d}",
         invoice_date=payload.invoice_date,
@@ -291,6 +311,78 @@ def ubw_export(
         content=dbf_bytes,
         media_type="application/octet-stream",
         headers={"Content-Disposition": 'attachment; filename="HDUBW_new.DBF"'},
+    )
+
+
+@router.get("/invoices", response_model=list[schemas.CommissionInvoiceOut])
+def list_commission_invoices(supplier_code: str | None = None, db: Session = Depends(get_db)):
+    q = (
+        db.query(models.CommissionInvoice)
+        .join(models.Supplier)
+        .order_by(models.CommissionInvoice.id.desc())
+    )
+    if supplier_code:
+        supplier = _get_supplier(db, supplier_code)
+        q = q.filter(models.CommissionInvoice.supplier_id == supplier.id)
+    rows = q.all()
+    result = []
+    for inv in rows:
+        out = schemas.CommissionInvoiceOut.model_validate(inv)
+        out.supplier_code = inv.supplier.code
+        out.supplier_name = inv.supplier.name
+        result.append(out)
+    return result
+
+
+@router.patch("/invoices/{inv_id}", response_model=schemas.CommissionInvoiceOut)
+def update_commission_invoice(
+    inv_id: int,
+    payload: schemas.CommissionInvoiceUpdate,
+    db: Session = Depends(get_db),
+):
+    inv = db.get(models.CommissionInvoice, inv_id)
+    if not inv:
+        raise HTTPException(404, "Rechnung nicht gefunden")
+    for k, v in payload.model_dump(exclude_none=True).items():
+        setattr(inv, k, v)
+    db.commit()
+    db.refresh(inv)
+    out = schemas.CommissionInvoiceOut.model_validate(inv)
+    out.supplier_code = inv.supplier.code
+    out.supplier_name = inv.supplier.name
+    return out
+
+
+@router.delete("/invoices/{inv_id}")
+def delete_commission_invoice(inv_id: int, db: Session = Depends(get_db)):
+    inv = db.get(models.CommissionInvoice, inv_id)
+    if not inv:
+        raise HTTPException(404, "Rechnung nicht gefunden")
+    db.delete(inv)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/invoices/{inv_id}/pdf")
+def reprint_commission_invoice_pdf(inv_id: int, db: Session = Depends(get_db)):
+    inv = db.get(models.CommissionInvoice, inv_id)
+    if not inv:
+        raise HTTPException(404, "Rechnung nicht gefunden")
+    supplier = db.get(models.Supplier, inv.supplier_id)
+    address_lines = [supplier.address] if supplier.address else []
+    pdf_bytes = generate_invoice_pdf(
+        pr_number=inv.pr_number,
+        invoice_date=inv.invoice_date,
+        supplier_name=supplier.name,
+        supplier_address=address_lines,
+        period_from=inv.period_from,
+        period_to=inv.period_to,
+        totals=[{"currency": inv.currency, "amount": float(inv.amount)}],
+    )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{inv.pr_number}.pdf"'},
     )
 
 
