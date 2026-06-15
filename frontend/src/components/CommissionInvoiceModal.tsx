@@ -29,6 +29,20 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
 
   async function download(type: "pdf" | "dbf") {
     if (!summary) return;
+    if (type === "pdf") {
+      const year = new Date(invoiceDate).getFullYear() % 100;
+      const prNrs = summary.totals.map((_, i) =>
+        `PR${String(year).padStart(2, "0")}-${String(prSeq + i).padStart(4, "0")}`
+      ).join(", ");
+      const confirmed = confirm(
+        `Provisionsrechnung erstellen und speichern?\n\n` +
+        `Lieferant: ${summary.supplier_name}\n` +
+        `Zeitraum: ${summary.period_from} bis ${summary.period_to}\n` +
+        `PR-Nummer(n): ${prNrs}\n\n` +
+        `Die Rechnung wird unter "Provisionsrechnungen" gespeichert.`
+      );
+      if (!confirmed) return;
+    }
     setDownloading(type);
     setError(null);
     const year = new Date(invoiceDate).getFullYear() % 100;
