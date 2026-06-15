@@ -3,7 +3,6 @@ import Layout from "./components/Layout";
 import Suppliers from "./pages/Suppliers";
 import Customers from "./pages/Customers";
 import Transactions from "./pages/Transactions";
-import Commission from "./pages/Commission";
 import CommissionInvoices from "./pages/CommissionInvoices";
 import UserManagement from "./pages/UserManagement";
 import Login from "./pages/Login";
@@ -24,7 +23,6 @@ function ProtectedRoutes() {
         <Route path="suppliers"    element={<Suppliers />} />
         <Route path="customers"    element={<Customers />} />
         <Route path="transactions" element={<Transactions />} />
-        <Route path="commission"          element={<Commission />} />
         <Route path="commission-invoices" element={<CommissionInvoices />} />
         {user.role === "admin" && (
           <Route path="users" element={<UserManagement />} />

@@ -147,10 +147,6 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
                   className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#1a3a5c] text-white hover:bg-[#1a3a5c]/80 disabled:opacity-50">
                   {downloading === "pdf" ? "Generiere…" : "📄 Rechnung PDF"}
                 </button>
-                <button onClick={() => download("dbf")} disabled={!!downloading}
-                  className="flex-1 py-2.5 rounded-lg text-sm font-medium border border-[#1a3a5c] text-[#1a3a5c] hover:bg-[#1a3a5c]/10 disabled:opacity-50">
-                  {downloading === "dbf" ? "Exportiere…" : "💾 HDUBW exportieren"}
-                </button>
               </div>
               <p className="text-xs text-gray-400 text-center">
                 HDUBW_new.DBF in dein HDAGENTA-Verzeichnis kopieren und mit bestehender HDUBW.DBF zusammenführen

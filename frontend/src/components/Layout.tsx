@@ -5,7 +5,6 @@ const NAV = [
   { to: "/suppliers",            label: "Lieferanten" },
   { to: "/customers",            label: "Kunden" },
   { to: "/transactions",         label: "Rechnungen" },
-  { to: "/commission",           label: "Provisionsabrechnungen" },
   { to: "/commission-invoices",  label: "Provisionsrechnungen" },
 ];
 
