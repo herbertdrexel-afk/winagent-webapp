@@ -115,11 +115,13 @@ export default function Transactions() {
   const invoices = groupInvoices(rows);
 
   // Totals per currency
-  const totalsByCurrency = invoices.reduce<Record<string, { amount: number; provision: number }>>((acc, inv) => {
+  const totalsByCurrency = invoices.reduce<Record<string, { amount: number; provision: number; invoices: number; positions: number }>>((acc, inv) => {
     const cur = inv.currency ?? "–";
-    if (!acc[cur]) acc[cur] = { amount: 0, provision: 0 };
+    if (!acc[cur]) acc[cur] = { amount: 0, provision: 0, invoices: 0, positions: 0 };
     acc[cur].amount += inv.total_amount;
     acc[cur].provision += inv.provision_amount;
+    acc[cur].invoices += 1;
+    acc[cur].positions += inv.positions.length;
     return acc;
   }, {});
   const currencyTotals = Object.entries(totalsByCurrency).sort(([a], [b]) => a.localeCompare(b));
@@ -237,7 +239,7 @@ export default function Transactions() {
               {currencyTotals.map(([cur, t], idx) => (
                 <tr key={cur} className={`${idx === 0 ? "border-t-2 border-[#1a3a5c]" : "border-t border-gray-200"} bg-gray-50 font-semibold`}>
                   <td colSpan={5} className="px-4 py-2">
-                    {idx === 0 ? `Gesamt (${invoices.length} Rechnungen, ${rows.length} Positionen)` : ""}
+                    {`Gesamt (${t.invoices} Rechnungen, ${t.positions} Positionen)`}
                   </td>
                   <td className="px-4 py-2 text-gray-600">{cur}</td>
                   <td className="px-4 py-2 text-right">
