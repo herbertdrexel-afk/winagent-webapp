@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type InvoiceSummary } from "../api";
+import { api, token, type InvoiceSummary } from "../api";
 
 interface Props {
   supplierCode: string;
@@ -46,7 +46,7 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token.get() ? { Authorization: `Bearer ${token.get()}` } : {}) },
         body: JSON.stringify(payload),
       });
       if (!res.ok) { const e = await res.json(); throw new Error(e.detail ?? res.statusText); }
