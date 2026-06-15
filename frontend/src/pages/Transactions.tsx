@@ -113,8 +113,16 @@ export default function Transactions() {
   }
 
   const invoices = groupInvoices(rows);
-  const total = invoices.reduce((s, i) => s + i.total_amount, 0);
-  const totalProvision = invoices.reduce((s, i) => s + i.provision_amount, 0);
+
+  // Totals per currency
+  const totalsByCurrency = invoices.reduce<Record<string, { amount: number; provision: number }>>((acc, inv) => {
+    const cur = inv.currency ?? "–";
+    if (!acc[cur]) acc[cur] = { amount: 0, provision: 0 };
+    acc[cur].amount += inv.total_amount;
+    acc[cur].provision += inv.provision_amount;
+    return acc;
+  }, {});
+  const currencyTotals = Object.entries(totalsByCurrency).sort(([a], [b]) => a.localeCompare(b));
 
   return (
     <>
@@ -226,18 +234,21 @@ export default function Transactions() {
           </tbody>
           {invoices.length > 0 && (
             <tfoot>
-              <tr className="border-t-2 border-[#1a3a5c] bg-gray-50 font-semibold">
-                <td colSpan={6} className="px-4 py-2">
-                  Gesamt ({invoices.length} Rechnungen, {rows.length} Positionen)
-                </td>
-                <td className="px-4 py-2 text-right">
-                  {total.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
-                </td>
-                <td></td>
-                <td className="px-4 py-2 text-right text-emerald-700">
-                  {totalProvision.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
-                </td>
-              </tr>
+              {currencyTotals.map(([cur, t], idx) => (
+                <tr key={cur} className={`${idx === 0 ? "border-t-2 border-[#1a3a5c]" : "border-t border-gray-200"} bg-gray-50 font-semibold`}>
+                  <td colSpan={5} className="px-4 py-2">
+                    {idx === 0 ? `Gesamt (${invoices.length} Rechnungen, ${rows.length} Positionen)` : ""}
+                  </td>
+                  <td className="px-4 py-2 text-gray-600">{cur}</td>
+                  <td className="px-4 py-2 text-right">
+                    {t.amount.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
+                  </td>
+                  <td></td>
+                  <td className="px-4 py-2 text-right text-emerald-700">
+                    {t.provision.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
+                  </td>
+                </tr>
+              ))}
             </tfoot>
           )}
         </table>
