@@ -112,7 +112,7 @@ export default function SupplierEditModal({ supplier, onClose, onSaved }: Props)
                   placeholder="z.B. AM"
                 />
               ) : (
-                <div className="px-3 py-2 bg-gray-100 rounded-lg text-sm font-mono font-semibold text-[#1a3a5c]">
+                <div className="px-3 py-2 bg-gray-100 rounded-lg text-sm font-mono font-semibold text-[#2563eb]">
                   {supplier!.code}
                   <span className="ml-2 text-xs text-gray-400 font-normal font-sans">(nicht änderbar)</span>
                 </div>
@@ -163,7 +163,7 @@ export default function SupplierEditModal({ supplier, onClose, onSaved }: Props)
           <div className="flex items-center gap-3">
             <input type="checkbox" id="is_active" checked={form.is_active}
               onChange={(e) => set("is_active", e.target.checked)}
-              className="w-4 h-4 accent-[#1a3a5c]" />
+              className="w-4 h-4 accent-[#2563eb]" />
             <label htmlFor="is_active" className="text-sm text-gray-700">Aktiv</label>
           </div>
 
@@ -179,7 +179,7 @@ export default function SupplierEditModal({ supplier, onClose, onSaved }: Props)
               Abbrechen
             </button>
             <button type="submit" disabled={saving}
-              className="px-5 py-2 rounded-lg text-sm font-medium bg-[#1a3a5c] text-white hover:bg-[#1a3a5c]/80 disabled:opacity-50">
+              className="px-5 py-2 rounded-lg text-sm font-medium bg-[#2563eb] text-white hover:bg-[#2563eb]/80 disabled:opacity-50">
               {saving ? "Speichert…" : isNew ? "Anlegen" : "Speichern"}
             </button>
           </div>
@@ -189,4 +189,4 @@ export default function SupplierEditModal({ supplier, onClose, onSaved }: Props)
   );
 }
 
-const inputCls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30";
+const inputCls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30";

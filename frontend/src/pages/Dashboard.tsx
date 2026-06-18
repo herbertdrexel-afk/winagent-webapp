@@ -115,16 +115,16 @@ export default function Dashboard() {
       {/* Statistics preview */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100">
-          <BarChart2 size={17} className="text-[#1a3a5c]" />
+          <BarChart2 size={17} className="text-[#2563eb]" />
           <h2 className="font-semibold text-gray-800">Lieferanten Statistik</h2>
           <span className="text-xs text-gray-400 ml-1">
             {yearStart().slice(0, 7).replace("-", "/")} – {today().slice(0, 7).replace("-", "/")}
           </span>
           <div className="ml-auto flex gap-2">
             <button onClick={() => navigate("/stats")}
-              className="text-xs text-[#1a3a5c] hover:underline">Details →</button>
+              className="text-xs text-[#2563eb] hover:underline">Details →</button>
             <button onClick={downloadPdf} disabled={downloading || !stats}
-              className="flex items-center gap-1 text-xs border border-[#1a3a5c]/30 text-[#1a3a5c] px-2 py-1 rounded hover:bg-[#1a3a5c]/5 disabled:opacity-40">
+              className="flex items-center gap-1 text-xs border border-[#2563eb]/30 text-[#2563eb] px-2 py-1 rounded hover:bg-[#2563eb]/5 disabled:opacity-40">
               <FileDown size={12} />
               {downloading ? "…" : "PDF"}
             </button>
@@ -133,7 +133,7 @@ export default function Dashboard() {
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-[#1a3a5c] text-white text-xs">
+            <thead className="bg-[#2563eb] text-white text-xs">
               <tr>
                 <th className="px-4 py-2 text-left font-medium">Lieferant</th>
                 <th className="px-3 py-2 text-right font-medium">Umsatz Vorjahr</th>
@@ -167,7 +167,7 @@ export default function Dashboard() {
             </tbody>
             {totals && (
               <tfoot>
-                <tr className="border-t-2 border-[#1a3a5c] bg-[#f0f5fb] font-semibold text-sm">
+                <tr className="border-t-2 border-[#2563eb] bg-[#f0f5fb] font-semibold text-sm">
                   <td className="px-4 py-2">Gesamt</td>
                   <td className="px-3 py-2 text-right text-gray-600">{fmt(totals.pt)}</td>
                   <td className="px-3 py-2 text-right">{fmt(totals.ct)}</td>
@@ -188,10 +188,10 @@ export default function Dashboard() {
 
       {/* Reybex Sync — compact */}
       <div className="bg-white rounded-xl border border-gray-200 px-5 py-3 flex items-center gap-4 flex-wrap">
-        <RefreshCw size={16} className="text-[#1a3a5c] shrink-0" />
+        <RefreshCw size={16} className="text-[#2563eb] shrink-0" />
         <span className="font-medium text-sm text-gray-700">Reybex Kunden-Sync</span>
         <button onClick={runSync} disabled={syncing}
-          className="flex items-center gap-1.5 border border-[#1a3a5c] text-[#1a3a5c] px-3 py-1 rounded-lg text-xs font-medium hover:bg-[#1a3a5c]/5 disabled:opacity-50 transition-colors">
+          className="flex items-center gap-1.5 border border-[#2563eb] text-[#2563eb] px-3 py-1 rounded-lg text-xs font-medium hover:bg-[#2563eb]/5 disabled:opacity-50 transition-colors">
           <RefreshCw size={12} className={syncing ? "animate-spin" : ""} />
           {syncing ? "Synchronisiere…" : "Jetzt synchronisieren"}
         </button>

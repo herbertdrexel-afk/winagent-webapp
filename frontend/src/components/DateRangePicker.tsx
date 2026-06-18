@@ -71,8 +71,8 @@ function CalendarMonth({ year, month, from, to, hovered, onDay, onHover }: {
               onClick={() => onDay(d)}
               onMouseEnter={() => onHover(d)}
               className={`text-center py-0.5 text-xs rounded transition-colors
-                ${isEdge ? "bg-[#1a3a5c] text-white font-semibold" :
-                  inRange ? "bg-[#1a3a5c]/15 text-[#1a3a5c]" :
+                ${isEdge ? "bg-[#2563eb] text-white font-semibold" :
+                  inRange ? "bg-[#2563eb]/15 text-[#2563eb]" :
                   "hover:bg-gray-100 text-gray-700"}`}>
               {parseInt(d.slice(8))}
             </button>
@@ -129,8 +129,8 @@ export default function DateRangePicker({ from, to, onChange }: Props) {
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white hover:border-[#1a3a5c] focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30 transition-colors min-w-[220px]">
-        <CalendarDays size={14} className="text-[#1a3a5c] shrink-0" />
+        className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white hover:border-[#2563eb] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30 transition-colors min-w-[220px]">
+        <CalendarDays size={14} className="text-[#2563eb] shrink-0" />
         <span className="flex-1 text-left text-gray-700">{label}</span>
       </button>
 
@@ -141,7 +141,7 @@ export default function DateRangePicker({ from, to, onChange }: Props) {
           <div className="border-r border-gray-100 py-3 px-2 flex flex-col gap-0.5 min-w-[150px]">
             {PRESETS.map(p => (
               <button key={p.label} onClick={() => handlePreset(p.get)}
-                className="text-left text-sm px-3 py-1 rounded-lg hover:bg-[#1a3a5c]/10 hover:text-[#1a3a5c] text-gray-600 transition-colors whitespace-nowrap">
+                className="text-left text-sm px-3 py-1 rounded-lg hover:bg-[#2563eb]/10 hover:text-[#2563eb] text-gray-600 transition-colors whitespace-nowrap">
                 {p.label}
               </button>
             ))}

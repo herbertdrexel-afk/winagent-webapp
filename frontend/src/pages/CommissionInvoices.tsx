@@ -110,7 +110,7 @@ export default function CommissionInvoices() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-semibold text-gray-800">Provisionsrechnungen</h1>
-        <button onClick={load} className="border border-[#1a3a5c] text-[#1a3a5c] px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/10 transition-colors">
+        <button onClick={load} className="border border-[#2563eb] text-[#2563eb] px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/10 transition-colors">
           Aktualisieren
         </button>
       </div>
@@ -119,7 +119,7 @@ export default function CommissionInvoices() {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-[#1a3a5c] text-white">
+          <thead className="bg-[#2563eb] text-white">
             <tr>
               {["Firma / Name", "Code", "Re.Num.", "Datum", "Bezeichnung", "Wä.", "zu Überweisen", "Zeitraum von", "bis", "V.", ""].map((h) => (
                 <th key={h} className="px-3 py-3 text-left font-medium whitespace-nowrap">{h}</th>
@@ -135,11 +135,11 @@ export default function CommissionInvoices() {
               </td></tr>
             ) : rows.map((r, i) => (
               <tr key={r.id}
-                className={(i % 2 === 0 ? "bg-white" : "bg-[#dce8f5]/40") + " hover:bg-[#1a3a5c]/10 transition-colors"}
+                className={(i % 2 === 0 ? "bg-white" : "bg-[#dce8f5]/40") + " hover:bg-[#2563eb]/10 transition-colors"}
               >
                 <td className="px-3 py-2 font-medium">{r.supplier_name ?? "–"}</td>
                 <td className="px-3 py-2 text-gray-600 font-mono text-xs">{r.supplier_code ?? "–"}</td>
-                <td className="px-3 py-2 font-mono text-xs text-[#1a3a5c] font-semibold">{r.pr_number}</td>
+                <td className="px-3 py-2 font-mono text-xs text-[#2563eb] font-semibold">{r.pr_number}</td>
                 <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{r.invoice_date}</td>
                 <td className="px-3 py-2 text-gray-700">{r.description ?? "–"}</td>
                 <td className="px-3 py-2 text-gray-600">{r.currency}</td>
@@ -152,7 +152,7 @@ export default function CommissionInvoices() {
                     <button
                       onClick={() => reprintPdf(r.id, r.pr_number)}
                       title="PDF drucken"
-                      className="text-[#1a3a5c] hover:text-[#1a3a5c]/70 px-1.5 py-0.5 rounded text-xs border border-[#1a3a5c]/30 hover:bg-[#1a3a5c]/10"
+                      className="text-[#2563eb] hover:text-[#2563eb]/70 px-1.5 py-0.5 rounded text-xs border border-[#2563eb]/30 hover:bg-[#2563eb]/10"
                     >
                       PDF
                     </button>
@@ -193,46 +193,46 @@ export default function CommissionInvoices() {
                   <label className="block text-xs font-medium text-gray-500 mb-1">Rechnungsdatum</label>
                   <input type="date" value={editing.invoice_date}
                     onChange={(e) => setEditing({ ...editing, invoice_date: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">V-Code</label>
                   <input type="text" value={editing.v_code}
                     onChange={(e) => setEditing({ ...editing, v_code: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Bezeichnung</label>
                 <input type="text" value={editing.description}
                   onChange={(e) => setEditing({ ...editing, description: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Betrag (zu überweisen)</label>
                 <input type="number" step="0.01" value={editing.amount}
                   onChange={(e) => setEditing({ ...editing, amount: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Zeitraum von</label>
                   <input type="date" value={editing.period_from}
                     onChange={(e) => setEditing({ ...editing, period_from: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">bis</label>
                   <input type="date" value={editing.period_to}
                     onChange={(e) => setEditing({ ...editing, period_to: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Notizen</label>
                 <textarea value={editing.notes} rows={2}
                   onChange={(e) => setEditing({ ...editing, notes: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
               </div>
               <div className="flex gap-3 pt-2 border-t border-gray-100">
                 <button onClick={() => setEditing(null)}
@@ -240,7 +240,7 @@ export default function CommissionInvoices() {
                   Abbrechen
                 </button>
                 <button onClick={save} disabled={saving}
-                  className="flex-1 py-2 rounded-lg text-sm font-medium bg-[#1a3a5c] text-white hover:bg-[#1a3a5c]/80 disabled:opacity-50">
+                  className="flex-1 py-2 rounded-lg text-sm font-medium bg-[#2563eb] text-white hover:bg-[#2563eb]/80 disabled:opacity-50">
                   {saving ? "Speichere…" : "Speichern"}
                 </button>
               </div>

@@ -67,7 +67,7 @@ export default function Commission() {
           <div>
             <label className="block text-xs text-gray-500 mb-1">Lieferant</label>
             <select value={supplierCode} onChange={(e) => setSupplierCode(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30">
+              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30">
               {suppliers.map((s) => (
                 <option key={s.id} value={s.code}>{s.code} – {s.name}</option>
               ))}
@@ -76,15 +76,15 @@ export default function Commission() {
           <div>
             <label className="block text-xs text-gray-500 mb-1">Von</label>
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Bis</label>
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
           </div>
           <button type="submit" disabled={creating}
-            className="bg-[#1a3a5c] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/80 transition-colors disabled:opacity-50">
+            className="bg-[#2563eb] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 transition-colors disabled:opacity-50">
             {creating ? "Erstelle…" : "Erstellen"}
           </button>
           {formError && <span className="text-red-600 text-sm">{formError}</span>}
@@ -97,7 +97,7 @@ export default function Commission() {
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-[#1a3a5c] text-white">
+            <thead className="bg-[#2563eb] text-white">
               <tr>
                 {["Nr.", "Rg.-Nummer", "Zeitraum", "Datum", "Umsatz", "Provision", "Währg.", "Status", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
@@ -110,7 +110,7 @@ export default function Commission() {
               ) : statements.map((s, i) => (
                 <tr key={s.id} className={i % 2 === 0 ? "bg-white" : "bg-[#dce8f5]/40"}>
                   <td className="px-4 py-2 text-gray-400 text-xs">{s.id}</td>
-                  <td className="px-4 py-2 font-mono font-semibold text-[#1a3a5c]">
+                  <td className="px-4 py-2 font-mono font-semibold text-[#2563eb]">
                     {s.statement_number ?? "–"}
                   </td>
                   <td className="px-4 py-2 text-gray-600 text-xs">
@@ -122,7 +122,7 @@ export default function Commission() {
                       ? parseFloat(s.total_amount).toLocaleString("de-AT", { minimumFractionDigits: 2 })
                       : "–"}
                   </td>
-                  <td className="px-4 py-2 text-right font-medium text-[#1a3a5c]">
+                  <td className="px-4 py-2 text-right font-medium text-[#2563eb]">
                     {s.total_provision
                       ? parseFloat(s.total_provision).toLocaleString("de-AT", { minimumFractionDigits: 2 })
                       : "–"}
@@ -133,7 +133,7 @@ export default function Commission() {
                     <div className="flex gap-2">
                       {s.status === "draft" && (
                         <button onClick={() => handleIssue(s.id)}
-                          className="text-xs px-2 py-1 rounded bg-[#1a3a5c] text-white hover:bg-[#1a3a5c]/80">
+                          className="text-xs px-2 py-1 rounded bg-[#2563eb] text-white hover:bg-[#2563eb]/80">
                           Ausstellen
                         </button>
                       )}

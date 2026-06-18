@@ -97,12 +97,12 @@ export default function SupplierStats() {
         <div className="flex items-center gap-2 flex-wrap">
           <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
           <button onClick={load} disabled={loading}
-            className="flex items-center gap-1.5 bg-[#1a3a5c] text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/80 disabled:opacity-50 transition-colors">
+            className="flex items-center gap-1.5 bg-[#2563eb] text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 disabled:opacity-50 transition-colors">
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
             Laden
           </button>
           <button onClick={downloadPdf} disabled={downloading || !data}
-            className="flex items-center gap-1.5 border border-[#1a3a5c] text-[#1a3a5c] px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/10 disabled:opacity-50 transition-colors">
+            className="flex items-center gap-1.5 border border-[#2563eb] text-[#2563eb] px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/10 disabled:opacity-50 transition-colors">
             <FileDown size={14} />
             {downloading ? "Generiere…" : "PDF"}
           </button>
@@ -115,7 +115,7 @@ export default function SupplierStats() {
         <table className="w-full text-sm whitespace-nowrap">
           <thead>
             {/* Group header */}
-            <tr className="bg-[#1a3a5c] text-white">
+            <tr className="bg-[#2563eb] text-white">
               <th className="px-4 py-2 text-left font-medium" rowSpan={2}>Lieferant</th>
               <th className="px-3 py-2 text-center font-medium border-l border-white/20" colSpan={2}>Umsatz</th>
               <th className="px-3 py-2 text-center font-medium border-l border-white/20" colSpan={2}>Provision Vorjahr / Aktuell</th>
@@ -151,7 +151,7 @@ export default function SupplierStats() {
           </tbody>
           {totals && (
             <tfoot>
-              <tr className="border-t-2 border-[#1a3a5c] bg-[#f0f5fb] font-semibold">
+              <tr className="border-t-2 border-[#2563eb] bg-[#f0f5fb] font-semibold">
                 <td className="px-4 py-2">Gesamt</td>
                 <td className="px-3 py-2 text-right">{fmt(totals.prev_turnover)}</td>
                 <td className="px-3 py-2 text-right">{fmt(totals.curr_turnover)}</td>

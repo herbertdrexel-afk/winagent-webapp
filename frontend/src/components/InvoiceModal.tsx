@@ -17,7 +17,7 @@ const emptyPosition = (): TransactionUpdate => ({
   customer_order_no: "", notes: "",
 });
 
-const inputCls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30";
+const inputCls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30";
 
 function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
@@ -212,7 +212,7 @@ export default function InvoiceModal({ invoice, supplierCode, onClose, onSaved, 
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">Positionen</span>
               <button type="button" onClick={addPosition}
-                className="text-xs px-3 py-1 rounded-lg bg-[#1a3a5c]/10 text-[#1a3a5c] hover:bg-[#1a3a5c]/20 font-medium">
+                className="text-xs px-3 py-1 rounded-lg bg-[#2563eb]/10 text-[#2563eb] hover:bg-[#2563eb]/20 font-medium">
                 + Position hinzufügen
               </button>
             </div>
@@ -280,7 +280,7 @@ export default function InvoiceModal({ invoice, supplierCode, onClose, onSaved, 
               Abbrechen
             </button>
             <button type="submit" disabled={saving}
-              className="px-5 py-2 rounded-lg text-sm font-medium bg-[#1a3a5c] text-white hover:bg-[#1a3a5c]/80 disabled:opacity-50">
+              className="px-5 py-2 rounded-lg text-sm font-medium bg-[#2563eb] text-white hover:bg-[#2563eb]/80 disabled:opacity-50">
               {saving ? "Speichert…" : "Speichern"}
             </button>
           </div>

@@ -80,7 +80,7 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
           {/* Upload area */}
           {!entries && (
             <div
-              className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer hover:border-[#1a3a5c] transition-colors"
+              className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer hover:border-[#2563eb] transition-colors"
               onClick={() => fileRef.current?.click()}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
@@ -90,7 +90,7 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
               <div className="text-4xl mb-3">📄</div>
               <p className="text-gray-600 font-medium">PDF hier ablegen oder klicken zum Auswählen</p>
               <p className="text-xs text-gray-400 mt-1">HdAgenta Provisionsabrechnung (RP5 Format)</p>
-              {parsing && <p className="text-[#1a3a5c] mt-3 font-medium">Lese PDF…</p>}
+              {parsing && <p className="text-[#2563eb] mt-3 font-medium">Lese PDF…</p>}
             </div>
           )}
 
@@ -112,7 +112,7 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
 
               <div className="overflow-x-auto border border-gray-200 rounded-xl">
                 <table className="w-full text-xs">
-                  <thead className="bg-[#1a3a5c] text-white">
+                  <thead className="bg-[#2563eb] text-white">
                     <tr>
                       {["Datum", "Re-Nr", "Betrag", "Währ.", "Prov. %", "Provision", "Erkannter Kundenname", "Kundenzuordnung"].map((h) => (
                         <th key={h} className="px-3 py-2 text-left font-medium whitespace-nowrap">{h}</th>
@@ -142,7 +142,7 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
                               onChange={(ev) => setCustomerMap((m) => ({
                                 ...m, [i]: ev.target.value ? parseInt(ev.target.value) : null,
                               }))}
-                              className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[#1a3a5c]/40"
+                              className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[#2563eb]/40"
                             >
                               <option value="">– nicht zuordnen –</option>
                               {e.customer_suggestions.map((c) => (
@@ -174,7 +174,7 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
           </button>
           {entries && (
             <button onClick={handleImport} disabled={importing}
-              className="px-5 py-2 rounded-lg text-sm font-medium bg-[#1a3a5c] text-white hover:bg-[#1a3a5c]/80 disabled:opacity-50">
+              className="px-5 py-2 rounded-lg text-sm font-medium bg-[#2563eb] text-white hover:bg-[#2563eb]/80 disabled:opacity-50">
               {importing ? "Importiere…" : `${entries.length} Positionen importieren`}
             </button>
           )}

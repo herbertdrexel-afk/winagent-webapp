@@ -89,7 +89,7 @@ export default function CustomerEditModal({ customer, onClose, onSaved }: Props)
           <h2 className="text-lg font-semibold text-gray-800">
             {isNew
               ? "Neuer Kunde"
-              : <span>Kunde bearbeiten – <span className="font-mono text-[#1a3a5c]">{customer!.code}</span>
+              : <span>Kunde bearbeiten – <span className="font-mono text-[#2563eb]">{customer!.code}</span>
                   {customer!.ku_nr && <span className="ml-2 text-sm text-gray-400 font-normal">Kd-Nr {customer!.ku_nr}</span>}
                 </span>
             }
@@ -111,7 +111,7 @@ export default function CustomerEditModal({ customer, onClose, onSaved }: Props)
                   onChange={(e) => set("code", e.target.value.toUpperCase())}
                   className={inp + " uppercase font-mono"} placeholder="z.B. MUSTE" />
               ) : (
-                <div className="px-3 py-2 bg-gray-100 rounded-lg text-sm font-mono font-semibold text-[#1a3a5c]">
+                <div className="px-3 py-2 bg-gray-100 rounded-lg text-sm font-mono font-semibold text-[#2563eb]">
                   {customer!.code}
                   <span className="ml-1 text-xs text-gray-400 font-normal font-sans">(nicht änderbar)</span>
                 </div>
@@ -228,7 +228,7 @@ export default function CustomerEditModal({ customer, onClose, onSaved }: Props)
               Abbrechen
             </button>
             <button type="submit" disabled={saving}
-              className="px-5 py-2 rounded-lg text-sm font-medium bg-[#1a3a5c] text-white hover:bg-[#1a3a5c]/80 disabled:opacity-50">
+              className="px-5 py-2 rounded-lg text-sm font-medium bg-[#2563eb] text-white hover:bg-[#2563eb]/80 disabled:opacity-50">
               {saving ? "Speichert…" : isNew ? "Anlegen" : "Speichern"}
             </button>
           </div>
@@ -238,4 +238,4 @@ export default function CustomerEditModal({ customer, onClose, onSaved }: Props)
   );
 }
 
-const inp = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30";
+const inp = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30";

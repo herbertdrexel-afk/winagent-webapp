@@ -99,7 +99,7 @@ export default function ReybexMandants() {
         </div>
         {!showForm && (
           <button onClick={openNew}
-            className="flex items-center gap-1.5 bg-[#1a3a5c] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/80 transition-colors">
+            className="flex items-center gap-1.5 bg-[#2563eb] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 transition-colors">
             <Plus size={16} /> Mandant hinzufügen
           </button>
         )}
@@ -116,13 +116,13 @@ export default function ReybexMandants() {
               <label className="text-xs text-gray-500 mb-1 block">Name *</label>
               <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder="z.B. Gewohnheit GmbH"
-                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Reybex mandantId</label>
               <input value={form.mandant_id ?? ""} onChange={(e) => setForm((f) => ({ ...f, mandant_id: e.target.value }))}
                 placeholder="z.B. 1670968868187006 (später eintragen)"
-                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
             </div>
           </div>
 
@@ -135,8 +135,8 @@ export default function ReybexMandants() {
                   <button key={s.id} onClick={() => toggleSupplier(s)}
                     className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                       selected
-                        ? "bg-[#1a3a5c] text-white border-[#1a3a5c]"
-                        : "bg-white text-gray-600 border-gray-300 hover:border-[#1a3a5c]"
+                        ? "bg-[#2563eb] text-white border-[#2563eb]"
+                        : "bg-white text-gray-600 border-gray-300 hover:border-[#2563eb]"
                     }`}>
                     {s.code} – {s.name}
                   </button>
@@ -149,7 +149,7 @@ export default function ReybexMandants() {
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Notizen</label>
               <input value={form.notes ?? ""} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
             </div>
             <div className="flex items-end pb-1">
               <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -162,7 +162,7 @@ export default function ReybexMandants() {
 
           <div className="flex gap-2 pt-1">
             <button onClick={save} disabled={saving}
-              className="flex items-center gap-1.5 bg-[#1a3a5c] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/80 disabled:opacity-50 transition-colors">
+              className="flex items-center gap-1.5 bg-[#2563eb] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 disabled:opacity-50 transition-colors">
               <Check size={14} /> {saving ? "Speichere…" : "Speichern"}
             </button>
             <button onClick={cancel}
@@ -191,13 +191,13 @@ export default function ReybexMandants() {
                 <div>
                   <span className="font-medium">mandantId: </span>
                   {m.mandant_id
-                    ? <span className="font-mono text-[#1a3a5c]">{m.mandant_id}</span>
+                    ? <span className="font-mono text-[#2563eb]">{m.mandant_id}</span>
                     : <span className="text-amber-600 italic">noch nicht eingetragen</span>}
                 </div>
                 {m.suppliers.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
                     {m.suppliers.map((s) => (
-                      <span key={s.id} className="bg-[#1a3a5c]/10 text-[#1a3a5c] px-2 py-0.5 rounded-full text-xs">{s.code} – {s.name}</span>
+                      <span key={s.id} className="bg-[#2563eb]/10 text-[#2563eb] px-2 py-0.5 rounded-full text-xs">{s.code} – {s.name}</span>
                     ))}
                   </div>
                 )}
@@ -206,7 +206,7 @@ export default function ReybexMandants() {
             </div>
             <div className="flex gap-1 shrink-0">
               <button onClick={() => openEdit(m)}
-                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-[#1a3a5c] transition-colors">
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-[#2563eb] transition-colors">
                 <Pencil size={15} />
               </button>
               <button onClick={() => deleteMandant(m)}

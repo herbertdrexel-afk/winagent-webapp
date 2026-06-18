@@ -110,7 +110,7 @@ export default function UserManagement() {
       {/* User table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
         <table className="w-full text-sm">
-          <thead className="bg-[#1a3a5c] text-white">
+          <thead className="bg-[#2563eb] text-white">
             <tr>
               {["Benutzername", "Rolle", "Status", "Aktionen"].map((h) => (
                 <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
@@ -128,7 +128,7 @@ export default function UserManagement() {
                 </td>
                 <td className="px-4 py-3">
                   {u.id === me?.id ? (
-                    <span className="text-xs bg-[#1a3a5c]/10 text-[#1a3a5c] px-2 py-0.5 rounded-full">
+                    <span className="text-xs bg-[#2563eb]/10 text-[#2563eb] px-2 py-0.5 rounded-full">
                       {u.role === "admin" ? "Administrator" : "Benutzer"}
                     </span>
                   ) : (
@@ -168,23 +168,23 @@ export default function UserManagement() {
           <div>
             <label className="block text-xs text-gray-500 mb-1">Benutzername</label>
             <input value={newUser} onChange={(e) => setNewUser(e.target.value)} required
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-44 focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-44 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Passwort</label>
             <input type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} required
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-44 focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-44 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Rolle</label>
             <select value={newRole} onChange={(e) => setNewRole(e.target.value as "user" | "admin")}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30">
+              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30">
               <option value="user">Benutzer</option>
               <option value="admin">Administrator</option>
             </select>
           </div>
           <button type="submit" disabled={creating}
-            className="bg-[#1a3a5c] text-white px-4 py-1.5 rounded-lg text-sm hover:bg-[#1a3a5c]/80 disabled:opacity-50">
+            className="bg-[#2563eb] text-white px-4 py-1.5 rounded-lg text-sm hover:bg-[#2563eb]/80 disabled:opacity-50">
             {creating ? "…" : "Anlegen"}
           </button>
         </form>

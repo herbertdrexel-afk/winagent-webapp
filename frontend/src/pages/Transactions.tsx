@@ -143,14 +143,14 @@ export default function Transactions() {
           <button
             onClick={() => setShowPdfImport(true)}
             disabled={!supplierCode}
-            className="border border-[#1a3a5c] text-[#1a3a5c] px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/10 disabled:opacity-40 transition-colors"
+            className="border border-[#2563eb] text-[#2563eb] px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/10 disabled:opacity-40 transition-colors"
           >
             📄 PDF importieren
           </button>
           <button
             onClick={() => setEditing(null)}
             disabled={!supplierCode}
-            className="bg-[#1a3a5c] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/80 disabled:opacity-40 transition-colors"
+            className="bg-[#2563eb] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 disabled:opacity-40 transition-colors"
           >
             + Neue Rechnung
           </button>
@@ -163,7 +163,7 @@ export default function Transactions() {
           <select
             value={supplierCode}
             onChange={(e) => setSupplierCode(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30"
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30"
           >
             {suppliers.map((s) => (
               <option key={s.id} value={s.code}>{s.code} – {s.name}</option>
@@ -175,7 +175,7 @@ export default function Transactions() {
           <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
         </div>
         <button onClick={load}
-          className="bg-[#1a3a5c] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/80 transition-colors">
+          className="bg-[#2563eb] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 transition-colors">
           Laden
         </button>
       </div>
@@ -184,7 +184,7 @@ export default function Transactions() {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-[#1a3a5c] text-white">
+          <thead className="bg-[#2563eb] text-white">
             <tr>
               {["Rg-Nr", "Datum", "Kd-Nr", "Kunde", "Pos.", "Währung", "Betrag", "Prov. %", "Provision"].map((h) => (
                 <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
@@ -204,7 +204,7 @@ export default function Transactions() {
                 onClick={() => setEditing(inv)}
                 className={
                   (i % 2 === 0 ? "bg-white" : "bg-[#dce8f5]/40") +
-                  " cursor-pointer hover:bg-[#1a3a5c]/10 transition-colors"
+                  " cursor-pointer hover:bg-[#2563eb]/10 transition-colors"
                 }
               >
                 <td className="px-4 py-2 font-mono text-xs">{inv.invoice_number}</td>
@@ -232,7 +232,7 @@ export default function Transactions() {
           {invoices.length > 0 && (
             <tfoot>
               {currencyTotals.map(([cur, t], idx) => (
-                <tr key={cur} className={`${idx === 0 ? "border-t-2 border-[#1a3a5c]" : "border-t border-gray-200"} bg-gray-50 font-semibold`}>
+                <tr key={cur} className={`${idx === 0 ? "border-t-2 border-[#2563eb]" : "border-t border-gray-200"} bg-gray-50 font-semibold`}>
                   <td colSpan={5} className="px-4 py-2">
                     {`Gesamt (${t.invoices} Rechnungen, ${t.positions} Positionen)`}
                   </td>

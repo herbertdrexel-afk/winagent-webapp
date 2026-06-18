@@ -37,7 +37,7 @@ export default function Login() {
     <div className="min-h-screen bg-[#f0f5fb] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg w-full max-w-sm p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-[#1a3a5c]">WinAgent</h1>
+          <h1 className="text-2xl font-bold text-[#2563eb]">WinAgent</h1>
           <p className="text-sm text-gray-500 mt-1">Provisionsabrechnungssystem</p>
         </div>
 
@@ -47,7 +47,7 @@ export default function Login() {
               key={m}
               onClick={() => { setMode(m); setError(null); setSuccess(null); }}
               className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                mode === m ? "bg-[#1a3a5c] text-white" : "text-gray-500 hover:bg-gray-50"
+                mode === m ? "bg-[#2563eb] text-white" : "text-gray-500 hover:bg-gray-50"
               }`}
             >
               {m === "login" ? "Anmelden" : "Registrieren"}
@@ -63,7 +63,7 @@ export default function Login() {
               onChange={(e) => setUsername(e.target.value)}
               required
               autoComplete="username"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30"
             />
           </div>
           <div>
@@ -74,7 +74,7 @@ export default function Login() {
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete={mode === "login" ? "current-password" : "new-password"}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30"
             />
           </div>
 
@@ -84,7 +84,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#1a3a5c] text-white py-2.5 rounded-lg font-medium hover:bg-[#1a3a5c]/80 disabled:opacity-50 transition-colors"
+            className="w-full bg-[#2563eb] text-white py-2.5 rounded-lg font-medium hover:bg-[#2563eb]/80 disabled:opacity-50 transition-colors"
           >
             {loading ? "…" : mode === "login" ? "Anmelden" : "Registrieren"}
           </button>

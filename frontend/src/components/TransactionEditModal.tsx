@@ -105,7 +105,7 @@ export default function TransactionEditModal({ transaction: tx, onClose, onSaved
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white rounded-t-2xl">
           <h2 className="text-lg font-semibold text-gray-800">
             Rechnung bearbeiten
-            <span className="ml-2 font-mono text-sm text-[#1a3a5c] font-normal">
+            <span className="ml-2 font-mono text-sm text-[#2563eb] font-normal">
               {tx.invoice_number}
             </span>
           </h2>
@@ -126,7 +126,7 @@ export default function TransactionEditModal({ transaction: tx, onClose, onSaved
                   placeholder="Name, Code oder Kd-Nr suchen…"
                   onChange={(e) => { setCustomerSearch(e.target.value); setShowDropdown(true); }}
                   onFocus={() => setShowDropdown(true)}
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30"
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30"
                 />
                 {selectedCustomer && (
                   <button type="button" onClick={clearCustomer}
@@ -239,7 +239,7 @@ export default function TransactionEditModal({ transaction: tx, onClose, onSaved
               Abbrechen
             </button>
             <button type="submit" disabled={saving}
-              className="px-5 py-2 rounded-lg text-sm font-medium bg-[#1a3a5c] text-white hover:bg-[#1a3a5c]/80 disabled:opacity-50">
+              className="px-5 py-2 rounded-lg text-sm font-medium bg-[#2563eb] text-white hover:bg-[#2563eb]/80 disabled:opacity-50">
               {saving ? "Speichert…" : "Speichern"}
             </button>
           </div>
@@ -249,7 +249,7 @@ export default function TransactionEditModal({ transaction: tx, onClose, onSaved
   );
 }
 
-const inputCls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30";
+const inputCls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30";
 
 function Field({ label, children, required, className }: {
   label: string; children: React.ReactNode; required?: boolean; className?: string;

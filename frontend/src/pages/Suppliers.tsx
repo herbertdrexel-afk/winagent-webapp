@@ -39,7 +39,7 @@ export default function Suppliers() {
         <h1 className="text-2xl font-semibold text-gray-800">Lieferanten</h1>
         <button
           onClick={() => setEditing(null)}
-          className="bg-[#1a3a5c] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/80 transition-colors"
+          className="bg-[#2563eb] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 transition-colors"
         >
           + Neuer Lieferant
         </button>
@@ -47,7 +47,7 @@ export default function Suppliers() {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-[#1a3a5c] text-white">
+          <thead className="bg-[#2563eb] text-white">
             <tr>
               {["Code", "Name", "Währung", "Vertreter", "Kontakt", "Provisions-Splits", "Aktiv"].map((h) => (
                 <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
@@ -61,11 +61,11 @@ export default function Suppliers() {
                 onClick={() => setEditing(s)}
                 className={
                   (i % 2 === 0 ? "bg-white" : "bg-[#dce8f5]/40") +
-                  " cursor-pointer hover:bg-[#1a3a5c]/10 transition-colors"
+                  " cursor-pointer hover:bg-[#2563eb]/10 transition-colors"
                 }
                 title="Klicken zum Bearbeiten"
               >
-                <td className="px-4 py-2 font-mono font-semibold text-[#1a3a5c]">{s.code}</td>
+                <td className="px-4 py-2 font-mono font-semibold text-[#2563eb]">{s.code}</td>
                 <td className="px-4 py-2 font-medium">{s.name}</td>
                 <td className="px-4 py-2 text-gray-600">{s.default_currency ?? "–"}</td>
                 <td className="px-4 py-2 text-gray-600">{s.representative_code ?? "–"}</td>

@@ -97,7 +97,7 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
           {summary && (
             <>
               <div className="bg-[#f0f5fb] rounded-xl p-4 space-y-1">
-                <p className="text-sm font-semibold text-[#1a3a5c]">{summary.supplier_name}</p>
+                <p className="text-sm font-semibold text-[#2563eb]">{summary.supplier_name}</p>
                 <p className="text-xs text-gray-500">
                   Zeitraum: {summary.period_from} bis {summary.period_to}
                 </p>
@@ -105,7 +105,7 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
 
               {/* Totals per currency */}
               <table className="w-full text-sm border border-gray-200 rounded-xl overflow-hidden">
-                <thead className="bg-[#1a3a5c] text-white">
+                <thead className="bg-[#2563eb] text-white">
                   <tr>
                     <th className="px-4 py-2 text-left">Währung</th>
                     <th className="px-4 py-2 text-right">Umsatz</th>
@@ -132,19 +132,19 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Rechnungsdatum</label>
                   <input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">PR-Nummer ab</label>
                   <input type="number" value={prSeq} onChange={(e) => setPrSeq(parseInt(e.target.value) || 0)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
                 </div>
               </div>
 
               {/* Action buttons */}
               <div className="flex gap-3 pt-2 border-t border-gray-100">
                 <button onClick={() => download("pdf")} disabled={!!downloading}
-                  className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#1a3a5c] text-white hover:bg-[#1a3a5c]/80 disabled:opacity-50">
+                  className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#2563eb] text-white hover:bg-[#2563eb]/80 disabled:opacity-50">
                   {downloading === "pdf" ? "Generiere…" : "📄 Rechnung PDF"}
                 </button>
               </div>
