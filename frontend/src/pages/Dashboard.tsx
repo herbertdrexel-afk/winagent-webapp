@@ -8,26 +8,27 @@ import {
 export default function Dashboard() {
   const navigate = useNavigate();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [syncing, setSyncing] = useState<"customers" | "suppliers" | null>(null);
-  const [syncResult, setSyncResult] = useState<{ type: string; result: SyncResult } | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+  const [lastSync, setLastSync] = useState<string | null>(null);
 
   useEffect(() => {
     api.suppliers.list().then(setSuppliers).catch(() => {});
+    api.sync.status().then((s) => setLastSync(s.last_sync)).catch(() => {});
   }, []);
 
-  async function runSync(type: "customers" | "suppliers") {
-    setSyncing(type);
+  async function runSync() {
+    setSyncing(true);
     setSyncResult(null);
     try {
-      const result = type === "customers"
-        ? await api.sync.customers()
-        : await api.sync.suppliers();
-      setSyncResult({ type, result });
-      if (type === "suppliers") api.suppliers.list().then(setSuppliers).catch(() => {});
+      const result = await api.sync.customers();
+      setSyncResult(result);
+      const s = await api.sync.status();
+      setLastSync(s.last_sync);
     } catch (e: unknown) {
-      setSyncResult({ type, result: { ok: false, total: 0, message: e instanceof Error ? e.message : "Fehler" } });
+      setSyncResult({ ok: false, total: 0, message: e instanceof Error ? e.message : "Fehler" });
     } finally {
-      setSyncing(null);
+      setSyncing(false);
     }
   }
 
@@ -107,23 +108,24 @@ export default function Dashboard() {
           <h2 className="font-semibold text-gray-800">Reybex Synchronisation</h2>
           <span className="ml-auto text-xs text-gray-400">Reybex → WinAgent</span>
         </div>
-        <div className="flex flex-wrap gap-3">
-          {[
-            { key: "customers" as const, label: "Kunden synchronisieren" },
-            { key: "suppliers" as const, label: "Lieferanten synchronisieren" },
-          ].map(({ key, label }) => (
-            <button key={key} onClick={() => runSync(key)} disabled={!!syncing}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#1a3a5c] text-[#1a3a5c] text-sm font-medium hover:bg-[#1a3a5c]/5 disabled:opacity-50 transition-colors">
-              <RefreshCw size={14} className={syncing === key ? "animate-spin" : ""} />
-              {syncing === key ? "Synchronisiere…" : label}
-            </button>
-          ))}
+        <div className="flex items-center gap-4 flex-wrap">
+          <button onClick={runSync} disabled={syncing}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#1a3a5c] text-[#1a3a5c] text-sm font-medium hover:bg-[#1a3a5c]/5 disabled:opacity-50 transition-colors">
+            <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
+            {syncing ? "Synchronisiere…" : "Kunden jetzt synchronisieren"}
+          </button>
+          {lastSync && (
+            <span className="text-xs text-gray-400">
+              Zuletzt: {new Date(lastSync).toLocaleString("de-AT")}
+            </span>
+          )}
+          <span className="text-xs text-gray-300">· Automatisch stündlich</span>
         </div>
         {syncResult && (
-          <div className={`mt-3 px-4 py-2.5 rounded-lg text-sm ${syncResult.result.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
-            {syncResult.result.ok
-              ? `✓ ${syncResult.type === "customers" ? "Kunden" : "Lieferanten"}: ${syncResult.result.total} gesamt — ${syncResult.result.created} neu, ${syncResult.result.updated} aktualisiert, ${syncResult.result.skipped} übersprungen`
-              : `✗ Fehler: ${syncResult.result.message}`
+          <div className={`mt-3 px-4 py-2.5 rounded-lg text-sm ${syncResult.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+            {syncResult.ok
+              ? `✓ Kunden: ${syncResult.total} gesamt — ${syncResult.created} neu, ${syncResult.updated} aktualisiert, ${syncResult.skipped} übersprungen`
+              : `✗ Fehler: ${syncResult.message}`
             }
           </div>
         )}

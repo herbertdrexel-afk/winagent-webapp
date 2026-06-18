@@ -223,7 +223,7 @@ export const api = {
   },
   sync: {
     customers: () => post<SyncResult>("/sync/reybex/customers", {}),
-    suppliers: () => post<SyncResult>("/sync/reybex/suppliers", {}),
+    status: () => get<{ last_sync: string | null; total?: number; created?: number; updated?: number }>("/sync/reybex/status"),
   },
 };
 

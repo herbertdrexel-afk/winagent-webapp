@@ -1,17 +1,41 @@
 import os
+import asyncio
+import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import suppliers, customers, commission, sync
 from .routers import auth as auth_router
+from .routers.sync import run_customer_sync
 from .auth import get_current_user
 from .database import engine
 from . import models
+
+logger = logging.getLogger(__name__)
+
+
+async def _scheduled_sync():
+    """Run customer sync every hour; skip silently if credentials missing."""
+    while True:
+        await asyncio.sleep(3600)  # wait 1 hour before first run, then repeat
+        try:
+            result = await run_customer_sync()
+            logger.info("Reybex auto-sync: %s", result)
+        except Exception as e:
+            logger.warning("Reybex auto-sync skipped: %s", e)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    asyncio.create_task(_scheduled_sync())
+    yield
 
 # Create any missing tables (e.g. users) without touching existing ones
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
+    lifespan=lifespan,
     title="WinAgent Webapp API",
     description="Neuentwicklung des Lieferanten-/Provisionsabrechnungssystems "
                  "(ehemals Delphi/dBase) als Web-API.",
