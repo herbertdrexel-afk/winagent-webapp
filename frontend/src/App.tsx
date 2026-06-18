@@ -1,5 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
+import Dashboard from "./pages/Dashboard";
 import Suppliers from "./pages/Suppliers";
 import Customers from "./pages/Customers";
 import Transactions from "./pages/Transactions";
@@ -19,10 +20,10 @@ function ProtectedRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
-        <Route index element={<Navigate to="/suppliers" replace />} />
-        <Route path="suppliers"    element={<Suppliers />} />
-        <Route path="customers"    element={<Customers />} />
-        <Route path="transactions" element={<Transactions />} />
+        <Route index element={<Dashboard />} />
+        <Route path="suppliers"           element={<Suppliers />} />
+        <Route path="customers"           element={<Customers />} />
+        <Route path="transactions"        element={<Transactions />} />
         <Route path="commission-invoices" element={<CommissionInvoices />} />
         {user.role === "admin" && (
           <Route path="users" element={<UserManagement />} />
