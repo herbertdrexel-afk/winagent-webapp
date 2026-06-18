@@ -1,6 +1,5 @@
 """Reybex → WinAgent sync endpoints."""
 import os
-import math
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -26,7 +25,7 @@ async def _fetch_all(path: str, params: dict, auth: tuple) -> list:
     PAGE = 100
     results = []
     skip = 0
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=60) as client:
         while True:
             p = {**params, "take": PAGE, "skip": skip, "responseFormat": "api"}
             r = await client.get(f"{REYBEX_BASE}{path}", params=p, auth=auth)
@@ -114,7 +113,24 @@ async def sync_suppliers(db: Session = Depends(get_db)):
     username, password = _reybex_creds()
     auth = (username, password)
 
-    # Fetch all contacts and filter by contactType.name containing 'lieferant'
+    # First page only to discover available contactTypes
+    async with httpx.AsyncClient(timeout=60) as client:
+        probe = await client.get(
+            f"{REYBEX_BASE}/domains/customer",
+            params={"sort": "id", "take": 50, "skip": 0, "responseFormat": "api"},
+            auth=auth,
+        )
+    if probe.status_code != 200:
+        raise HTTPException(502, f"Reybex Fehler {probe.status_code}: {probe.text[:300]}")
+
+    probe_data = probe.json()
+    found_types = list({
+        r["contactType"]["name"]
+        for r in probe_data
+        if isinstance(r.get("contactType"), dict) and r["contactType"].get("name")
+    })
+
+    # Filter by contactType.name containing 'lieferant'
     all_rows = await _fetch_all("/domains/customer", {"sort": "id"}, auth)
     rows = [
         r for r in all_rows
@@ -125,7 +141,7 @@ async def sync_suppliers(db: Session = Depends(get_db)):
     if not rows:
         return {
             "ok": True, "total": 0,
-            "message": f"Keine Kontakte mit contactType 'Lieferant' gefunden (von {len(all_rows)} Kontakten gesamt).",
+            "message": f"Keine Kontakte mit contactType 'Lieferant' gefunden. Gefundene Typen: {found_types}. Gesamt Kontakte: {len(all_rows)}",
         }
 
     created = updated = skipped = 0
