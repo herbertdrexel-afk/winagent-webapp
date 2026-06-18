@@ -5,6 +5,7 @@ import Suppliers from "./pages/Suppliers";
 import Customers from "./pages/Customers";
 import Transactions from "./pages/Transactions";
 import CommissionInvoices from "./pages/CommissionInvoices";
+import SupplierStats from "./pages/SupplierStats";
 import UserManagement from "./pages/UserManagement";
 import Login from "./pages/Login";
 import { useAuth } from "./context/AuthContext";
@@ -25,6 +26,7 @@ function ProtectedRoutes() {
         <Route path="customers"           element={<Customers />} />
         <Route path="transactions"        element={<Transactions />} />
         <Route path="commission-invoices" element={<CommissionInvoices />} />
+        <Route path="stats"               element={<SupplierStats />} />
         {user.role === "admin" && (
           <Route path="users" element={<UserManagement />} />
         )}

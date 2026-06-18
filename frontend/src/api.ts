@@ -1,6 +1,6 @@
 // Im Dev-Modus: Vite-Proxy auf localhost:8000
 // In Produktion: VITE_API_URL=https://winagent-backend.up.railway.app
-const BASE = import.meta.env.VITE_API_URL ?? "/api";
+export const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
 // ── Auth helpers ───────────────────────────────────────────────────────────
 export interface AuthUser {
