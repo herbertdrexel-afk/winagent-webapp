@@ -21,6 +21,219 @@ def _fmt_pct(pct) -> str:
     return f"{pct:+.1f}%".replace(".", ",")
 
 
+def build_customer_turnover_pdf(data: dict) -> bytes:
+    """AdrUms report: customer list sorted by provision or turnover."""
+    rows = data["rows"]
+    sort_by = data.get("sort_by", "provision")
+    period_from = data["period_from"]
+    period_to = data["period_to"]
+    period_label = f"{period_from[5:7]}.{period_from[2:4]} - {period_to[5:7]}.{period_to[2:4]}"
+    sort_label = "nach Provision" if sort_by == "provision" else "nach Umsatz"
+    today_str = date.today().strftime("%d.%m.%y")
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4),
+                            leftMargin=1.5*cm, rightMargin=1.5*cm,
+                            topMargin=1.5*cm, bottomMargin=1.5*cm)
+    styles = getSampleStyleSheet()
+    n = styles["Normal"]; n.fontName = "Helvetica"; n.fontSize = 8
+    bold = ParagraphStyle("b", parent=n, fontName="Helvetica-Bold")
+    right = ParagraphStyle("r", parent=n, alignment=TA_RIGHT)
+    rb = ParagraphStyle("rb", parent=bold, alignment=TA_RIGHT)
+    sm = ParagraphStyle("sm", parent=n, fontSize=7)
+    smr = ParagraphStyle("smr", parent=sm, alignment=TA_RIGHT)
+
+    story = []
+    # Header
+    hd = [[
+        Paragraph(f"<b>Umsatzliste {period_label} {sort_label}</b>",
+                  ParagraphStyle("t", parent=n, fontName="Helvetica-Bold", fontSize=12)),
+        Paragraph(today_str, ParagraphStyle("d", parent=n, fontSize=9, alignment=TA_RIGHT)),
+    ]]
+    ht = Table(hd, colWidths=[20*cm, 8*cm])
+    ht.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "MIDDLE")]))
+    story.append(ht)
+    story.append(Spacer(1, 0.3*cm))
+
+    H_FILL = colors.HexColor("#2563eb")
+    COL_W = [6*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.2*cm, 1.8*cm, 1.8*cm, 1.0*cm]
+
+    total_prov = sum(r["curr_provision"] for r in rows)
+
+    thead = [[
+        Paragraph("<b>Name / Firma</b>", bold),
+        Paragraph("<b>Umsatz VJ</b>", rb),
+        Paragraph("<b>Budget</b>", rb),
+        Paragraph("<b>Umsatz</b>", rb),
+        Paragraph("<b>Budget-Prov</b>", rb),
+        Paragraph("<b>Provision</b>", rb),
+        Paragraph("<b>DuPr %</b>", rb),
+        Paragraph("<b>%</b>", rb),
+        Paragraph("<b>P.</b>", ParagraphStyle("c", parent=bold, alignment=TA_CENTER)),
+    ]]
+    table_data = thead[:]
+
+    for i, r in enumerate(rows, 1):
+        ct = r["curr_turnover"]; cp = r["curr_provision"]
+        pt = r["prev_turnover"]; rate = r["avg_rate"]
+        share = r["share_pct"]
+        table_data.append([
+            Paragraph(r["customer_name"], sm),
+            Paragraph(_fmt(pt), smr),
+            Paragraph("", smr),
+            Paragraph(_fmt(ct), smr),
+            Paragraph("", smr),
+            Paragraph(_fmt(cp), smr),
+            Paragraph(f"{rate:.2f}".replace(".", ","), smr),
+            Paragraph(f"{share:.1f}%".replace(".", ","), smr),
+            Paragraph(str(i), ParagraphStyle("c", parent=sm, alignment=TA_CENTER)),
+        ])
+
+    # Totals
+    tot_t = sum(r["curr_turnover"] for r in rows)
+    tot_p = sum(r["curr_provision"] for r in rows)
+    table_data.append([
+        Paragraph("<b>Gesamtsumme: EUR</b>", bold),
+        Paragraph("", rb),
+        Paragraph("", rb),
+        Paragraph(_fmt(tot_t), rb),
+        Paragraph("", rb),
+        Paragraph(_fmt(tot_p), rb),
+        Paragraph("", rb),
+        Paragraph("", rb),
+        Paragraph("", rb),
+    ])
+
+    t = Table(table_data, colWidths=COL_W, repeatRows=1)
+    n_rows = len(rows)
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), H_FILL),
+        ("TEXTCOLOR",  (0,0), (-1,0), colors.white),
+        ("ROWBACKGROUNDS", (0,1), (-1, n_rows), [colors.white, colors.HexColor("#dce8f5")]),
+        ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#f0f5fb")),
+        ("LINEABOVE",  (0,-1), (-1,-1), 1, H_FILL),
+        ("GRID",       (0,0), (-1,-1), 0.3, colors.HexColor("#cccccc")),
+        ("TOPPADDING", (0,0), (-1,-1), 2), ("BOTTOMPADDING", (0,0), (-1,-1), 2),
+        ("LEFTPADDING",(0,0), (-1,-1), 3), ("RIGHTPADDING",  (0,0), (-1,-1), 3),
+        ("VALIGN",     (0,0), (-1,-1), "MIDDLE"),
+    ]))
+    story.append(t)
+    doc.build(story)
+    return buf.getvalue()
+
+
+def build_supplier_detail_pdf(data: dict) -> bytes:
+    """Quarterly supplier detail PDF (one section per supplier)."""
+    year = data["year"]
+    suppliers = data["suppliers"]
+    today_str = date.today().strftime("%d.%m.%Y")
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4),
+                            leftMargin=1.5*cm, rightMargin=1.5*cm,
+                            topMargin=1.5*cm, bottomMargin=1.5*cm)
+    styles = getSampleStyleSheet()
+    n = styles["Normal"]; n.fontName = "Helvetica"; n.fontSize = 8
+    bold = ParagraphStyle("b", parent=n, fontName="Helvetica-Bold")
+    right = ParagraphStyle("r", parent=n, alignment=TA_RIGHT)
+    rb = ParagraphStyle("rb", parent=bold, alignment=TA_RIGHT)
+    sm = ParagraphStyle("sm", parent=n, fontSize=7)
+    smr = ParagraphStyle("smr", parent=sm, alignment=TA_RIGHT)
+
+    def pct_str(curr, prev):
+        if not prev:
+            return "***%"
+        p = (curr / prev - 1) * 100
+        return f"{p:+.0f}%".replace(".", ",")
+
+    H_FILL = colors.HexColor("#2563eb")
+    H_SUB  = colors.HexColor("#4a7fc1")
+    COL_W  = [1.5*cm, 2.4*cm, 2.4*cm, 1.2*cm, 2.4*cm, 1.2*cm, 2.2*cm, 2.2*cm, 2.2*cm, 1.2*cm, 2.2*cm, 1.8*cm, 1.2*cm]
+
+    story = []
+    # Global header
+    story.append(Paragraph(
+        f"<b>Lieferant Statistik Detail — {year}</b>",
+        ParagraphStyle("title", parent=n, fontName="Helvetica-Bold", fontSize=13)))
+    story.append(Paragraph(f"turnover-quantity-commission-expense-budget-comparison in EUR   {today_str}",
+                            ParagraphStyle("sub", parent=n, fontSize=8)))
+    story.append(Spacer(1, 0.4*cm))
+
+    col_header = [
+        Paragraph("<b>des.</b>", bold),
+        Paragraph("<b>turnover last year</b>", rb),
+        Paragraph("<b>budget</b>", rb),
+        Paragraph("<b>+/-</b>", rb),
+        Paragraph("<b>turnover curr y</b>", rb),
+        Paragraph("<b>+/-</b>", rb),
+        Paragraph("<b>comm.-last y</b>", rb),
+        Paragraph("<b>comm. budget net</b>", rb),
+        Paragraph("<b>comm. curr y</b>", rb),
+        Paragraph("<b>+/-</b>", rb),
+        Paragraph("<b>comm. brut</b>", rb),
+        Paragraph("<b>difference</b>", rb),
+        Paragraph("<b>+/-</b>", rb),
+    ]
+
+    for s in suppliers:
+        # Supplier header
+        story.append(Paragraph(
+            f"<b>{s['name']}</b>",
+            ParagraphStyle("sh", parent=n, fontName="Helvetica-Bold", fontSize=10)))
+        story.append(Spacer(1, 0.1*cm))
+
+        table_data = [col_header]
+        BOLD_ROWS = []
+
+        for i, r in enumerate(s["rows"], 1):
+            label = r["label"]
+            pt = r["prev_turnover"]; bt = r["budget_turnover"]
+            ct = r["curr_turnover"]; pp = r["prev_commission"]
+            bc = r["budget_commission"]; cp = r["curr_commission"]
+            diff = cp - pp
+            is_total = label in ("1.HY", "2.HY", "Jahr")
+            style = rb if is_total else smr
+            label_style = bold if is_total else sm
+
+            table_data.append([
+                Paragraph(f"<b>{label}</b>" if is_total else label, label_style),
+                Paragraph(_fmt(pt), style),
+                Paragraph(_fmt(bt) if bt else "", style),
+                Paragraph(pct_str(bt, pt) if bt and pt else "", style),
+                Paragraph(_fmt(ct), style),
+                Paragraph(pct_str(ct, pt) if pt else "***%", style),
+                Paragraph(_fmt(pp), style),
+                Paragraph(_fmt(bc) if bc else "", style),
+                Paragraph(_fmt(cp), style),
+                Paragraph(pct_str(cp, pp) if pp else "***%", style),
+                Paragraph(_fmt(cp), style),
+                Paragraph((_fmt(diff) if diff != 0 else "0"), style),
+                Paragraph(pct_str(cp, pp) if pp else "***%", style),
+            ])
+            if is_total:
+                BOLD_ROWS.append(i)
+
+        t = Table(table_data, colWidths=COL_W, repeatRows=1)
+        ts = [
+            ("BACKGROUND",  (0,0), (-1,0), H_FILL),
+            ("TEXTCOLOR",   (0,0), (-1,0), colors.white),
+            ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#f0f4f8")]),
+            ("GRID",        (0,0), (-1,-1), 0.3, colors.HexColor("#cccccc")),
+            ("TOPPADDING",  (0,0), (-1,-1), 2), ("BOTTOMPADDING", (0,0), (-1,-1), 2),
+            ("LEFTPADDING", (0,0), (-1,-1), 3), ("RIGHTPADDING",  (0,0), (-1,-1), 3),
+            ("VALIGN",      (0,0), (-1,-1), "MIDDLE"),
+        ]
+        for row_idx in BOLD_ROWS:
+            ts.append(("BACKGROUND", (0, row_idx), (-1, row_idx), colors.HexColor("#dce8f5")))
+            ts.append(("LINEABOVE",  (0, row_idx), (-1, row_idx), 0.5, H_FILL))
+        t.setStyle(TableStyle(ts))
+        story.append(t)
+        story.append(Spacer(1, 0.5*cm))
+
+    doc.build(story)
+    return buf.getvalue()
+
+
 def build_supplier_stats_pdf(data: dict) -> bytes:
     rows = data["rows"]
     period_from = data["period_from"]
