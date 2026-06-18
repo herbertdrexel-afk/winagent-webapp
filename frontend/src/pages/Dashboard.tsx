@@ -1,17 +1,35 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, type Supplier } from "../api";
+import { api, type Supplier, type SyncResult } from "../api";
 import {
-  Building2, Users, FileText, Receipt, TrendingUp, ArrowRight,
+  Building2, Users, FileText, Receipt, TrendingUp, ArrowRight, RefreshCw,
 } from "lucide-react";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [syncing, setSyncing] = useState<"customers" | "suppliers" | null>(null);
+  const [syncResult, setSyncResult] = useState<{ type: string; result: SyncResult } | null>(null);
 
   useEffect(() => {
     api.suppliers.list().then(setSuppliers).catch(() => {});
   }, []);
+
+  async function runSync(type: "customers" | "suppliers") {
+    setSyncing(type);
+    setSyncResult(null);
+    try {
+      const result = type === "customers"
+        ? await api.sync.customers()
+        : await api.sync.suppliers();
+      setSyncResult({ type, result });
+      if (type === "suppliers") api.suppliers.list().then(setSuppliers).catch(() => {});
+    } catch (e: unknown) {
+      setSyncResult({ type, result: { ok: false, total: 0, message: e instanceof Error ? e.message : "Fehler" } });
+    } finally {
+      setSyncing(null);
+    }
+  }
 
   const tiles = [
     {
@@ -80,6 +98,35 @@ export default function Dashboard() {
             <ArrowRight size={16} className="opacity-40 mt-1 shrink-0" />
           </button>
         ))}
+      </div>
+
+      {/* Reybex Sync */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <RefreshCw size={18} className="text-[#1a3a5c]" />
+          <h2 className="font-semibold text-gray-800">Reybex Synchronisation</h2>
+          <span className="ml-auto text-xs text-gray-400">Reybex → WinAgent</span>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {[
+            { key: "customers" as const, label: "Kunden synchronisieren" },
+            { key: "suppliers" as const, label: "Lieferanten synchronisieren" },
+          ].map(({ key, label }) => (
+            <button key={key} onClick={() => runSync(key)} disabled={!!syncing}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#1a3a5c] text-[#1a3a5c] text-sm font-medium hover:bg-[#1a3a5c]/5 disabled:opacity-50 transition-colors">
+              <RefreshCw size={14} className={syncing === key ? "animate-spin" : ""} />
+              {syncing === key ? "Synchronisiere…" : label}
+            </button>
+          ))}
+        </div>
+        {syncResult && (
+          <div className={`mt-3 px-4 py-2.5 rounded-lg text-sm ${syncResult.result.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+            {syncResult.result.ok
+              ? `✓ ${syncResult.type === "customers" ? "Kunden" : "Lieferanten"}: ${syncResult.result.total} gesamt — ${syncResult.result.created} neu, ${syncResult.result.updated} aktualisiert, ${syncResult.result.skipped} übersprungen`
+              : `✗ Fehler: ${syncResult.result.message}`
+            }
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">

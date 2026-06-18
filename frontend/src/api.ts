@@ -221,6 +221,10 @@ export const api = {
         .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
     reprintPdfUrl: (id: number) => `${BASE}/commission/invoices/${id}/pdf`,
   },
+  sync: {
+    customers: () => post<SyncResult>("/sync/reybex/customers", {}),
+    suppliers: () => post<SyncResult>("/sync/reybex/suppliers", {}),
+  },
 };
 
 export interface InvoiceSummary {
@@ -230,6 +234,15 @@ export interface InvoiceSummary {
   period_to: string;
   next_pr_seq: number;
   totals: { currency: string; total_amount: number; provision_amount: number }[];
+}
+
+export interface SyncResult {
+  ok: boolean;
+  total: number;
+  created?: number;
+  updated?: number;
+  skipped?: number;
+  message?: string;
 }
 
 export interface CommissionInvoiceRecord {

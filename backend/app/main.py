@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import suppliers, customers, commission
+from .routers import suppliers, customers, commission, sync
 from .routers import auth as auth_router
 from .auth import get_current_user
 from .database import engine
@@ -34,6 +34,7 @@ _auth = {"dependencies": [Depends(get_current_user)]}
 app.include_router(suppliers.router, **_auth)
 app.include_router(customers.router, **_auth)
 app.include_router(commission.router, **_auth)
+app.include_router(sync.router, **_auth)
 
 
 @app.get("/health")
