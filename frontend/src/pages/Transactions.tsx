@@ -3,6 +3,7 @@ import { api, type Supplier, type Transaction } from "../api";
 import InvoiceModal from "../components/InvoiceModal";
 import PdfImportModal from "../components/PdfImportModal";
 import CommissionInvoiceModal from "../components/CommissionInvoiceModal";
+import DateRangePicker from "../components/DateRangePicker";
 
 function today() { return new Date().toISOString().slice(0, 10); }
 function yearStart() { return new Date().getFullYear() + "-01-01"; }
@@ -170,14 +171,8 @@ export default function Transactions() {
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Von</label>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
-        </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Bis</label>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+          <label className="block text-xs text-gray-500 mb-1">Zeitraum</label>
+          <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
         </div>
         <button onClick={load}
           className="bg-[#1a3a5c] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/80 transition-colors">

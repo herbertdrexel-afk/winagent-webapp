@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { FileDown, RefreshCw } from "lucide-react";
 import { BASE, token } from "../api";
+import DateRangePicker from "../components/DateRangePicker";
 
 interface StatRow {
   code: string;
@@ -94,12 +95,7 @@ export default function SupplierStats() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-semibold text-gray-800">Lieferanten Statistik</h1>
         <div className="flex items-center gap-2 flex-wrap">
-          <label className="text-xs text-gray-500">Von</label>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
-          <label className="text-xs text-gray-500">Bis</label>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30" />
+          <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
           <button onClick={load} disabled={loading}
             className="flex items-center gap-1.5 bg-[#1a3a5c] text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[#1a3a5c]/80 disabled:opacity-50 transition-colors">
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
