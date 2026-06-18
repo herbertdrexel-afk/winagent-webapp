@@ -110,19 +110,23 @@ async def sync_customers(db: Session = Depends(get_db)):
 
 @router.post("/reybex/suppliers")
 async def sync_suppliers(db: Session = Depends(get_db)):
-    """Fetch vendors/suppliers from Reybex (contactType.type=2) and upsert into WinAgent."""
+    """Fetch contacts with contactType.name='Lieferant' from Reybex and upsert into WinAgent."""
     username, password = _reybex_creds()
     auth = (username, password)
 
-    # Try contactType.type=2 (Lieferant) — adjust if Reybex uses different type
-    rows = await _fetch_all(
-        "/domains/customer",
-        {"sort": "id", "contactType.type": 2},
-        auth,
-    )
+    # Fetch all contacts and filter by contactType.name containing 'lieferant'
+    all_rows = await _fetch_all("/domains/customer", {"sort": "id"}, auth)
+    rows = [
+        r for r in all_rows
+        if isinstance(r.get("contactType"), dict)
+        and "lieferant" in (r["contactType"].get("name") or "").lower()
+    ]
 
     if not rows:
-        return {"ok": True, "total": 0, "message": "Keine Lieferanten mit contactType.type=2 gefunden. Bitte contactType prüfen."}
+        return {
+            "ok": True, "total": 0,
+            "message": f"Keine Kontakte mit contactType 'Lieferant' gefunden (von {len(all_rows)} Kontakten gesamt).",
+        }
 
     created = updated = skipped = 0
 
