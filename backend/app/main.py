@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import suppliers, customers, commission, sync, stats
+from .routers import suppliers, customers, commission, sync, stats, mandants
 from .routers import auth as auth_router
 from .routers.sync import run_customer_sync
 from .auth import get_current_user
@@ -60,6 +60,7 @@ app.include_router(customers.router, **_auth)
 app.include_router(commission.router, **_auth)
 app.include_router(sync.router, **_auth)
 app.include_router(stats.router, **_auth)
+app.include_router(mandants.router, **_auth)
 
 
 @app.get("/health")

@@ -225,6 +225,20 @@ export const api = {
     customers: () => post<SyncResult>("/sync/reybex/customers", {}),
     status: () => get<{ last_sync: string | null; total?: number; created?: number; updated?: number }>("/sync/reybex/status"),
   },
+  mandants: {
+    list: () => get<ReybexMandant[]>("/mandants"),
+    create: (data: { name: string; mandant_id?: string | null; is_active?: boolean; notes?: string | null; supplier_ids?: number[] }) =>
+      post<ReybexMandant>("/mandants", data),
+    update: (id: number, data: { name?: string; mandant_id?: string | null; is_active?: boolean; notes?: string | null; supplier_ids?: number[] }) =>
+      fetch(`${BASE}/mandants/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(data),
+      }).then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json() as Promise<ReybexMandant>; }),
+    delete: (id: number) =>
+      fetch(`${BASE}/mandants/${id}`, { method: "DELETE", headers: authHeaders() })
+        .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
+  },
 };
 
 export interface InvoiceSummary {
@@ -243,6 +257,15 @@ export interface SyncResult {
   updated?: number;
   skipped?: number;
   message?: string;
+}
+
+export interface ReybexMandant {
+  id: number;
+  name: string;
+  mandant_id: string | null;
+  is_active: boolean;
+  notes: string | null;
+  suppliers: { id: number; code: string; name: string }[];
 }
 
 export interface CommissionInvoiceRecord {

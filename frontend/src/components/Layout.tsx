@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
-  LayoutDashboard, Building2, Users, FileText, Receipt, UserCog, LogOut, BarChart2,
+  LayoutDashboard, Building2, Users, FileText, Receipt, UserCog, LogOut, BarChart2, Globe,
 } from "lucide-react";
 
 interface NavItem {
@@ -18,6 +18,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/transactions",        label: "Rechnungen",          icon: FileText },
   { to: "/commission-invoices", label: "Provisionsrechnungen",icon: Receipt },
   { to: "/stats",               label: "Statistik",           icon: BarChart2 },
+  { to: "/mandants",            label: "Reybex Mandanten",    icon: Globe, adminOnly: true },
   { to: "/users",               label: "Benutzer",            icon: UserCog, adminOnly: true },
 ];
 

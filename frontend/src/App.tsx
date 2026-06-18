@@ -7,6 +7,7 @@ import Transactions from "./pages/Transactions";
 import CommissionInvoices from "./pages/CommissionInvoices";
 import SupplierStats from "./pages/SupplierStats";
 import UserManagement from "./pages/UserManagement";
+import ReybexMandants from "./pages/ReybexMandants";
 import Login from "./pages/Login";
 import { useAuth } from "./context/AuthContext";
 
@@ -28,7 +29,10 @@ function ProtectedRoutes() {
         <Route path="commission-invoices" element={<CommissionInvoices />} />
         <Route path="stats"               element={<SupplierStats />} />
         {user.role === "admin" && (
-          <Route path="users" element={<UserManagement />} />
+          <>
+            <Route path="users" element={<UserManagement />} />
+            <Route path="mandants" element={<ReybexMandants />} />
+          </>
         )}
       </Route>
     </Routes>

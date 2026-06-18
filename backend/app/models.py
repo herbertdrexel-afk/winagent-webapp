@@ -214,6 +214,29 @@ class CommissionInvoice(Base):
     supplier = relationship("Supplier")
 
 
+class ReybexMandant(Base):
+    __tablename__ = "reybex_mandants"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(60), nullable=False)
+    mandant_id = Column(String(50))          # Reybex ?mandantId=... value
+    is_active = Column(Boolean, default=True)
+    notes = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    supplier_links = relationship("MandantSupplier", back_populates="mandant",
+                                  cascade="all, delete-orphan")
+
+
+class MandantSupplier(Base):
+    __tablename__ = "mandant_suppliers"
+    id = Column(Integer, primary_key=True)
+    mandant_id_fk = Column(Integer, ForeignKey("reybex_mandants.id"), nullable=False)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=False)
+
+    mandant = relationship("ReybexMandant", back_populates="supplier_links")
+    supplier = relationship("Supplier")
+
+
 class AppSetting(Base):
     __tablename__ = "app_settings"
     key = Column(String(50), primary_key=True)
