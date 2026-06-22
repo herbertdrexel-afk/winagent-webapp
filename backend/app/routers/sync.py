@@ -247,28 +247,43 @@ async def import_dbf(
 
 
 async def test_mandant(mandant_id: str | None = None):
-    """Probe Reybex finance document endpoints — try with and without /domains/."""
+    """Probe Reybex for GET endpoints to list finance documents / invoices."""
     username, password = _reybex_creds()
     results = {}
-    names = ["finHead", "finHeads", "finPos", "finPositions", "finance",
-             "finDocument", "finDocuments", "finInvoice", "finInvoices"]
+    params = {"take": 2, "skip": 0, "responseFormat": "api"}
+    if mandant_id:
+        params["mandantId"] = mandant_id
+
+    # wsClient GET paths (similar to createOrders / cancelOrder pattern)
+    wsclient_paths = [
+        "/wsClient/getOrders", "/wsClient/getFinHead", "/wsClient/finHead",
+        "/wsClient/getFinDocuments", "/wsClient/invoices", "/wsClient/orders",
+    ]
+    # Direct API paths (like /cancelFinHead)
+    direct_paths = [
+        "/finHead", "/finHeads", "/getFinHead", "/listFinHead",
+        "/salesHead", "/salesHeads", "/getSalesHead",
+    ]
+    # Domain paths we haven't tried
+    domain_names = ["salesHead", "salesDoc", "salesDocument", "finDocument", "finPos"]
+
     async with httpx.AsyncClient(timeout=45) as client:
-        for name in names:
-            params = {"take": 2, "skip": 0, "responseFormat": "api"}
-            if mandant_id:
-                params["mandantId"] = mandant_id
-            # Try with /domains/ prefix
+        for path in wsclient_paths + direct_paths:
+            r = await client.get(f"{REYBEX_BASE}{path}", params=params, auth=(username, password))
+            if r.status_code == 200:
+                data = r.json()
+                results[path] = {"ok": True, "count": len(data) if isinstance(data, list) else "?",
+                    "sample_keys": list(data[0].keys())[:10] if isinstance(data, list) and data else str(data)[:100]}
+            elif r.status_code not in (400, 404, 405):
+                results[path] = {"status": r.status_code, "body": r.text[:100]}
+
+        for name in domain_names:
             r = await client.get(f"{REYBEX_BASE}/domains/{name}", params=params, auth=(username, password))
             if r.status_code == 200:
                 data = r.json()
                 results[f"domains/{name}"] = {"ok": True, "count": len(data) if isinstance(data, list) else "?",
-                    "fields": list(data[0].keys()) if isinstance(data, list) and data else []}
-            # Try directly without /domains/
-            r2 = await client.get(f"{REYBEX_BASE}/{name}", params=params, auth=(username, password))
-            if r2.status_code == 200:
-                data2 = r2.json()
-                results[name] = {"ok": True, "count": len(data2) if isinstance(data2, list) else "?",
-                    "fields": list(data2[0].keys()) if isinstance(data2, list) and data2 else []}
-            elif r2.status_code not in (400, 404):
-                results[name] = {"status": r2.status_code, "body": r2.text[:100]}
-    return results if results else {"note": "Alle Versuche schlugen fehl (400/404)"}
+                    "fields": list(data[0].keys())[:10] if isinstance(data, list) and data else []}
+            elif r.status_code not in (400, 404):
+                results[f"domains/{name}"] = {"status": r.status_code, "body": r.text[:100]}
+
+    return results if results else {"note": "Kein lesbarer Rechnungs-Endpunkt gefunden — Reybex ist primär ein Push-API"}
