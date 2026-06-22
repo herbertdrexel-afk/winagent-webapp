@@ -247,35 +247,24 @@ async def import_dbf(
 
 
 async def test_mandant(mandant_id: str | None = None):
-    """Probe Reybex API for available invoice-related domains."""
+    """Probe Reybex finHead (finance document) endpoint."""
     username, password = _reybex_creds()
-    candidates = [
-        # Singular English
-        "salesInvoice", "invoice", "order", "salesOrder", "purchaseOrder",
-        "deliveryNote", "creditNote", "document", "voucher",
-        # Plural English
-        "salesInvoices", "invoices", "orders", "salesOrders", "documents", "vouchers",
-        # German
-        "rechnung", "beleg", "auftrag", "lieferschein", "gutschrift",
-        "belegkopf", "auftragskopf", "verkaufsbeleg", "faktura",
-        # Reybex-specific
-        "customerInvoice", "vendorInvoice", "invoiceHead", "orderHead",
-        "contactInvoice", "salesDoc", "purchaseDoc", "erp",
-    ]
     results = {}
-    async with httpx.AsyncClient(timeout=45) as client:
-        for domain in candidates:
-            params = {"take": 1, "skip": 0, "responseFormat": "api"}
+    async with httpx.AsyncClient(timeout=30) as client:
+        for domain in ["finHead", "finHeads", "finPos", "finPosition"]:
+            params = {"take": 2, "skip": 0, "responseFormat": "api"}
             if mandant_id:
                 params["mandantId"] = mandant_id
             r = await client.get(f"{REYBEX_BASE}/domains/{domain}", params=params, auth=(username, password))
             if r.status_code == 200:
                 data = r.json()
+                sample = data[:1] if isinstance(data, list) else data
                 results[domain] = {
                     "ok": True,
                     "count": len(data) if isinstance(data, list) else "n/a",
-                    "fields": list(data[0].keys())[:15] if isinstance(data, list) and data else [],
+                    "fields": list(sample[0].keys()) if isinstance(sample, list) and sample else [],
+                    "sample": sample,
                 }
-            elif r.status_code != 400:
-                results[domain] = {"status": r.status_code, "body": r.text[:100]}
-    return results if results else {"note": "Kein Endpunkt gefunden — alle liefern 400"}
+            else:
+                results[domain] = {"status": r.status_code, "error": r.text[:200]}
+    return results
