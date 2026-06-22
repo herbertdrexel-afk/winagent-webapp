@@ -247,24 +247,28 @@ async def import_dbf(
 
 
 async def test_mandant(mandant_id: str | None = None):
-    """Probe Reybex finHead (finance document) endpoint."""
+    """Probe Reybex finance document endpoints — try with and without /domains/."""
     username, password = _reybex_creds()
     results = {}
-    async with httpx.AsyncClient(timeout=30) as client:
-        for domain in ["finHead", "finHeads", "finPos", "finPosition"]:
+    names = ["finHead", "finHeads", "finPos", "finPositions", "finance",
+             "finDocument", "finDocuments", "finInvoice", "finInvoices"]
+    async with httpx.AsyncClient(timeout=45) as client:
+        for name in names:
             params = {"take": 2, "skip": 0, "responseFormat": "api"}
             if mandant_id:
                 params["mandantId"] = mandant_id
-            r = await client.get(f"{REYBEX_BASE}/domains/{domain}", params=params, auth=(username, password))
+            # Try with /domains/ prefix
+            r = await client.get(f"{REYBEX_BASE}/domains/{name}", params=params, auth=(username, password))
             if r.status_code == 200:
                 data = r.json()
-                sample = data[:1] if isinstance(data, list) else data
-                results[domain] = {
-                    "ok": True,
-                    "count": len(data) if isinstance(data, list) else "n/a",
-                    "fields": list(sample[0].keys()) if isinstance(sample, list) and sample else [],
-                    "sample": sample,
-                }
-            else:
-                results[domain] = {"status": r.status_code, "error": r.text[:200]}
-    return results
+                results[f"domains/{name}"] = {"ok": True, "count": len(data) if isinstance(data, list) else "?",
+                    "fields": list(data[0].keys()) if isinstance(data, list) and data else []}
+            # Try directly without /domains/
+            r2 = await client.get(f"{REYBEX_BASE}/{name}", params=params, auth=(username, password))
+            if r2.status_code == 200:
+                data2 = r2.json()
+                results[name] = {"ok": True, "count": len(data2) if isinstance(data2, list) else "?",
+                    "fields": list(data2[0].keys()) if isinstance(data2, list) and data2 else []}
+            elif r2.status_code not in (400, 404):
+                results[name] = {"status": r2.status_code, "body": r2.text[:100]}
+    return results if results else {"note": "Alle Versuche schlugen fehl (400/404)"}
