@@ -1,3 +1,4 @@
+import re
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
@@ -5,7 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
 from ..database import get_db
-from ..pdf_import_parser import parse_pdf_auto
+from ..pdf_import_parser import parse_pdf_auto, extract_commission_schedule_company
 
 router = APIRouter(prefix="/suppliers", tags=["suppliers"])
 
@@ -140,6 +141,19 @@ async def parse_pdf(
         raise HTTPException(404, "Lieferant nicht gefunden")
 
     pdf_bytes = await file.read()
+
+    # Validate Commission-Schedule company matches selected supplier
+    pdf_company = extract_commission_schedule_company(pdf_bytes)
+    if pdf_company:
+        c_pdf = re.sub(r'\s+', '', pdf_company.lower())
+        c_sup = re.sub(r'\s+', '', supplier.name.lower())
+        prefix = min(6, len(c_pdf), len(c_sup))
+        if c_pdf[:prefix] not in c_sup and c_sup[:prefix] not in c_pdf:
+            raise HTTPException(
+                422,
+                f"Dieses PDF gehört zu '{pdf_company}' – bitte den richtigen Lieferanten auswählen."
+            )
+
     try:
         entries = parse_pdf_auto(pdf_bytes)
     except Exception as e:

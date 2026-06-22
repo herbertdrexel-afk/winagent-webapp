@@ -8,6 +8,10 @@ import DateRangePicker from "../components/DateRangePicker";
 function today() { return new Date().toISOString().slice(0, 10); }
 function yearStart() { return new Date().getFullYear() + "-01-01"; }
 
+const LS_SUPPLIER = "winagent_tx_supplier";
+const LS_FROM = "winagent_tx_from";
+const LS_TO = "winagent_tx_to";
+
 export interface Invoice {
   invoice_number: string;
   invoice_date: string;
@@ -59,9 +63,9 @@ function groupInvoices(rows: Transaction[]): Invoice[] {
 
 export default function Transactions() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [supplierCode, setSupplierCode] = useState("");
-  const [from, setFrom] = useState(yearStart());
-  const [to, setTo] = useState(today());
+  const [supplierCode, setSupplierCode] = useState(() => localStorage.getItem(LS_SUPPLIER) ?? "");
+  const [from, setFrom] = useState(() => localStorage.getItem(LS_FROM) ?? yearStart());
+  const [to, setTo] = useState(() => localStorage.getItem(LS_TO) ?? today());
   const [rows, setRows] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +82,10 @@ export default function Transactions() {
   useEffect(() => {
     api.suppliers.list().then((s) => {
       setSuppliers(s);
-      if (s.length > 0) setSupplierCode(s[0].code);
+      const saved = localStorage.getItem(LS_SUPPLIER);
+      if (!saved || !s.some((x) => x.code === saved)) {
+        if (s.length > 0) setSupplierCode(s[0].code);
+      }
     });
   }, []);
 
@@ -251,7 +258,7 @@ export default function Transactions() {
           <label className="block text-xs text-gray-500 mb-1">Lieferant</label>
           <select
             value={supplierCode}
-            onChange={(e) => setSupplierCode(e.target.value)}
+            onChange={(e) => { setSupplierCode(e.target.value); localStorage.setItem(LS_SUPPLIER, e.target.value); }}
             className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30"
           >
             {suppliers.map((s) => (
@@ -261,7 +268,11 @@ export default function Transactions() {
         </div>
         <div>
           <label className="block text-xs text-gray-500 mb-1">Zeitraum</label>
-          <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+          <DateRangePicker from={from} to={to} onChange={(f, t) => {
+            setFrom(f); setTo(t);
+            localStorage.setItem(LS_FROM, f);
+            localStorage.setItem(LS_TO, t);
+          }} />
         </div>
         <button onClick={load}
           className="bg-[#2563eb] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 transition-colors">

@@ -313,6 +313,27 @@ def parse_commission_schedule(pdf_bytes: bytes) -> list[dict]:
     return entries
 
 
+# ── Public helpers ───────────────────────────────────────────────────────────
+
+def extract_commission_schedule_company(pdf_bytes: bytes) -> str | None:
+    """Return the company name from a Commission-Schedule PDF header, or None."""
+    text = _fitz_text(pdf_bytes, 0)
+    if not text:
+        try:
+            import pdfplumber
+            with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
+                text = pdf.pages[0].extract_text() if pdf.pages else ''
+        except Exception:
+            pass
+    if not text:
+        return None
+    # Header line: "Company  0001  STANASIA Shanghai"
+    m = re.search(r'Company\s+\S+\s+(.+?)[\n\r]', text)
+    if m:
+        return m.group(1).strip()
+    return None
+
+
 # ── Public entry point ────────────────────────────────────────────────────────
 
 def parse_pdf_auto(pdf_bytes: bytes) -> list[dict]:
