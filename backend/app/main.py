@@ -70,3 +70,34 @@ def health():
 
 # Public test endpoint — no JWT needed, only server-side Reybex credentials
 app.add_api_route("/sync/reybex/test-mandant", test_mandant, methods=["GET"], tags=["sync"])
+
+
+# Temporary public debug endpoint — no JWT
+@app.post("/debug/pdf-words")
+async def debug_pdf_words(file: __import__("fastapi").UploadFile = __import__("fastapi").File(...)):
+    from io import BytesIO
+    pdf_bytes = await file.read()
+    out: dict = {}
+    try:
+        import fitz
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        out["fitz_pages"] = len(doc)
+        if len(doc) > 0:
+            p = doc[0]
+            out["fitz_text"] = p.get_text()[:3000]
+            words = p.get_text("words")
+            out["fitz_words"] = [
+                {"x": round(w[0], 1), "y": round(w[1], 1), "text": w[4]}
+                for w in words[:100]
+            ]
+    except Exception as e:
+        out["fitz_error"] = str(e)
+    try:
+        import pdfplumber
+        with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
+            out["plumber_text"] = (pdf.pages[0].extract_text() or "")[:500] if pdf.pages else ""
+            words = pdf.pages[0].extract_words()[:30] if pdf.pages else []
+            out["plumber_words"] = [{"x": round(w["x0"], 1), "y": round(w["top"], 1), "text": w["text"]} for w in words]
+    except Exception as e:
+        out["plumber_error"] = str(e)
+    return out
