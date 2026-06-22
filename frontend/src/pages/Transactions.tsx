@@ -71,6 +71,9 @@ export default function Transactions() {
   const [dbfImporting, setDbfImporting] = useState(false);
   const [dbfResult, setDbfResult] = useState<string | null>(null);
   const dbfInputRef = useRef<HTMLInputElement>(null);
+  const [xmlImporting, setXmlImporting] = useState(false);
+  const [xmlResult, setXmlResult] = useState<string | null>(null);
+  const xmlInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.suppliers.list().then((s) => {
@@ -131,6 +134,33 @@ export default function Transactions() {
     }
   }
 
+  async function handleXmlFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setXmlImporting(true);
+    setXmlResult(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      if (supplierCode) form.append("supplier_code", supplierCode);
+      const t = token.get();
+      const res = await fetch(`${BASE}/sync/einvoice/import`, {
+        method: "POST",
+        headers: t ? { Authorization: `Bearer ${t}` } : {},
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Fehler");
+      setXmlResult(`✓ ${data.invoice_number} · ${data.buyer} · ${data.lines_imported} Position(en) · ${data.supplier_matched}`);
+      load();
+    } catch (err: unknown) {
+      setXmlResult(`Fehler: ${err instanceof Error ? err.message : "Unbekannt"}`);
+    } finally {
+      setXmlImporting(false);
+      if (xmlInputRef.current) xmlInputRef.current.value = "";
+    }
+  }
+
   function handlePdfImported(imported: Transaction[]) {
     setRows((prev) => {
       const existingNrs = new Set(imported.map((t) => t.invoice_number));
@@ -171,9 +201,18 @@ export default function Transactions() {
               🧾 Provisionsrechnung
             </button>
             <button
+              onClick={() => xmlInputRef.current?.click()}
+              disabled={xmlImporting}
+              title="XRechnung XML (UBL oder CII) importieren"
+              className="border border-emerald-600 text-emerald-700 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-emerald-50 disabled:opacity-40 transition-colors"
+            >
+              {xmlImporting ? "⏳ Importiere…" : "📨 E-Rechnung"}
+            </button>
+            <input ref={xmlInputRef} type="file" accept=".xml,.XML" className="hidden" onChange={handleXmlFile} />
+            <button
               onClick={() => dbfInputRef.current?.click()}
               disabled={!supplierCode || dbfImporting}
-              title="Reybex DBF-Export hochladen (aus Reybex: Datei → Export → DBF)"
+              title="Reybex DBF-Export hochladen"
               className="border border-violet-600 text-violet-700 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-violet-50 disabled:opacity-40 transition-colors"
             >
               {dbfImporting ? "⏳ Importiere…" : "🔄 DBF importieren"}
@@ -194,6 +233,11 @@ export default function Transactions() {
               + Neue Rechnung
             </button>
           </div>
+          {xmlResult && (
+            <span className={`text-xs ${xmlResult.startsWith("Fehler") ? "text-red-600" : "text-emerald-700"}`}>
+              {xmlResult}
+            </span>
+          )}
           {dbfResult && (
             <span className={`text-xs ${dbfResult.startsWith("Fehler") ? "text-red-600" : "text-emerald-700"}`}>
               {dbfResult}
