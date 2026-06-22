@@ -143,3 +143,30 @@ def sync_status(db: Session = Depends(get_db)):
     if not setting:
         return {"last_sync": None}
     return setting.value
+
+
+@router.get("/reybex/test-mandant")
+async def test_mandant(mandant_id: str):
+    """Test Reybex connection for a given mandantId — returns first 3 customers."""
+    username, password = _reybex_creds()
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.get(
+            f"{REYBEX_BASE}/domains/customer",
+            params={"mandantId": mandant_id, "take": 3, "skip": 0, "responseFormat": "api", "contactType.type": 1},
+            auth=(username, password),
+        )
+    if r.status_code == 200:
+        data = r.json()
+        return {
+            "ok": True,
+            "mandant_id": mandant_id,
+            "status": r.status_code,
+            "count_returned": len(data) if isinstance(data, list) else "n/a",
+            "sample": data[:2] if isinstance(data, list) else data,
+        }
+    return {
+        "ok": False,
+        "mandant_id": mandant_id,
+        "status": r.status_code,
+        "error": r.text[:300],
+    }
