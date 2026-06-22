@@ -249,26 +249,33 @@ async def import_dbf(
 async def test_mandant(mandant_id: str | None = None):
     """Probe Reybex API for available invoice-related domains."""
     username, password = _reybex_creds()
-    # Try plural domain names + alternative base paths
-    domain_candidates = [
-        "salesInvoices", "invoices", "orders", "salesOrders", "purchaseInvoices",
-        "documents", "vouchers", "billings", "sales", "deliveryNotes", "creditNotes",
-        "outgoingInvoices", "incomingInvoices", "commissions",
-    ]
-    alt_paths = [
-        "/erp/invoice", "/erp/order", "/erp/salesInvoice",
-        "/accounting/invoice", "/sales/invoice", "/sales/order",
+    candidates = [
+        # Singular English
+        "salesInvoice", "invoice", "order", "salesOrder", "purchaseOrder",
+        "deliveryNote", "creditNote", "document", "voucher",
+        # Plural English
+        "salesInvoices", "invoices", "orders", "salesOrders", "documents", "vouchers",
+        # German
+        "rechnung", "beleg", "auftrag", "lieferschein", "gutschrift",
+        "belegkopf", "auftragskopf", "verkaufsbeleg", "faktura",
+        # Reybex-specific
+        "customerInvoice", "vendorInvoice", "invoiceHead", "orderHead",
+        "contactInvoice", "salesDoc", "purchaseDoc", "erp",
     ]
     results = {}
-    async with httpx.AsyncClient(timeout=30) as client:
-        for domain in domain_candidates:
+    async with httpx.AsyncClient(timeout=45) as client:
+        for domain in candidates:
             params = {"take": 1, "skip": 0, "responseFormat": "api"}
+            if mandant_id:
+                params["mandantId"] = mandant_id
             r = await client.get(f"{REYBEX_BASE}/domains/{domain}", params=params, auth=(username, password))
-            results[f"domains/{domain}"] = {"status": r.status_code} if r.status_code != 200 else {
-                "ok": True,
-                "fields": list(r.json()[0].keys()) if isinstance(r.json(), list) and r.json() else [],
-            }
-        for path in alt_paths:
-            r = await client.get(f"{REYBEX_BASE}{path}", params={"take": 1, "responseFormat": "api"}, auth=(username, password))
-            results[path] = {"status": r.status_code} if r.status_code != 200 else {"ok": True}
-    return {k: v for k, v in results.items() if v.get("ok") or v.get("status") != 400}
+            if r.status_code == 200:
+                data = r.json()
+                results[domain] = {
+                    "ok": True,
+                    "count": len(data) if isinstance(data, list) else "n/a",
+                    "fields": list(data[0].keys())[:15] if isinstance(data, list) and data else [],
+                }
+            elif r.status_code != 400:
+                results[domain] = {"status": r.status_code, "body": r.text[:100]}
+    return results if results else {"note": "Kein Endpunkt gefunden — alle liefern 400"}

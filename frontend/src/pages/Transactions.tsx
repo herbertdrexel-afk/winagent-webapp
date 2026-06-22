@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { api, type Supplier, type Transaction } from "../api";
+import { useEffect, useRef, useState } from "react";
+import { api, type Supplier, type Transaction, BASE, token } from "../api";
 import InvoiceModal from "../components/InvoiceModal";
 import PdfImportModal from "../components/PdfImportModal";
 import CommissionInvoiceModal from "../components/CommissionInvoiceModal";
@@ -68,6 +68,9 @@ export default function Transactions() {
   const [editing, setEditing] = useState<Invoice | null | undefined>(undefined);
   const [showPdfImport, setShowPdfImport] = useState(false);
   const [showCommissionInvoice, setShowCommissionInvoice] = useState(false);
+  const [dbfImporting, setDbfImporting] = useState(false);
+  const [dbfResult, setDbfResult] = useState<string | null>(null);
+  const dbfInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.suppliers.list().then((s) => {
@@ -102,6 +105,32 @@ export default function Transactions() {
     setEditing(undefined);
   }
 
+  async function handleDbfFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDbfImporting(true);
+    setDbfResult(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const t = token.get();
+      const res = await fetch(`${BASE}/sync/dbf/import`, {
+        method: "POST",
+        headers: t ? { Authorization: `Bearer ${t}` } : {},
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Fehler");
+      setDbfResult(`✓ ${data.imported} Rechnungen importiert, ${data.skipped} übersprungen`);
+      load();
+    } catch (err: unknown) {
+      setDbfResult(`Fehler: ${err instanceof Error ? err.message : "Unbekannt"}`);
+    } finally {
+      setDbfImporting(false);
+      if (dbfInputRef.current) dbfInputRef.current.value = "";
+    }
+  }
+
   function handlePdfImported(imported: Transaction[]) {
     setRows((prev) => {
       const existingNrs = new Set(imported.map((t) => t.invoice_number));
@@ -132,28 +161,43 @@ export default function Transactions() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-semibold text-gray-800">Rechnungen</h1>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowCommissionInvoice(true)}
-            disabled={!supplierCode || invoices.length === 0}
-            className="border border-emerald-600 text-emerald-700 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-emerald-50 disabled:opacity-40 transition-colors"
-          >
-            🧾 Provisionsrechnung
-          </button>
-          <button
-            onClick={() => setShowPdfImport(true)}
-            disabled={!supplierCode}
-            className="border border-[#2563eb] text-[#2563eb] px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/10 disabled:opacity-40 transition-colors"
-          >
-            📄 PDF importieren
-          </button>
-          <button
-            onClick={() => setEditing(null)}
-            disabled={!supplierCode}
-            className="bg-[#2563eb] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 disabled:opacity-40 transition-colors"
-          >
-            + Neue Rechnung
-          </button>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowCommissionInvoice(true)}
+              disabled={!supplierCode || invoices.length === 0}
+              className="border border-emerald-600 text-emerald-700 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-emerald-50 disabled:opacity-40 transition-colors"
+            >
+              🧾 Provisionsrechnung
+            </button>
+            <button
+              onClick={() => dbfInputRef.current?.click()}
+              disabled={!supplierCode || dbfImporting}
+              className="border border-violet-600 text-violet-700 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-violet-50 disabled:opacity-40 transition-colors"
+            >
+              {dbfImporting ? "⏳ Importiere…" : "🔄 Reybex Sync"}
+            </button>
+            <input ref={dbfInputRef} type="file" accept=".dbf,.DBF" className="hidden" onChange={handleDbfFile} />
+            <button
+              onClick={() => setShowPdfImport(true)}
+              disabled={!supplierCode}
+              className="border border-[#2563eb] text-[#2563eb] px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/10 disabled:opacity-40 transition-colors"
+            >
+              📄 PDF importieren
+            </button>
+            <button
+              onClick={() => setEditing(null)}
+              disabled={!supplierCode}
+              className="bg-[#2563eb] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 disabled:opacity-40 transition-colors"
+            >
+              + Neue Rechnung
+            </button>
+          </div>
+          {dbfResult && (
+            <span className={`text-xs ${dbfResult.startsWith("Fehler") ? "text-red-600" : "text-emerald-700"}`}>
+              {dbfResult}
+            </span>
+          )}
         </div>
       </div>
 
