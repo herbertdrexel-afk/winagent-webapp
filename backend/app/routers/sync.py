@@ -145,27 +145,30 @@ def sync_status(db: Session = Depends(get_db)):
     return setting.value
 
 
-async def test_mandant(mandant_id: str):
-    """Test Reybex connection for a given mandantId — returns first 3 customers."""
+async def test_mandant(mandant_id: str | None = None):
+    """Test Reybex connection — explore available fields and filter options."""
     username, password = _reybex_creds()
     async with httpx.AsyncClient(timeout=15) as client:
+        # First: get 2 customers without any filter to see all available fields
         r = await client.get(
             f"{REYBEX_BASE}/domains/customer",
-            params={"mandantId": mandant_id, "take": 3, "skip": 0, "responseFormat": "api", "contactType.type": 1},
+            params={"take": 2, "skip": 0, "responseFormat": "api", "contactType.type": 1},
             auth=(username, password),
         )
     if r.status_code == 200:
         data = r.json()
+        sample = data[:2] if isinstance(data, list) else data
+        # Show all keys from first record so we can find the mandant field name
+        first_keys = list(sample[0].keys()) if sample else []
         return {
             "ok": True,
-            "mandant_id": mandant_id,
             "status": r.status_code,
             "count_returned": len(data) if isinstance(data, list) else "n/a",
-            "sample": data[:2] if isinstance(data, list) else data,
+            "available_fields": first_keys,
+            "sample": sample,
         }
     return {
         "ok": False,
-        "mandant_id": mandant_id,
         "status": r.status_code,
         "error": r.text[:300],
     }
