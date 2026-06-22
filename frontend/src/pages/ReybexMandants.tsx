@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
-import { api } from "../api";
+import { useEffect, useRef, useState } from "react";
+import { Plus, Pencil, Trash2, Check, X, Upload } from "lucide-react";
+import { api, BASE, token } from "../api";
 
 interface SupplierShort { id: number; code: string; name: string; }
 interface Mandant {
@@ -22,6 +22,10 @@ export default function ReybexMandants() {
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [importing, setImporting] = useState<number | null>(null);
+  const [importResult, setImportResult] = useState<{ mandantId: number; msg: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const importingForRef = useRef<number | null>(null);
 
   useEffect(() => { load(); }, []);
 
@@ -86,6 +90,38 @@ export default function ReybexMandants() {
     if (!confirm(`Mandant "${m.name}" wirklich löschen?`)) return;
     await api.mandants.delete(m.id);
     await load();
+  }
+
+  async function handleDbfFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || importingForRef.current === null) return;
+    const mandantId = importingForRef.current;
+    setImporting(mandantId);
+    setImportResult(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const t = token.get();
+      const res = await fetch(`${BASE}/sync/dbf/import`, {
+        method: "POST",
+        headers: t ? { Authorization: `Bearer ${t}` } : {},
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Fehler");
+      const errInfo = data.errors?.length ? ` (${data.errors.length} Hinweise)` : "";
+      setImportResult({ mandantId, msg: `✓ ${data.imported} importiert, ${data.skipped} übersprungen${errInfo}` });
+    } catch (err: unknown) {
+      setImportResult({ mandantId, msg: `Fehler: ${err instanceof Error ? err.message : "Unbekannt"}` });
+    } finally {
+      setImporting(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  function triggerDbfImport(mandantId: number) {
+    importingForRef.current = mandantId;
+    fileInputRef.current?.click();
   }
 
   const showForm = isNew || editing !== null;
@@ -173,6 +209,9 @@ export default function ReybexMandants() {
         </div>
       )}
 
+      {/* Hidden file input for DBF upload */}
+      <input ref={fileInputRef} type="file" accept=".dbf,.DBF" className="hidden" onChange={handleDbfFile} />
+
       {/* List */}
       <div className="space-y-3">
         {mandants.length === 0 && !showForm && (
@@ -204,7 +243,22 @@ export default function ReybexMandants() {
                 {m.notes && <div className="text-gray-400 mt-0.5">{m.notes}</div>}
               </div>
             </div>
-            <div className="flex gap-1 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-col items-end gap-1">
+                <button
+                  onClick={() => triggerDbfImport(m.id)}
+                  disabled={importing === m.id}
+                  className="flex items-center gap-1.5 border border-blue-600 text-blue-600 px-3 py-1 rounded-lg text-xs font-medium hover:bg-blue-50 disabled:opacity-50 transition-colors"
+                >
+                  <Upload size={12} />
+                  {importing === m.id ? "Importiere…" : "Rechnungen einlesen"}
+                </button>
+                {importResult?.mandantId === m.id && (
+                  <span className={`text-xs ${importResult.msg.startsWith("Fehler") ? "text-red-600" : "text-emerald-700"}`}>
+                    {importResult.msg}
+                  </span>
+                )}
+              </div>
               <button onClick={() => openEdit(m)}
                 className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-[#2563eb] transition-colors">
                 <Pencil size={15} />

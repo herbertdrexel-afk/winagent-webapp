@@ -1,13 +1,14 @@
-"""Reybex → WinAgent customer sync."""
+"""Reybex → WinAgent customer sync + DBF invoice import."""
 import os
 import logging
 from datetime import datetime, timezone
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
 from .. import models
 from ..database import get_db, SessionLocal
+from ..dbf_reader import read_dbf
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/sync", tags=["sync"])
@@ -143,6 +144,106 @@ def sync_status(db: Session = Depends(get_db)):
     if not setting:
         return {"last_sync": None}
     return setting.value
+
+
+@router.post("/dbf/import")
+async def import_dbf(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """Import transactions from an *_INV.DBF file."""
+    if not file.filename or not file.filename.upper().endswith(".DBF"):
+        raise HTTPException(400, "Bitte eine .DBF Datei hochladen")
+
+    data = await file.read()
+    try:
+        rows = read_dbf(data)
+    except Exception as e:
+        raise HTTPException(400, f"DBF konnte nicht gelesen werden: {e}")
+
+    if not rows:
+        return {"imported": 0, "skipped": 0, "errors": []}
+
+    # Build lookup caches
+    suppliers = {s.code.strip().upper(): s for s in db.query(models.Supplier).all()}
+    customers_by_ku = {
+        (str(c.ku_nr).strip() if c.ku_nr else None): c
+        for c in db.query(models.Customer).all()
+        if c.ku_nr
+    }
+    customers_by_code = {
+        (c.code.strip().upper() if c.code else None): c
+        for c in db.query(models.Customer).all()
+        if c.code
+    }
+
+    imported = skipped = 0
+    errors: list[str] = []
+
+    for r in rows:
+        inv_nr = (r.get("NUMMER") or "").strip()
+        if not inv_nr:
+            skipped += 1
+            continue
+
+        f_code = (r.get("F_CODE") or "").strip().upper()
+        supplier = suppliers.get(f_code)
+        if not supplier:
+            errors.append(f"Lieferant '{f_code}' nicht gefunden (Rg {inv_nr})")
+            skipped += 1
+            continue
+
+        inv_date = r.get("DATUM")
+        if not inv_date:
+            skipped += 1
+            continue
+
+        # Resolve customer
+        ku_nr = (r.get("KU_NR") or "").strip()
+        code = (r.get("CODE") or "").strip().upper()
+        customer = customers_by_ku.get(ku_nr) or customers_by_code.get(code)
+
+        # Check for existing transaction (upsert by supplier + invoice_number + date)
+        existing = (
+            db.query(models.Transaction)
+            .filter_by(supplier_id=supplier.id, invoice_number=inv_nr, invoice_date=inv_date)
+            .first()
+        )
+
+        fields = dict(
+            supplier_id=supplier.id,
+            customer_id=customer.id if customer else None,
+            year=inv_date.year,
+            invoice_number=inv_nr,
+            invoice_date=inv_date,
+            art_nr=(r.get("ART_NR") or "").strip() or None,
+            color=(r.get("FARBE") or "").strip() or None,
+            quantity=r.get("MENGE"),
+            unit=(r.get("ME_MENGE") or "").strip() or None,
+            discount=r.get("RABATT"),
+            provision_rate=r.get("PROVISION"),
+            price=r.get("PREIS"),
+            currency=(r.get("WAEHRUNG") or "").strip() or None,
+            total_amount=r.get("TOTAL_S") or 0,
+            exchange_rate=r.get("KURS") or 1,
+            customer_order_no=(r.get("CUST_ORDNO") or "").strip() or None,
+            notes=None,
+        )
+
+        if existing:
+            for k, v in fields.items():
+                setattr(existing, k, v)
+        else:
+            db.add(models.Transaction(**fields))
+        imported += 1
+
+    db.commit()
+    return {
+        "imported": imported,
+        "skipped": skipped,
+        "errors": errors[:20],
+        "filename": file.filename,
+    }
 
 
 async def test_mandant(mandant_id: str | None = None):
