@@ -146,24 +146,28 @@ def sync_status(db: Session = Depends(get_db)):
 
 
 async def test_mandant(mandant_id: str | None = None):
-    """Test Reybex invoice endpoint with mandantId filter."""
+    """Probe Reybex API for available invoice-related domains."""
     username, password = _reybex_creds()
+    candidates = [
+        "purchaseInvoice", "salesDocument", "document", "outgoingInvoice",
+        "incomingInvoice", "voucher", "billing", "sale", "salesOrder",
+        "purchaseOrder", "deliveryNote", "creditNote", "dunning",
+        "commissionInvoice", "commission", "provision",
+    ]
     results = {}
-    async with httpx.AsyncClient(timeout=15) as client:
-        for path in ["/domains/salesInvoice", "/domains/invoice", "/domains/order"]:
-            params = {"take": 2, "skip": 0, "responseFormat": "api"}
+    async with httpx.AsyncClient(timeout=30) as client:
+        for domain in candidates:
+            params = {"take": 1, "skip": 0, "responseFormat": "api"}
             if mandant_id:
                 params["mandantId"] = mandant_id
-            r = await client.get(f"{REYBEX_BASE}{path}", params=params, auth=(username, password))
+            r = await client.get(f"{REYBEX_BASE}/domains/{domain}", params=params, auth=(username, password))
             if r.status_code == 200:
                 data = r.json()
-                sample = data[:1] if isinstance(data, list) else data
-                results[path] = {
+                results[domain] = {
                     "ok": True,
                     "count": len(data) if isinstance(data, list) else "n/a",
-                    "fields": list(sample[0].keys()) if isinstance(sample, list) and sample else [],
-                    "sample": sample,
+                    "fields": list(data[0].keys()) if isinstance(data, list) and data else [],
                 }
             else:
-                results[path] = {"ok": False, "status": r.status_code, "error": r.text[:200]}
+                results[domain] = {"status": r.status_code}
     return results
