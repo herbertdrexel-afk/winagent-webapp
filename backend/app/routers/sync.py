@@ -247,43 +247,14 @@ async def import_dbf(
 
 
 async def test_mandant(mandant_id: str | None = None):
-    """Probe Reybex for GET endpoints to list finance documents / invoices."""
+    """Reybex connection test — checks credentials and returns customer count."""
     username, password = _reybex_creds()
-    results = {}
-    params = {"take": 2, "skip": 0, "responseFormat": "api"}
-    if mandant_id:
-        params["mandantId"] = mandant_id
-
-    # wsClient GET paths (similar to createOrders / cancelOrder pattern)
-    wsclient_paths = [
-        "/wsClient/getOrders", "/wsClient/getFinHead", "/wsClient/finHead",
-        "/wsClient/getFinDocuments", "/wsClient/invoices", "/wsClient/orders",
-    ]
-    # Direct API paths (like /cancelFinHead)
-    direct_paths = [
-        "/finHead", "/finHeads", "/getFinHead", "/listFinHead",
-        "/salesHead", "/salesHeads", "/getSalesHead",
-    ]
-    # Domain paths we haven't tried
-    domain_names = ["salesHead", "salesDoc", "salesDocument", "finDocument", "finPos"]
-
-    async with httpx.AsyncClient(timeout=45) as client:
-        for path in wsclient_paths + direct_paths:
-            r = await client.get(f"{REYBEX_BASE}{path}", params=params, auth=(username, password))
-            if r.status_code == 200:
-                data = r.json()
-                results[path] = {"ok": True, "count": len(data) if isinstance(data, list) else "?",
-                    "sample_keys": list(data[0].keys())[:10] if isinstance(data, list) and data else str(data)[:100]}
-            elif r.status_code not in (400, 404, 405):
-                results[path] = {"status": r.status_code, "body": r.text[:100]}
-
-        for name in domain_names:
-            r = await client.get(f"{REYBEX_BASE}/domains/{name}", params=params, auth=(username, password))
-            if r.status_code == 200:
-                data = r.json()
-                results[f"domains/{name}"] = {"ok": True, "count": len(data) if isinstance(data, list) else "?",
-                    "fields": list(data[0].keys())[:10] if isinstance(data, list) and data else []}
-            elif r.status_code not in (400, 404):
-                results[f"domains/{name}"] = {"status": r.status_code, "body": r.text[:100]}
-
-    return results if results else {"note": "Kein lesbarer Rechnungs-Endpunkt gefunden — Reybex ist primär ein Push-API"}
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.get(
+            f"{REYBEX_BASE}/domains/customer",
+            params={"take": 1, "skip": 0, "responseFormat": "api", "contactType.type": 1},
+            auth=(username, password),
+        )
+    if r.status_code == 200:
+        return {"ok": True, "note": "Reybex-Verbindung OK. Rechnungen bitte als DBF aus Reybex exportieren und über 'Reybex Sync' hochladen."}
+    return {"ok": False, "status": r.status_code, "error": r.text[:200]}
