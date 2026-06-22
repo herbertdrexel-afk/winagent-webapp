@@ -145,7 +145,6 @@ def sync_status(db: Session = Depends(get_db)):
     return setting.value
 
 
-@router.get("/reybex/test-mandant")
 async def test_mandant(mandant_id: str):
     """Test Reybex connection for a given mandantId — returns first 3 customers."""
     username, password = _reybex_creds()

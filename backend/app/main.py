@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import suppliers, customers, commission, sync, stats, mandants
 from .routers import auth as auth_router
-from .routers.sync import run_customer_sync
+from .routers.sync import run_customer_sync, test_mandant
 from .auth import get_current_user
 from .database import engine
 from . import models
@@ -66,3 +66,7 @@ app.include_router(mandants.router, **_auth)
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# Public test endpoint — no JWT needed, only server-side Reybex credentials
+app.add_api_route("/sync/reybex/test-mandant", test_mandant, methods=["GET"], tags=["sync"])
