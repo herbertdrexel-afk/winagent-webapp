@@ -363,6 +363,21 @@ async def import_einvoice(
     }
 
 
+@router.delete("/admin/transactions/{supplier_code}")
+def delete_supplier_transactions(
+    supplier_code: str,
+    db: Session = Depends(get_db),
+):
+    """Delete all transactions for a supplier by code."""
+    supplier = db.query(models.Supplier).filter_by(code=supplier_code.upper()).first()
+    if not supplier:
+        raise HTTPException(404, f"Lieferant '{supplier_code}' nicht gefunden")
+    count = db.query(models.Transaction).filter_by(supplier_id=supplier.id).count()
+    db.query(models.Transaction).filter_by(supplier_id=supplier.id).delete()
+    db.commit()
+    return {"deleted": count, "supplier": supplier.name}
+
+
 async def test_mandant(mandant_id: str | None = None):
     """Reybex connection test — checks credentials and returns customer count."""
     username, password = _reybex_creds()
