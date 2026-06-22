@@ -195,3 +195,41 @@ async def parse_pdf(
     for entry in entries:
         result.append({**entry, "customer_suggestions": name_cache[entry["customer_name_clean"]]})
     return result
+
+
+@router.post("/{code}/transactions/parse-pdf-debug")
+async def parse_pdf_debug(code: str, file: UploadFile = File(...)):
+    """Debug: return raw text + word positions extracted by PyMuPDF and pdfplumber."""
+    from io import BytesIO
+    pdf_bytes = await file.read()
+    out: dict = {}
+
+    try:
+        import fitz
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        out["fitz_page_count"] = len(doc)
+        if len(doc) > 0:
+            p = doc[0]
+            out["fitz_text_p1"] = p.get_text()[:3000]
+            words = p.get_text("words")
+            out["fitz_words_p1"] = [
+                {"x": round(w[0], 1), "y": round(w[1], 1), "text": w[4]}
+                for w in words[:80]
+            ]
+    except Exception as e:
+        out["fitz_error"] = str(e)
+
+    try:
+        import pdfplumber
+        with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
+            if pdf.pages:
+                out["plumber_text_p1"] = (pdf.pages[0].extract_text() or "")[:1000]
+                words = pdf.pages[0].extract_words()
+                out["plumber_words_p1"] = [
+                    {"x": round(w["x0"], 1), "y": round(w["top"], 1), "text": w["text"]}
+                    for w in words[:40]
+                ]
+    except Exception as e:
+        out["plumber_error"] = str(e)
+
+    return out
