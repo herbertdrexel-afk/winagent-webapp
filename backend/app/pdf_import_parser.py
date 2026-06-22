@@ -350,8 +350,9 @@ def parse_pdf_auto(pdf_bytes: bytes) -> list[dict]:
         except Exception:
             first_text = ''
 
+    # 'Turnover' is sometimes clipped to 'Turnov' by PyMuPDF on narrow headers
     if ('Commission-Schedule' in first_text or 'Commission Schedule' in first_text) \
-            and 'Agent by Turnover' in first_text:
+            and 'Agent by Turnov' in first_text:
         return parse_commission_schedule(pdf_bytes)
 
     return parse_provisionsabrechnung(pdf_bytes)
