@@ -104,18 +104,27 @@ async def reybex_probe():
 
 @app.get("/debug/reybex-finhead")
 async def reybex_finhead(mandant_id: str | None = None):
-    """Read sample finHead records from Reybex — returns raw text to handle Infinity values."""
+    """Read finHead records — try multiple parameter combinations."""
     import os, httpx
     from fastapi.responses import PlainTextResponse
     username = os.environ.get("REYBEX_USERNAME", "")
     password = os.environ.get("REYBEX_PASSWORD", "")
     base = "https://core-backend.reybex.com/api"
-    params: dict = {"take": 3, "responseFormat": "api"}
-    if mandant_id:
-        params["mandantId"] = mandant_id
+    lines = []
+    combos = [
+        {"take": 3, "responseFormat": "api"},
+        {"take": 3},
+        {"limit": 3},
+        {"take": 3, "skip": 0, "responseFormat": "api"},
+        {"take": 3, "responseFormat": "api", "mandantId": mandant_id or "19584"},
+        {"take": 3, "responseFormat": "api", "mandant": mandant_id or "19584"},
+    ]
     async with httpx.AsyncClient(timeout=15) as client:
-        r = await client.get(f"{base}/finHead", params=params, auth=(username, password))
-        return PlainTextResponse(f"HTTP {r.status_code}\n\n{r.text[:5000]}")
+        for p in combos:
+            r = await client.get(f"{base}/finHead", params=p, auth=(username, password))
+            body = r.text[:800] if r.text else "(empty)"
+            lines.append(f"params={p}\nstatus={r.status_code} ct={r.headers.get('content-type','?')}\nbody={body}\n---")
+    return PlainTextResponse("\n".join(lines))
 
 
 # Temporary public debug endpoint — no JWT
