@@ -72,6 +72,36 @@ def health():
 app.add_api_route("/sync/reybex/test-mandant", test_mandant, methods=["GET"], tags=["sync"])
 
 
+# Temporary public Reybex invoice probe — no JWT
+@app.get("/debug/reybex-probe")
+async def reybex_probe():
+    import os, httpx
+    username = os.environ.get("REYBEX_USERNAME", "")
+    password = os.environ.get("REYBEX_PASSWORD", "")
+    base = "https://core-backend.reybex.com/api"
+    paths = [
+        "domains/finHead", "domains/fin-head", "domains/invoice",
+        "domains/order", "domains/salesOrder", "domains/voucher",
+        "domains/document", "domains/booking", "domains/delivery",
+        "domains/shipment", "domains/article", "domains/product",
+        "finHead", "invoices", "orders", "vouchers",
+        "domains/finHead/list", "domains/invoice/list",
+    ]
+    results = {}
+    async with httpx.AsyncClient(timeout=10) as client:
+        for p in paths:
+            try:
+                r = await client.get(
+                    f"{base}/{p}",
+                    params={"take": 1, "responseFormat": "api"},
+                    auth=(username, password),
+                )
+                results[p] = r.status_code
+            except Exception as e:
+                results[p] = str(e)
+    return results
+
+
 # Temporary public debug endpoint — no JWT
 @app.post("/debug/pdf-words")
 async def debug_pdf_words(file: __import__("fastapi").UploadFile = __import__("fastapi").File(...)):
