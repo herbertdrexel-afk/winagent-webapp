@@ -104,17 +104,18 @@ async def reybex_probe():
 
 @app.get("/debug/reybex-finhead")
 async def reybex_finhead(mandant_id: str | None = None):
-    """Read sample finHead records from Reybex."""
+    """Read sample finHead records from Reybex — returns raw text to handle Infinity values."""
     import os, httpx
+    from fastapi.responses import PlainTextResponse
     username = os.environ.get("REYBEX_USERNAME", "")
     password = os.environ.get("REYBEX_PASSWORD", "")
     base = "https://core-backend.reybex.com/api"
-    params: dict = {"take": 5, "responseFormat": "api"}
+    params: dict = {"take": 3, "responseFormat": "api"}
     if mandant_id:
         params["mandantId"] = mandant_id
     async with httpx.AsyncClient(timeout=15) as client:
         r = await client.get(f"{base}/finHead", params=params, auth=(username, password))
-        return {"status": r.status_code, "data": r.json() if r.status_code == 200 else r.text[:500]}
+        return PlainTextResponse(f"HTTP {r.status_code}\n\n{r.text[:5000]}")
 
 
 # Temporary public debug endpoint — no JWT
