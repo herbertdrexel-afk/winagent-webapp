@@ -102,6 +102,21 @@ async def reybex_probe():
     return results
 
 
+@app.get("/debug/reybex-finhead")
+async def reybex_finhead(mandant_id: str | None = None):
+    """Read sample finHead records from Reybex."""
+    import os, httpx
+    username = os.environ.get("REYBEX_USERNAME", "")
+    password = os.environ.get("REYBEX_PASSWORD", "")
+    base = "https://core-backend.reybex.com/api"
+    params: dict = {"take": 5, "responseFormat": "api"}
+    if mandant_id:
+        params["mandantId"] = mandant_id
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.get(f"{base}/finHead", params=params, auth=(username, password))
+        return {"status": r.status_code, "data": r.json() if r.status_code == 200 else r.text[:500]}
+
+
 # Temporary public debug endpoint — no JWT
 @app.post("/debug/pdf-words")
 async def debug_pdf_words(file: __import__("fastapi").UploadFile = __import__("fastapi").File(...)):
