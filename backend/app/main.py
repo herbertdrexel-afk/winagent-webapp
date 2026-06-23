@@ -75,17 +75,20 @@ app.add_api_route("/sync/reybex/test-mandant", test_mandant, methods=["GET"], ta
 # Temporary public Reybex invoice probe — no JWT
 @app.get("/debug/reybex-swagger")
 async def reybex_swagger():
-    """Fetch Reybex OpenAPI spec using stored credentials."""
+    """Fetch Reybex OpenAPI spec and probe more paths."""
     import os, httpx
     from fastapi.responses import PlainTextResponse
     username = os.environ.get("REYBEX_USERNAME", "")
     password = os.environ.get("REYBEX_PASSWORD", "")
+    lines = [f"user={username[:20]}..."]
     async with httpx.AsyncClient(timeout=15) as client:
-        for path in ["/v3/api-docs", "/v2/api-docs", "/swagger-ui.html"]:
+        for path in ["/v3/api-docs", "/v2/api-docs", "/swagger-ui.html",
+                     "/api/v3/api-docs", "/api/v2/api-docs",
+                     "/api/swagger-ui.html", "/api/doc", "/api/docs"]:
             r = await client.get(f"https://core-backend.reybex.com{path}", auth=(username, password))
-            if r.status_code == 200:
-                return PlainTextResponse(f"FOUND: {path}\n\n{r.text[:8000]}")
-    return PlainTextResponse("Not found")
+            body_preview = r.text[:200].replace("\n", " ") if r.text else "(empty)"
+            lines.append(f"{r.status_code}  {path}  →  {body_preview}")
+    return PlainTextResponse("\n".join(lines))
 
 
 @app.get("/debug/reybex-probe")
