@@ -93,8 +93,14 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(_report_scheduler())
     yield
 
-# Create any missing tables (e.g. users) without touching existing ones
+# Create any missing tables without touching existing ones
 models.Base.metadata.create_all(bind=engine)
+
+# Add columns that may not exist in older DB versions
+from sqlalchemy import text as _sql
+with engine.connect() as _conn:
+    _conn.execute(_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(120)"))
+    _conn.commit()
 
 app = FastAPI(
     lifespan=lifespan,
