@@ -72,6 +72,7 @@ async def _report_scheduler():
                         date_from=date_from,
                         date_to=date_to,
                         supplier_codes=s.supplier_codes,
+                        report_types=s.report_types,
                     )
                     addresses = [r.user.email for r in recipients]
                     send_report_email(addresses, subject, pdf, period_label, filename)
@@ -100,6 +101,7 @@ models.Base.metadata.create_all(bind=engine)
 from sqlalchemy import text as _sql
 with engine.connect() as _conn:
     _conn.execute(_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(120)"))
+    _conn.execute(_sql("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS report_types JSONB"))
     _conn.commit()
 
 app = FastAPI(

@@ -3,9 +3,24 @@ import { api, type ReportSchedule, type ReportScheduleCreate, type AuthUser, typ
 import { Plus, Send, Pencil, Trash2, CheckCircle2, XCircle } from "lucide-react";
 
 const DAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
+
 const PERIODS: { value: string; label: string }[] = [
-  { value: "last_week", label: "Letzte Woche (Mo–So)" },
+  { value: "last_week",     label: "Letzte Woche (Mo–So)" },
+  { value: "last_month",    label: "Letzter Monat" },
   { value: "current_month", label: "Aktueller Monat" },
+  { value: "last_30_days",  label: "Letzte 30 Tage" },
+  { value: "last_90_days",  label: "Letzte 90 Tage" },
+  { value: "last_quarter",  label: "Letztes Quartal" },
+  { value: "current_year",  label: "Aktuelles Jahr" },
+  { value: "last_year",     label: "Letztes Jahr" },
+];
+
+const REPORT_TYPES: { value: string; label: string }[] = [
+  { value: "supplier_summary",   label: "Lieferant Statistik" },
+  { value: "customer_provision", label: "AdrUms nach Provision" },
+  { value: "customer_turnover",  label: "AdrUms nach Umsatz" },
+  { value: "supplier_detail",    label: "Lieferant Detail (Quartale)" },
+  { value: "transactions",       label: "Rechnungsübersicht" },
 ];
 
 const EMPTY_FORM: ReportScheduleCreate = {
@@ -15,6 +30,7 @@ const EMPTY_FORM: ReportScheduleCreate = {
   send_hour: 7,
   report_period: "last_week",
   supplier_codes: null,
+  report_types: null,
   recipient_user_ids: [],
 };
 
@@ -35,7 +51,11 @@ export default function Reports() {
   function load() {
     setLoading(true);
     Promise.all([api.reports.list(), api.auth.users(), api.suppliers.list()])
-      .then(([s, u, sup]) => { setSchedules(s); setUsers(u.filter(x => x.is_approved)); setSuppliers(sup); })
+      .then(([s, u, sup]) => {
+        setSchedules(s);
+        setUsers(u.filter(x => x.is_approved));
+        setSuppliers(sup);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }
@@ -57,6 +77,7 @@ export default function Reports() {
       send_hour: s.send_hour,
       report_period: s.report_period,
       supplier_codes: s.supplier_codes ?? null,
+      report_types: s.report_types ?? null,
       recipient_user_ids: s.recipients.map(r => r.user_id),
     });
     setShowModal(true);
@@ -106,7 +127,8 @@ export default function Reports() {
     setSuccess(null);
     try {
       const res = await api.reports.sendNow(s.id);
-      setSchedules(prev => prev.map(x => x.id === s.id ? { ...x, last_sent_at: new Date().toISOString() } : x));
+      setSchedules(prev => prev.map(x => x.id === s.id
+        ? { ...x, last_sent_at: new Date().toISOString() } : x));
       setSuccess(`Bericht "${s.name}" wurde an ${res.sent_to.join(", ")} gesendet (${res.period}).`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Fehler beim Senden");
@@ -125,6 +147,16 @@ export default function Reports() {
     }
   }
 
+  function toggleReportType(value: string) {
+    const current = form.report_types ?? [];
+    if (current.includes(value)) {
+      const next = current.filter(t => t !== value);
+      setForm(f => ({ ...f, report_types: next.length ? next : null }));
+    } else {
+      setForm(f => ({ ...f, report_types: [...current, value] }));
+    }
+  }
+
   function toggleRecipient(userId: number) {
     setForm(f => ({
       ...f,
@@ -135,6 +167,15 @@ export default function Reports() {
   }
 
   const usersWithEmail = users.filter(u => u.email);
+
+  function periodLabel(value: string) {
+    return PERIODS.find(p => p.value === value)?.label ?? value;
+  }
+
+  function reportTypeLabels(types: string[] | null | undefined) {
+    if (!types?.length) return "Alle Berichte";
+    return types.map(t => REPORT_TYPES.find(r => r.value === t)?.label ?? t).join(", ");
+  }
 
   return (
     <div>
@@ -159,7 +200,8 @@ export default function Reports() {
 
       {usersWithEmail.length === 0 && !loading && (
         <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 text-sm mb-4">
-          Hinweis: Kein Benutzer hat eine E-Mail-Adresse hinterlegt. Bitte zuerst unter <strong>Benutzer</strong> die E-Mail-Adressen eintragen.
+          Hinweis: Kein Benutzer hat eine E-Mail-Adresse hinterlegt. Bitte zuerst unter{" "}
+          <strong>Benutzer</strong> die E-Mail-Adressen eintragen.
         </div>
       )}
 
@@ -176,23 +218,24 @@ export default function Reports() {
               className={`bg-white rounded-xl border shadow-sm px-5 py-4 flex items-center gap-4 ${
                 s.enabled ? "border-gray-200" : "border-gray-100 opacity-60"
               }`}>
-              {/* Status toggle */}
               <button onClick={() => toggleEnabled(s)} title={s.enabled ? "Deaktivieren" : "Aktivieren"}>
                 {s.enabled
                   ? <CheckCircle2 size={20} className="text-emerald-500" />
                   : <XCircle size={20} className="text-gray-300" />}
               </button>
 
-              {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-gray-800 text-sm">{s.name}</div>
                 <div className="text-xs text-gray-500 mt-0.5">
                   {DAYS[s.day_of_week]}, {String(s.send_hour).padStart(2, "0")}:00 Uhr
                   {" · "}
-                  {PERIODS.find(p => p.value === s.report_period)?.label ?? s.report_period}
+                  {periodLabel(s.report_period)}
                   {s.supplier_codes?.length
                     ? ` · Lieferanten: ${s.supplier_codes.join(", ")}`
                     : " · Alle Lieferanten"}
+                </div>
+                <div className="text-xs text-gray-400 mt-0.5">
+                  {reportTypeLabels(s.report_types)}
                 </div>
                 <div className="text-xs text-gray-400 mt-0.5">
                   Empfänger:{" "}
@@ -207,7 +250,6 @@ export default function Reports() {
                 )}
               </div>
 
-              {/* Actions */}
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => sendNow(s)}
@@ -290,6 +332,31 @@ export default function Reports() {
                 >
                   {PERIODS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
+              </div>
+
+              {/* Report types */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Berichtsarten{" "}
+                  <span className="font-normal text-gray-400">(leer = alle)</span>
+                </label>
+                <div className="space-y-1.5">
+                  {REPORT_TYPES.map(rt => {
+                    const selected = (form.report_types ?? []).includes(rt.value);
+                    return (
+                      <label key={rt.value}
+                        className="flex items-center gap-2.5 text-sm cursor-pointer hover:bg-gray-50 rounded px-2 py-1">
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleReportType(rt.value)}
+                          className="w-4 h-4 accent-blue-600"
+                        />
+                        <span className="text-gray-700">{rt.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Suppliers */}

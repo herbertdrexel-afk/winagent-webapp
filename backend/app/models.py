@@ -253,6 +253,7 @@ class ReportSchedule(Base):
     send_hour = Column(SmallInteger, nullable=False, default=7)    # 0-23
     report_period = Column(String(20), nullable=False, default="last_week")  # "last_week" | "current_month"
     supplier_codes = Column(JSONB)   # null = all active suppliers
+    report_types = Column(JSONB)     # null = all; list of: supplier_summary, customer_provision, customer_turnover, supplier_detail
     last_sent_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

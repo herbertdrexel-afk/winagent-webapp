@@ -29,6 +29,17 @@ class RecipientOut(BaseModel):
         from_attributes = True
 
 
+VALID_PERIODS = {
+    "last_week", "last_month", "current_month", "current_year",
+    "last_year", "last_30_days", "last_90_days", "last_quarter",
+}
+
+VALID_REPORT_TYPES = {
+    "supplier_summary", "customer_provision", "customer_turnover",
+    "supplier_detail", "transactions",
+}
+
+
 class ScheduleOut(BaseModel):
     id: int
     name: str
@@ -37,6 +48,7 @@ class ScheduleOut(BaseModel):
     send_hour: int
     report_period: str
     supplier_codes: list[str] | None = None
+    report_types: list[str] | None = None
     last_sent_at: str | None = None
     recipients: list[RecipientOut] = []
 
@@ -47,10 +59,11 @@ class ScheduleOut(BaseModel):
 class ScheduleCreate(BaseModel):
     name: str
     enabled: bool = True
-    day_of_week: int = 0       # 0=Mon .. 6=Sun
+    day_of_week: int = 0
     send_hour: int = 7
     report_period: str = "last_week"
     supplier_codes: list[str] | None = None
+    report_types: list[str] | None = None   # None = all types
     recipient_user_ids: list[int] = []
 
 
@@ -61,6 +74,7 @@ class ScheduleUpdate(BaseModel):
     send_hour: int | None = None
     report_period: str | None = None
     supplier_codes: list[str] | None = None
+    report_types: list[str] | None = None
     recipient_user_ids: list[int] | None = None
 
 
@@ -88,6 +102,7 @@ def _to_out(s: models.ReportSchedule) -> dict:
         "send_hour": s.send_hour,
         "report_period": s.report_period,
         "supplier_codes": s.supplier_codes,
+        "report_types": s.report_types,
         "last_sent_at": s.last_sent_at.isoformat() if s.last_sent_at else None,
         "recipients": [
             {"id": r.id, "user_id": r.user_id,
@@ -131,8 +146,12 @@ def create_schedule(
         raise HTTPException(400, "day_of_week muss 0-6 sein")
     if not (0 <= payload.send_hour <= 23):
         raise HTTPException(400, "send_hour muss 0-23 sein")
-    if payload.report_period not in ("last_week", "current_month"):
-        raise HTTPException(400, "report_period: 'last_week' oder 'current_month'")
+    if payload.report_period not in VALID_PERIODS:
+        raise HTTPException(400, f"Ungültiger report_period: {payload.report_period}")
+    if payload.report_types:
+        invalid = set(payload.report_types) - VALID_REPORT_TYPES
+        if invalid:
+            raise HTTPException(400, f"Ungültige report_types: {invalid}")
 
     schedule = models.ReportSchedule(
         name=payload.name,
@@ -141,6 +160,7 @@ def create_schedule(
         send_hour=payload.send_hour,
         report_period=payload.report_period,
         supplier_codes=payload.supplier_codes,
+        report_types=payload.report_types or None,
     )
     db.add(schedule)
     db.flush()
@@ -171,9 +191,16 @@ def update_schedule(
             raise HTTPException(400, "send_hour muss 0-23 sein")
         schedule.send_hour = payload.send_hour
     if payload.report_period is not None:
+        if payload.report_period not in VALID_PERIODS:
+            raise HTTPException(400, f"Ungültiger report_period: {payload.report_period}")
         schedule.report_period = payload.report_period
     if payload.supplier_codes is not None:
         schedule.supplier_codes = payload.supplier_codes or None
+    if payload.report_types is not None:
+        invalid = set(payload.report_types) - VALID_REPORT_TYPES
+        if invalid:
+            raise HTTPException(400, f"Ungültige report_types: {invalid}")
+        schedule.report_types = payload.report_types or None
     if payload.recipient_user_ids is not None:
         _set_recipients(schedule, payload.recipient_user_ids, db)
     db.commit()
@@ -217,6 +244,7 @@ def send_now(
             date_from=date_from,
             date_to=date_to,
             supplier_codes=schedule.supplier_codes,
+            report_types=schedule.report_types,
         )
     except Exception as e:
         raise HTTPException(500, f"PDF-Generierung fehlgeschlagen: {e}")

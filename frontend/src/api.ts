@@ -296,10 +296,11 @@ export interface ReportSchedule {
   id: number;
   name: string;
   enabled: boolean;
-  day_of_week: number;    // 0=Mon .. 6=Sun
-  send_hour: number;      // 0-23
-  report_period: string;  // "last_week" | "current_month"
+  day_of_week: number;
+  send_hour: number;
+  report_period: string;
   supplier_codes?: string[] | null;
+  report_types?: string[] | null;
   last_sent_at?: string | null;
   recipients: ReportRecipient[];
 }
@@ -311,6 +312,7 @@ export interface ReportScheduleCreate {
   send_hour: number;
   report_period: string;
   supplier_codes?: string[] | null;
+  report_types?: string[] | null;
   recipient_user_ids: number[];
 }
 
