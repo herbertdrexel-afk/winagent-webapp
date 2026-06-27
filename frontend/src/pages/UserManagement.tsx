@@ -2,6 +2,48 @@ import { useEffect, useState } from "react";
 import { api, type AuthUser } from "../api";
 import { useAuth } from "../context/AuthContext";
 
+function EmailCell({ user, onSaved }: { user: AuthUser; onSaved: (u: AuthUser) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(user.email ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const updated = await api.auth.updateUser(user.id, { email: val || "" });
+      onSaved(updated);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1">
+        <input
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
+          autoFocus
+          className="border border-blue-300 rounded px-2 py-0.5 text-xs w-44 focus:outline-none"
+        />
+        <button onClick={save} disabled={saving}
+          className="text-xs text-blue-600 hover:text-blue-800 px-1">✓</button>
+        <button onClick={() => setEditing(false)}
+          className="text-xs text-gray-400 hover:text-gray-600 px-1">✕</button>
+      </div>
+    );
+  }
+
+  return (
+    <button onClick={() => { setVal(user.email ?? ""); setEditing(true); }}
+      className="text-xs text-gray-500 hover:text-blue-600 hover:underline text-left">
+      {user.email || <span className="text-gray-300 italic">— eintragen</span>}
+    </button>
+  );
+}
+
 export default function UserManagement() {
   const { user: me } = useAuth();
   const [users, setUsers] = useState<AuthUser[]>([]);
@@ -112,19 +154,24 @@ export default function UserManagement() {
         <table className="w-full text-sm">
           <thead className="bg-[#2563eb] text-white">
             <tr>
-              {["Benutzername", "Rolle", "Status", "Aktionen"].map((h) => (
+              {["Benutzername", "E-Mail", "Rolle", "Status", "Aktionen"].map((h) => (
                 <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">Lade…</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">Lade…</td></tr>
             ) : approved.map((u, i) => (
               <tr key={u.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                 <td className="px-4 py-3 font-medium">
                   {u.username}
                   {u.id === me?.id && <span className="ml-2 text-xs text-gray-400">(ich)</span>}
+                </td>
+                <td className="px-4 py-3">
+                  <EmailCell user={u} onSaved={(updated) =>
+                    setUsers(prev => prev.map(x => x.id === updated.id ? updated : x))
+                  } />
                 </td>
                 <td className="px-4 py-3">
                   {u.id === me?.id ? (
@@ -155,6 +202,7 @@ export default function UserManagement() {
                     </button>
                   )}
                 </td>
+
               </tr>
             ))}
           </tbody>

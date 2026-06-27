@@ -17,6 +17,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 class UserOut(BaseModel):
     id: int
     username: str
+    email: str | None = None
     role: str
     is_approved: bool
 
@@ -33,6 +34,7 @@ class UpdateUserRequest(BaseModel):
     is_approved: bool | None = None
     role: str | None = None
     password: str | None = None
+    email: str | None = None
 
 
 class TokenResponse(BaseModel):
@@ -104,6 +106,8 @@ def update_user(
         user.role = body.role
     if body.password:
         user.password_hash = hash_password(body.password)
+    if body.email is not None:
+        user.email = body.email or None
     db.commit()
     db.refresh(user)
     return user

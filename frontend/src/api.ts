@@ -6,6 +6,7 @@ export const BASE = import.meta.env.VITE_API_URL ?? "/api";
 export interface AuthUser {
   id: number;
   username: string;
+  email?: string | null;
   role: "admin" | "user";
   is_approved: boolean;
 }
@@ -133,7 +134,7 @@ export const api = {
       post<AuthUser>("/auth/register", { username, password }),
     me: () => get<AuthUser>("/auth/me"),
     users: () => get<AuthUser[]>("/auth/users"),
-    updateUser: (id: number, data: { is_approved?: boolean; role?: string; password?: string }) =>
+    updateUser: (id: number, data: { is_approved?: boolean; role?: string; password?: string; email?: string }) =>
       fetch(`${BASE}/auth/users/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -225,6 +226,22 @@ export const api = {
     customers: () => post<SyncResult>("/sync/reybex/customers", {}),
     status: () => get<{ last_sync: string | null; total?: number; created?: number; updated?: number }>("/sync/reybex/status"),
   },
+  reports: {
+    list: () => get<ReportSchedule[]>("/reports/schedules"),
+    create: (data: ReportScheduleCreate) =>
+      post<ReportSchedule>("/reports/schedules", data),
+    update: (id: number, data: Partial<ReportScheduleCreate>) =>
+      fetch(`${BASE}/reports/schedules/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(data),
+      }).then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json() as Promise<ReportSchedule>; }),
+    delete: (id: number) =>
+      fetch(`${BASE}/reports/schedules/${id}`, { method: "DELETE", headers: authHeaders() })
+        .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
+    sendNow: (id: number) =>
+      post<{ sent_to: string[]; period: string }>(`/reports/schedules/${id}/send-now`, {}),
+  },
   mandants: {
     list: () => get<ReybexMandant[]>("/mandants"),
     create: (data: { name: string; mandant_id?: string | null; is_active?: boolean; notes?: string | null; supplier_ids?: number[] }) =>
@@ -266,6 +283,35 @@ export interface ReybexMandant {
   is_active: boolean;
   notes: string | null;
   suppliers: { id: number; code: string; name: string }[];
+}
+
+export interface ReportRecipient {
+  id: number;
+  user_id: number;
+  username: string;
+  email?: string | null;
+}
+
+export interface ReportSchedule {
+  id: number;
+  name: string;
+  enabled: boolean;
+  day_of_week: number;    // 0=Mon .. 6=Sun
+  send_hour: number;      // 0-23
+  report_period: string;  // "last_week" | "current_month"
+  supplier_codes?: string[] | null;
+  last_sent_at?: string | null;
+  recipients: ReportRecipient[];
+}
+
+export interface ReportScheduleCreate {
+  name: string;
+  enabled?: boolean;
+  day_of_week: number;
+  send_hour: number;
+  report_period: string;
+  supplier_codes?: string[] | null;
+  recipient_user_ids: number[];
 }
 
 export interface CommissionInvoiceRecord {

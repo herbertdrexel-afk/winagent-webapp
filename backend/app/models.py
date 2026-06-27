@@ -12,6 +12,7 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     username = Column(String(50), unique=True, nullable=False)
     password_hash = Column(String(200), nullable=False)
+    email = Column(String(120))
     role = Column(String(20), nullable=False, default="user")  # "admin" | "user"
     is_approved = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -241,3 +242,29 @@ class AppSetting(Base):
     __tablename__ = "app_settings"
     key = Column(String(50), primary_key=True)
     value = Column(JSONB, nullable=False)
+
+
+class ReportSchedule(Base):
+    __tablename__ = "report_schedules"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(80), nullable=False)
+    enabled = Column(Boolean, nullable=False, default=True)
+    day_of_week = Column(SmallInteger, nullable=False, default=0)  # 0=Mon .. 6=Sun
+    send_hour = Column(SmallInteger, nullable=False, default=7)    # 0-23
+    report_period = Column(String(20), nullable=False, default="last_week")  # "last_week" | "current_month"
+    supplier_codes = Column(JSONB)   # null = all active suppliers
+    last_sent_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    recipients = relationship("ReportRecipient", back_populates="schedule",
+                              cascade="all, delete-orphan")
+
+
+class ReportRecipient(Base):
+    __tablename__ = "report_recipients"
+    id = Column(Integer, primary_key=True)
+    schedule_id = Column(Integer, ForeignKey("report_schedules.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    schedule = relationship("ReportSchedule", back_populates="recipients")
+    user = relationship("User")
