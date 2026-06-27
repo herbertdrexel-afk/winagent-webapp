@@ -240,7 +240,18 @@ export const api = {
       fetch(`${BASE}/reports/schedules/${id}`, { method: "DELETE", headers: authHeaders() })
         .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
     sendNow: (id: number) =>
-      post<{ sent_to: string[]; period: string }>(`/reports/schedules/${id}/send-now`, {}),
+      fetch(`${BASE}/reports/schedules/${id}/send-now`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: "{}",
+      }).then(async (r) => {
+        if (!r.ok) {
+          let detail = `${r.status} ${r.statusText}`;
+          try { const e = await r.json(); detail = e.detail ?? detail; } catch {}
+          throw new Error(detail);
+        }
+        return r.json() as Promise<{ sent_to: string[]; period: string }>;
+      }),
   },
   mandants: {
     list: () => get<ReybexMandant[]>("/mandants"),

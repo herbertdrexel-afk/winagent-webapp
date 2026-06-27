@@ -227,6 +227,7 @@ def send_now(
     _: models.User = Depends(require_admin),
 ):
     """Manually trigger sending a report schedule immediately."""
+    import traceback
     from ..report_generator import generate_report_pdf, period_dates
     from ..email_sender import send_report_email
 
@@ -237,6 +238,10 @@ def send_now(
         raise HTTPException(400, "Keine Empfänger mit E-Mail-Adresse konfiguriert")
 
     date_from, date_to = period_dates(schedule.report_period)
+    period_label = f"{date_from.strftime('%d.%m.%Y')} – {date_to.strftime('%d.%m.%Y')}"
+    subject  = f"WinAgent Bericht – {period_label}"
+    filename = f"winagent_bericht_{date_from.isoformat()}_{date_to.isoformat()}.pdf"
+    addresses = [r.user.email for r in recipients]
 
     try:
         pdf = generate_report_pdf(
@@ -247,18 +252,14 @@ def send_now(
             report_types=schedule.report_types,
         )
     except Exception as e:
+        tb = traceback.format_exc()
+        logger.error("PDF generation failed: %s\n%s", e, tb)
         raise HTTPException(500, f"PDF-Generierung fehlgeschlagen: {e}")
-
-    from datetime import date as _date
-    period_label = f"{date_from.strftime('%d.%m.%Y')} – {date_to.strftime('%d.%m.%Y')}"
-    subject = f"WinAgent Bericht – {period_label}"
-    filename = f"winagent_bericht_{date_from.isoformat()}_{date_to.isoformat()}.pdf"
-
-    addresses = [r.user.email for r in recipients]
 
     try:
         send_report_email(addresses, subject, pdf, period_label, filename)
     except Exception as e:
+        logger.error("Email send failed: %s", e)
         raise HTTPException(500, f"E-Mail-Versand fehlgeschlagen: {e}")
 
     from datetime import datetime, timezone

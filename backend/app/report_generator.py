@@ -221,6 +221,7 @@ def _supplier_rows(db, date_from: date, date_to: date) -> list[dict]:
 
     rows = (
         db.query(
+            models.Supplier.id,
             models.Supplier.code,
             models.Supplier.name,
             func.coalesce(func.sum(
@@ -247,7 +248,7 @@ def _supplier_rows(db, date_from: date, date_to: date) -> list[dict]:
         .outerjoin(models.Transaction,
                    models.Transaction.supplier_id == models.Supplier.id)
         .filter(models.Supplier.is_active == True)
-        .group_by(models.Supplier.code, models.Supplier.name)
+        .group_by(models.Supplier.id, models.Supplier.code, models.Supplier.name)
         .order_by(models.Supplier.name)
         .all()
     )
