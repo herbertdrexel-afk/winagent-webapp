@@ -1,4 +1,12 @@
-"""Office-365 SMTP email sender for WinAgent reports."""
+"""Email sender for WinAgent reports.
+
+Priority:
+  1. Resend API  (RESEND_API_KEY set)  — works on Railway, no SMTP port needed
+  2. SMTP        (SMTP_USER + SMTP_PASSWORD set)  — for local / other environments
+"""
+from __future__ import annotations
+
+import base64
 import os
 import smtplib
 from email import encoders
@@ -17,26 +25,87 @@ def send_report_email(
     period_label: str,
     filename: str = "winagent_report.pdf",
 ) -> None:
-    """Send a PDF report via Office 365 SMTP.
+    if not to_addresses:
+        raise ValueError("Keine Empfänger angegeben")
 
-    Reads SMTP_USER, SMTP_PASSWORD (and optionally SMTP_FROM) from env vars.
-    Raises RuntimeError if credentials are missing or SMTP fails.
-    """
+    resend_key = os.environ.get("RESEND_API_KEY", "")
+    if resend_key:
+        _send_via_resend(resend_key, to_addresses, subject,
+                         pdf_bytes, period_label, filename)
+    else:
+        _send_via_smtp(to_addresses, subject, pdf_bytes, period_label, filename)
+
+
+# ── Resend API (recommended for Railway) ─────────────────────────────────────
+
+def _send_via_resend(
+    api_key: str,
+    to_addresses: list[str],
+    subject: str,
+    pdf_bytes: bytes,
+    period_label: str,
+    filename: str,
+) -> None:
+    import httpx
+
+    from_addr = os.environ.get("RESEND_FROM", "WinAgent <onboarding@resend.dev>")
+
+    body_text = (
+        f"WinAgent Bericht — Zeitraum: {period_label}\n\n"
+        "Der Bericht ist als PDF-Anhang beigefügt.\n\n"
+        "— WinAgent"
+    )
+
+    payload = {
+        "from": from_addr,
+        "to": to_addresses,
+        "subject": subject,
+        "text": body_text,
+        "attachments": [
+            {
+                "filename": filename,
+                "content": base64.b64encode(pdf_bytes).decode(),
+            }
+        ],
+    }
+
+    resp = httpx.post(
+        "https://api.resend.com/emails",
+        headers={"Authorization": f"Bearer {api_key}",
+                 "Content-Type": "application/json"},
+        json=payload,
+        timeout=30,
+    )
+
+    if resp.status_code not in (200, 201):
+        raise RuntimeError(
+            f"Resend API Fehler {resp.status_code}: {resp.text}"
+        )
+
+
+# ── SMTP fallback (may be blocked on Railway) ─────────────────────────────────
+
+def _send_via_smtp(
+    to_addresses: list[str],
+    subject: str,
+    pdf_bytes: bytes,
+    period_label: str,
+    filename: str,
+) -> None:
     smtp_user = os.environ.get("SMTP_USER", "")
     smtp_pass = os.environ.get("SMTP_PASSWORD", "")
     smtp_from = os.environ.get("SMTP_FROM", smtp_user)
 
     if not smtp_user or not smtp_pass:
         raise RuntimeError(
-            "SMTP_USER und SMTP_PASSWORD müssen als Railway-Umgebungsvariablen gesetzt sein."
+            "Kein E-Mail-Versand konfiguriert. "
+            "Bitte RESEND_API_KEY (empfohlen) oder SMTP_USER + SMTP_PASSWORD "
+            "als Railway-Umgebungsvariable setzen."
         )
 
-    if not to_addresses:
-        raise ValueError("Keine Empfänger angegeben")
-
     msg = MIMEMultipart()
-    msg["From"] = smtp_from
-    msg["To"] = ", ".join(to_addresses)
+    msg["From"]    = smtp_from
+    msg["To"]      = ", ".join(to_addresses)
     msg["Subject"] = subject
 
     body_text = (
