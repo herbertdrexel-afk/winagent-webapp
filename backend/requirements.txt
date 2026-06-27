@@ -18,3 +18,5 @@ bcrypt==3.2.2
 
 # nur für die Migration benötigt:
 dbfread==2.0.*
+
+matplotlib==3.*
