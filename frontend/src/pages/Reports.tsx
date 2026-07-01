@@ -129,7 +129,7 @@ export default function Reports() {
       const res = await api.reports.sendNow(s.id);
       setSchedules(prev => prev.map(x => x.id === s.id
         ? { ...x, last_sent_at: new Date().toISOString() } : x));
-      setSuccess(`Bericht "${s.name}" wurde an ${res.sent_to.join(", ")} gesendet (${res.period}).`);
+      setSuccess(`Bericht "${s.name}" wird generiert und an ${res.sent_to.join(", ")} gesendet (${res.period}).`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Fehler beim Senden");
     } finally {

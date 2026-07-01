@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
@@ -220,16 +220,15 @@ def delete_schedule(
     db.commit()
 
 
-@router.post("/schedules/{schedule_id}/send-now")
+@router.post("/schedules/{schedule_id}/send-now", status_code=202)
 def send_now(
     schedule_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_admin),
 ):
-    """Manually trigger sending a report schedule immediately."""
-    import traceback
-    from ..report_generator import generate_report_pdf, period_dates
-    from ..email_sender import send_report_email
+    """Queue report generation and email send as a background task."""
+    from ..report_generator import period_dates
 
     schedule = _load_schedule(schedule_id, db)
 
@@ -243,27 +242,56 @@ def send_now(
     filename = f"winagent_bericht_{date_from.isoformat()}_{date_to.isoformat()}.pdf"
     addresses = [r.user.email for r in recipients]
 
+    background_tasks.add_task(
+        _bg_send,
+        schedule_id=schedule_id,
+        date_from=date_from,
+        date_to=date_to,
+        supplier_codes=schedule.supplier_codes,
+        report_types=schedule.report_types,
+        addresses=addresses,
+        subject=subject,
+        period_label=period_label,
+        filename=filename,
+    )
+
+    return {"sent_to": addresses, "period": period_label}
+
+
+def _bg_send(
+    schedule_id: int,
+    date_from,
+    date_to,
+    supplier_codes,
+    report_types,
+    addresses: list[str],
+    subject: str,
+    period_label: str,
+    filename: str,
+) -> None:
+    """Background: generate PDF and send email (runs after HTTP response)."""
+    import traceback
+    from datetime import datetime, timezone
+    from ..report_generator import generate_report_pdf
+    from ..email_sender import send_report_email
+    from ..database import SessionLocal
+
+    db = SessionLocal()
     try:
         pdf = generate_report_pdf(
             db,
             date_from=date_from,
             date_to=date_to,
-            supplier_codes=schedule.supplier_codes,
-            report_types=schedule.report_types,
+            supplier_codes=supplier_codes,
+            report_types=report_types,
         )
-    except Exception as e:
-        tb = traceback.format_exc()
-        logger.error("PDF generation failed: %s\n%s", e, tb)
-        raise HTTPException(500, f"PDF-Generierung fehlgeschlagen: {e}")
-
-    try:
         send_report_email(addresses, subject, pdf, period_label, filename)
+        schedule = db.get(models.ReportSchedule, schedule_id)
+        if schedule:
+            schedule.last_sent_at = datetime.now(timezone.utc)
+            db.commit()
+        logger.info("Report sent to %s", addresses)
     except Exception as e:
-        logger.error("Email send failed: %s", e)
-        raise HTTPException(500, f"E-Mail-Versand fehlgeschlagen: {e}")
-
-    from datetime import datetime, timezone
-    schedule.last_sent_at = datetime.now(timezone.utc)
-    db.commit()
-
-    return {"sent_to": addresses, "period": period_label}
+        logger.error("Background send failed: %s\n%s", e, traceback.format_exc())
+    finally:
+        db.close()
