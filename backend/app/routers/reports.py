@@ -2,15 +2,18 @@
 from __future__ import annotations
 
 import logging
+import threading
 from datetime import date
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
 from .. import models
-from ..database import get_db
+from ..database import get_db, SessionLocal
 from ..auth import require_admin
+from ..report_generator import period_dates, generate_report_pdf
+from ..email_sender import send_report_email
 
 logger = logging.getLogger(__name__)
 
@@ -223,13 +226,10 @@ def delete_schedule(
 @router.post("/schedules/{schedule_id}/send-now", status_code=202)
 def send_now(
     schedule_id: int,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_admin),
 ):
-    """Queue report generation and email send as a background task."""
-    from ..report_generator import period_dates
-
+    """Start report generation + email in a daemon thread; return 202 immediately."""
     schedule = _load_schedule(schedule_id, db)
 
     recipients = [r for r in schedule.recipients if r.user and r.user.email]
@@ -242,18 +242,21 @@ def send_now(
     filename = f"winagent_bericht_{date_from.isoformat()}_{date_to.isoformat()}.pdf"
     addresses = [r.user.email for r in recipients]
 
-    background_tasks.add_task(
-        _bg_send,
-        schedule_id=schedule_id,
-        date_from=date_from,
-        date_to=date_to,
-        supplier_codes=schedule.supplier_codes,
-        report_types=schedule.report_types,
-        addresses=addresses,
-        subject=subject,
-        period_label=period_label,
-        filename=filename,
-    )
+    threading.Thread(
+        target=_bg_send,
+        kwargs=dict(
+            schedule_id=schedule_id,
+            date_from=date_from,
+            date_to=date_to,
+            supplier_codes=schedule.supplier_codes,
+            report_types=schedule.report_types,
+            addresses=addresses,
+            subject=subject,
+            period_label=period_label,
+            filename=filename,
+        ),
+        daemon=True,
+    ).start()
 
     return {"sent_to": addresses, "period": period_label}
 
@@ -269,12 +272,9 @@ def _bg_send(
     period_label: str,
     filename: str,
 ) -> None:
-    """Background: generate PDF and send email (runs after HTTP response)."""
+    """Thread target: generate PDF and send email."""
     import traceback
     from datetime import datetime, timezone
-    from ..report_generator import generate_report_pdf
-    from ..email_sender import send_report_email
-    from ..database import SessionLocal
 
     db = SessionLocal()
     try:
