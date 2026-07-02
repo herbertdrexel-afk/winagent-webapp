@@ -24,7 +24,7 @@ export default function Suppliers() {
         next[idx] = saved;
         return next.sort((a, b) => a.code.localeCompare(b.code));
       }
-      return [...prev, saved].sort((a, b) => a.name.localeCompare(b.name));
+      return [...prev, saved].sort((a, b) => a.code.localeCompare(b.code));
     });
     setEditing(undefined);
   }

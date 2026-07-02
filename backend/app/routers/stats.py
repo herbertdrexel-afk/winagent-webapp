@@ -50,7 +50,7 @@ def supplier_summary(
         .outerjoin(models.Transaction, models.Transaction.supplier_id == models.Supplier.id)
         .filter(models.Supplier.is_active == True)
         .group_by(models.Supplier.id, models.Supplier.code, models.Supplier.name)
-        .order_by(models.Supplier.name)
+        .order_by(models.Supplier.code)
         .all()
     )
 
@@ -206,7 +206,7 @@ def supplier_detail(year: int, db: Session = Depends(get_db)):
         .all()
     )
 
-    suppliers = db.query(models.Supplier).filter_by(is_active=True).order_by(models.Supplier.name).all()
+    suppliers = db.query(models.Supplier).filter_by(is_active=True).order_by(models.Supplier.code).all()
     budgets = db.query(models.Budget).filter_by(year=year).all()
     # budget_turnover[supplier_id] = sum of amount_budget
     budget_t: dict[int, float] = {}
