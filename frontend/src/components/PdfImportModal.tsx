@@ -10,20 +10,20 @@ interface Props {
 export default function PdfImportModal({ supplierCode, onClose, onImported }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [entries, setEntries] = useState<PdfEntry[] | null>(null);
-  // customerId per entry index (undefined = not mapped yet)
   const [customerMap, setCustomerMap] = useState<Record<number, number | null>>({});
   const [parsing, setParsing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string>("");
 
   async function handleFile(file: File) {
+    setFileName(file.name);
     setParsing(true);
     setError(null);
     setEntries(null);
     try {
-      const result = await api.transactions.parsePdf(supplierCode, file);
+      const result = await api.transactions.parseCsv(supplierCode, file);
       setEntries(result);
-      // Pre-select first customer suggestion for each entry
       const map: Record<number, number | null> = {};
       result.forEach((e, i) => {
         map[i] = e.customer_suggestions[0]?.id ?? null;
@@ -69,15 +69,13 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
 
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800">PDF Provisionsabrechnung importieren</h2>
+          <h2 className="text-lg font-semibold text-gray-800">Provisionsabrechnung importieren</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl px-2">✕</button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
 
-          {/* Upload area */}
           {!entries && (
             <div
               className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer hover:border-[#2563eb] transition-colors"
@@ -85,28 +83,30 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
             >
-              <input ref={fileRef} type="file" accept=".pdf" className="hidden"
+              <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-              <div className="text-4xl mb-3">📄</div>
-              <p className="text-gray-600 font-medium">PDF hier ablegen oder klicken zum Auswählen</p>
-              <p className="text-xs text-gray-400 mt-1">HdAgenta Provisionsabrechnung (RP5 Format)</p>
-              {parsing && <p className="text-[#2563eb] mt-3 font-medium">Lese PDF…</p>}
+              <div className="text-4xl mb-3">📊</div>
+              <p className="text-gray-600 font-medium">CSV oder Excel Datei hier ablegen oder klicken</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Spalten: Währung · Kunde · Datum · Rechnungsnummer · Provisionsbasis · Provision % · Provision
+              </p>
+              {parsing && <p className="text-[#2563eb] mt-3 font-medium">Lese Datei…</p>}
             </div>
           )}
 
-          {/* Preview table */}
           {entries && (
             <>
               <div className="flex items-center justify-between">
                 <p className="text-sm text-gray-600">
                   <span className="font-semibold">{entries.length}</span> Positionen erkannt
+                  {fileName && <span className="ml-2 text-gray-400">· {fileName}</span>}
                   {unmapped > 0 && (
                     <span className="ml-2 text-amber-600">· {unmapped} ohne Kundenzuordnung</span>
                   )}
                 </p>
-                <button onClick={() => { setEntries(null); setCustomerMap({}); }}
+                <button onClick={() => { setEntries(null); setCustomerMap({}); setFileName(""); }}
                   className="text-xs text-gray-500 hover:text-gray-700 underline">
-                  Andere PDF laden
+                  Andere Datei laden
                 </button>
               </div>
 
@@ -114,7 +114,7 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
                 <table className="w-full text-xs">
                   <thead className="bg-[#2563eb] text-white">
                     <tr>
-                      {["Datum", "Re-Nr", "Betrag", "Währ.", "Prov. %", "Provision", "Erkannter Kundenname", "Kundenzuordnung"].map((h) => (
+                      {["Datum", "Re-Nr", "Provisionsbasis", "Währ.", "Prov. %", "Provision", "Kunde (Datei)", "Kundenzuordnung"].map((h) => (
                         <th key={h} className="px-3 py-2 text-left font-medium whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -130,7 +130,7 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
                         <td className="px-3 py-2">{e.currency}</td>
                         <td className="px-3 py-2 text-right">{e.provision_rate}</td>
                         <td className="px-3 py-2 text-right whitespace-nowrap">
-                          {e.provision_amount.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
+                          {(e.provision_amount ?? 0).toLocaleString("de-AT", { minimumFractionDigits: 2 })}
                         </td>
                         <td className="px-3 py-2 text-gray-500 max-w-[180px] truncate" title={e.customer_name_raw}>
                           {e.customer_name_clean || "–"}
@@ -166,7 +166,6 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
           {error && <p className="text-red-600 text-sm">{error}</p>}
         </div>
 
-        {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
           <button onClick={onClose}
             className="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">

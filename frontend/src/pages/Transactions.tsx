@@ -230,7 +230,7 @@ export default function Transactions() {
               disabled={!supplierCode}
               className="border border-[#2563eb] text-[#2563eb] px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/10 disabled:opacity-40 transition-colors"
             >
-              📄 PDF importieren
+              📊 CSV / Excel importieren
             </button>
             <button
               onClick={() => setEditing(null)}

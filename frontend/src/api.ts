@@ -187,10 +187,10 @@ export const api = {
     delete: (id: number) =>
       fetch(`${BASE}/suppliers/transactions/${id}`, { method: "DELETE", headers: authHeaders() })
         .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
-    parsePdf: (supplierCode: string, file: File) => {
+    parseCsv: (supplierCode: string, file: File) => {
       const fd = new FormData();
       fd.append("file", file);
-      return fetch(`${BASE}/suppliers/${supplierCode}/transactions/parse-pdf`, {
+      return fetch(`${BASE}/suppliers/${supplierCode}/transactions/parse-csv`, {
         method: "POST", body: fd, headers: authHeaders(),
       }).then(async (r) => {
         if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); }
