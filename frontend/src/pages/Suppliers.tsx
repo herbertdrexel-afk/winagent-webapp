@@ -22,7 +22,7 @@ export default function Suppliers() {
       if (idx >= 0) {
         const next = [...prev];
         next[idx] = saved;
-        return next.sort((a, b) => a.name.localeCompare(b.name));
+        return next.sort((a, b) => a.code.localeCompare(b.code));
       }
       return [...prev, saved].sort((a, b) => a.name.localeCompare(b.name));
     });

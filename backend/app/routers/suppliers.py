@@ -23,7 +23,7 @@ def _tx_to_out(tx: models.Transaction) -> schemas.TransactionOut:
 
 @router.get("", response_model=list[schemas.SupplierOut])
 def list_suppliers(db: Session = Depends(get_db)):
-    return db.query(models.Supplier).order_by(models.Supplier.name).all()
+    return db.query(models.Supplier).order_by(models.Supplier.code).all()
 
 
 @router.post("", response_model=schemas.SupplierOut, status_code=201)
