@@ -62,7 +62,8 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
     }
   }
 
-  const unmapped = entries ? entries.filter((_, i) => customerMap[i] == null).length : 0;
+  const unmapped  = entries ? entries.filter((_, i) => customerMap[i] == null).length : 0;
+  const notFound  = entries ? entries.filter((e) => e.customer_suggestions.length === 0).length : 0;
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
@@ -100,8 +101,11 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
                 <p className="text-sm text-gray-600">
                   <span className="font-semibold">{entries.length}</span> Positionen erkannt
                   {fileName && <span className="ml-2 text-gray-400">· {fileName}</span>}
-                  {unmapped > 0 && (
-                    <span className="ml-2 text-amber-600">· {unmapped} ohne Kundenzuordnung</span>
+                  {notFound > 0 && (
+                    <span className="ml-2 text-amber-600">· {notFound} Adresse(n) nicht gefunden – bitte nacherfassen</span>
+                  )}
+                  {unmapped > notFound && (
+                    <span className="ml-2 text-gray-400">· {unmapped - notFound} ohne Zuordnung</span>
                   )}
                 </p>
                 <button onClick={() => { setEntries(null); setCustomerMap({}); setFileName(""); }}
@@ -120,8 +124,10 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
                     </tr>
                   </thead>
                   <tbody>
-                    {entries.map((e, i) => (
-                      <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                    {entries.map((e, i) => {
+                      const noMatch = e.customer_suggestions.length === 0;
+                      return (
+                      <tr key={i} className={noMatch ? "bg-amber-50" : i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                         <td className="px-3 py-2 whitespace-nowrap">{e.invoice_date}</td>
                         <td className="px-3 py-2 font-mono">{e.invoice_number}</td>
                         <td className="px-3 py-2 text-right whitespace-nowrap">
@@ -136,7 +142,7 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
                           {e.customer_name_clean || "–"}
                         </td>
                         <td className="px-3 py-2 min-w-[200px]">
-                          {e.customer_suggestions.length > 0 ? (
+                          {!noMatch ? (
                             <select
                               value={customerMap[i] ?? ""}
                               onChange={(ev) => setCustomerMap((m) => ({
@@ -152,11 +158,14 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
                               ))}
                             </select>
                           ) : (
-                            <span className="text-gray-400 italic">kein Treffer</span>
+                            <span className="text-amber-700 font-medium" title="Adresse nicht gefunden – bitte nacherfassen">
+                              {e.customer_name_clean} ⚠
+                            </span>
                           )}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
