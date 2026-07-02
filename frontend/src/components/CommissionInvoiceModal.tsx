@@ -224,9 +224,6 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
                         : "📋 Aufstellung herunterladen"}
                 </button>
               </div>
-              <p className="text-xs text-gray-400 text-center -mt-2">
-                HDUBW_new.DBF in dein HDAGENTA-Verzeichnis kopieren und mit bestehender HDUBW.DBF zusammenführen
-              </p>
             </>
           )}
         </div>
