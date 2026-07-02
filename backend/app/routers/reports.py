@@ -12,8 +12,6 @@ from sqlalchemy.orm import Session, joinedload
 from .. import models
 from ..database import get_db, SessionLocal
 from ..auth import require_admin
-from ..report_generator import period_dates, generate_report_pdf
-from ..email_sender import send_report_email
 
 logger = logging.getLogger(__name__)
 
@@ -230,6 +228,8 @@ def send_now(
     _: models.User = Depends(require_admin),
 ):
     """Start report generation + email in a daemon thread; return 202 immediately."""
+    from ..report_generator import period_dates
+
     schedule = _load_schedule(schedule_id, db)
 
     recipients = [r for r in schedule.recipients if r.user and r.user.email]
@@ -275,6 +275,8 @@ def _bg_send(
     """Thread target: generate PDF and send email."""
     import traceback
     from datetime import datetime, timezone
+    from ..report_generator import generate_report_pdf
+    from ..email_sender import send_report_email
 
     db = SessionLocal()
     try:
