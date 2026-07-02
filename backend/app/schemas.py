@@ -238,3 +238,4 @@ class AufstellungRequest(BaseModel):
     period_from: date
     period_to: date
     print_date: Optional[date] = None
+    compact: bool = False

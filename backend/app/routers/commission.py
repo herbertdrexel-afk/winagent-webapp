@@ -500,6 +500,7 @@ def create_aufstellung_pdf(
         period_to=payload.period_to,
         print_date=print_date,
         transactions_by_currency=by_currency,
+        compact=payload.compact,
     )
 
     period_label = f"{payload.period_from.strftime('%Y%m')}-{payload.period_to.strftime('%Y%m')}"

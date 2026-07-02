@@ -78,7 +78,7 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
       // Aufstellung PDF (always)
       await _fetchPdf(
         api.commission.aufstellungPdfUrl(supplierCode),
-        { period_from: periodFrom, period_to: periodTo, print_date: invoiceDate },
+        { period_from: periodFrom, period_to: periodTo, print_date: invoiceDate, compact: mode === "list_only" },
         `Aufstellung_${supplierCode}_${periodFrom}_${periodTo}.pdf`,
       );
     } catch (e: unknown) {
