@@ -65,7 +65,7 @@ export default function SupplierEditModal({ supplier, onClose, onSaved }: Props)
         representative_code: form.representative_code.toUpperCase() || undefined,
         contact_person: form.contact_person || undefined,
         is_active: form.is_active,
-        provision_splits: form.splits.length > 0 ? form.splits : null,
+        provision_splits: form.splits.length > 0 ? form.splits : undefined,
       };
       if (isNew) {
         saved = await api.suppliers.create(payload);
