@@ -9,6 +9,7 @@ from .. import models, schemas
 from ..database import get_db
 from ..pdf_commission import build_pdf
 from ..pdf_invoice import generate_invoice_pdf
+from ..pdf_aufstellung import generate_aufstellung_pdf
 from ..dbf_writer import write_hdubw_dbf
 
 router = APIRouter(prefix="/commission", tags=["commission"])
@@ -433,3 +434,78 @@ def issue_statement(
     db.commit()
     db.refresh(statement)
     return statement
+
+
+@router.post("/{supplier_code}/aufstellung-pdf")
+def create_aufstellung_pdf(
+    supplier_code: str,
+    payload: schemas.AufstellungRequest,
+    db: Session = Depends(get_db),
+):
+    """Generate Provisionsabrechnung (breakdown) PDF for all currencies in the period."""
+    from datetime import datetime, timezone
+    from sqlalchemy.orm import joinedload
+
+    supplier = _get_supplier(db, supplier_code)
+
+    txs = (
+        db.query(models.Transaction)
+        .options(joinedload(models.Transaction.customer))
+        .filter(
+            models.Transaction.supplier_id == supplier.id,
+            models.Transaction.invoice_date >= payload.period_from,
+            models.Transaction.invoice_date <= payload.period_to,
+        )
+        .order_by(models.Transaction.currency, models.Transaction.invoice_date)
+        .all()
+    )
+
+    if not txs:
+        raise HTTPException(404, "Keine Transaktionen im gewählten Zeitraum")
+
+    # Build location string: "AT-5282 Ranshofen" or "CH- Buron"
+    def _location(c: models.Customer | None) -> str:
+        if not c:
+            return ""
+        parts = []
+        if c.country_code:
+            parts.append(c.country_code)
+        zip_city = " ".join(filter(None, [c.zip, c.city]))
+        if zip_city:
+            parts.append(zip_city)
+        return "-".join(parts[:1]) + ("-" + parts[1] if len(parts) > 1 else "") if parts else ""
+
+    # Group by currency (preserving order EUR first, then others)
+    by_currency: dict[str, list] = {}
+    for tx in txs:
+        cur = tx.currency or "EUR"
+        rate = float(tx.provision_rate or 0)
+        amt  = float(tx.total_amount or 0)
+        prov = round(amt * rate / 100, 2)
+        by_currency.setdefault(cur, []).append({
+            "customer_name":     tx.customer.name if tx.customer else "",
+            "customer_location": _location(tx.customer),
+            "invoice_date":      tx.invoice_date,
+            "invoice_number":    tx.invoice_number,
+            "total_amount":      amt,
+            "provision_rate":    rate,
+            "provision_amount":  prov,
+        })
+
+    print_date = payload.print_date or date.today()
+    pdf_bytes = generate_aufstellung_pdf(
+        supplier_name=supplier.name,
+        representative_code=supplier.representative_code or "NA",
+        period_from=payload.period_from,
+        period_to=payload.period_to,
+        print_date=print_date,
+        transactions_by_currency=by_currency,
+    )
+
+    period_label = f"{payload.period_from.strftime('%Y%m')}-{payload.period_to.strftime('%Y%m')}"
+    filename = f"Aufstellung_{supplier.code}_{period_label}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

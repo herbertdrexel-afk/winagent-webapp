@@ -18,7 +18,7 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
   const [error, setError] = useState<string | null>(null);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
   const [prSeq, setPrSeq] = useState(0);
-  const [downloading, setDownloading] = useState<"pdf" | "dbf" | null>(null);
+  const [downloading, setDownloading] = useState<"pdf" | "dbf" | "aufstellung" | null>(null);
 
   useEffect(() => {
     api.commission.invoiceSummary(supplierCode, periodFrom, periodTo)
@@ -27,7 +27,7 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
       .finally(() => setLoading(false));
   }, []);
 
-  async function download(type: "pdf" | "dbf") {
+  async function download(type: "pdf" | "dbf" | "aufstellung") {
     if (!summary) return;
     if (type === "pdf") {
       const year = new Date(invoiceDate).getFullYear() % 100;
@@ -46,27 +46,39 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
     setDownloading(type);
     setError(null);
     const year = new Date(invoiceDate).getFullYear() % 100;
-    const payload = {
-      invoice_date: invoiceDate,
-      period_from: periodFrom,
-      period_to: periodTo,
-      pr_seq: prSeq,
-      totals: summary.totals,
-    };
-    const url = type === "pdf"
-      ? api.commission.invoicePdfUrl(supplierCode)
-      : api.commission.ubwExportUrl(supplierCode);
 
     try {
+      let url: string;
+      let body: string;
+      let filename: string;
+
+      if (type === "aufstellung") {
+        url = api.commission.aufstellungPdfUrl(supplierCode);
+        body = JSON.stringify({ period_from: periodFrom, period_to: periodTo, print_date: invoiceDate });
+        filename = `Aufstellung_${supplierCode}_${periodFrom}_${periodTo}.pdf`;
+      } else {
+        const payload = {
+          invoice_date: invoiceDate,
+          period_from: periodFrom,
+          period_to: periodTo,
+          pr_seq: prSeq,
+          totals: summary.totals,
+        };
+        url = type === "pdf"
+          ? api.commission.invoicePdfUrl(supplierCode)
+          : api.commission.ubwExportUrl(supplierCode);
+        body = JSON.stringify(payload);
+        const prLabel = `PR${String(year).padStart(2, "0")}-${String(prSeq).padStart(4, "0")}`;
+        filename = type === "pdf" ? `${prLabel}.pdf` : "HDUBW_new.DBF";
+      }
+
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token.get() ? { Authorization: `Bearer ${token.get()}` } : {}) },
-        body: JSON.stringify(payload),
+        body,
       });
       if (!res.ok) { const e = await res.json(); throw new Error(e.detail ?? res.statusText); }
       const blob = await res.blob();
-      const prLabel = `PR${String(year).padStart(2, "0")}-${String(prSeq).padStart(4, "0")}`;
-      const filename = type === "pdf" ? `${prLabel}.pdf` : "HDUBW_new.DBF";
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = filename;
@@ -146,6 +158,10 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
                 <button onClick={() => download("pdf")} disabled={!!downloading}
                   className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#2563eb] text-white hover:bg-[#2563eb]/80 disabled:opacity-50">
                   {downloading === "pdf" ? "Generiere…" : "📄 Rechnung PDF"}
+                </button>
+                <button onClick={() => download("aufstellung")} disabled={!!downloading}
+                  className="flex-1 py-2.5 rounded-lg text-sm font-medium border border-[#2563eb] text-[#2563eb] hover:bg-[#2563eb]/10 disabled:opacity-50">
+                  {downloading === "aufstellung" ? "Generiere…" : "📋 Aufstellung PDF"}
                 </button>
               </div>
               <p className="text-xs text-gray-400 text-center">

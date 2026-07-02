@@ -232,3 +232,9 @@ class CommissionInvoiceUpdate(BaseModel):
     period_to: Optional[date] = None
     v_code: Optional[str] = None
     notes: Optional[str] = None
+
+
+class AufstellungRequest(BaseModel):
+    period_from: date
+    period_to: date
+    print_date: Optional[date] = None

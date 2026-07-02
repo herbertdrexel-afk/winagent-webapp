@@ -208,6 +208,7 @@ export const api = {
     invoiceSummary: (supplierCode: string, from: string, to: string) =>
       get<InvoiceSummary>(`/commission/${supplierCode}/invoice-summary?period_from=${from}&period_to=${to}`),
     invoicePdfUrl: (supplierCode: string) => `${BASE}/commission/${supplierCode}/invoice-pdf`,
+    aufstellungPdfUrl: (supplierCode: string) => `${BASE}/commission/${supplierCode}/aufstellung-pdf`,
     ubwExportUrl: (supplierCode: string) => `${BASE}/commission/${supplierCode}/ubw-export`,
     invoices: (supplierCode?: string) =>
       get<CommissionInvoiceRecord[]>(`/commission/invoices${supplierCode ? `?supplier_code=${supplierCode}` : ""}`),
