@@ -88,6 +88,28 @@ def _fitz_words(pdf_bytes: bytes) -> list[list[dict]]:
         return []
 
 
+# ── OCR fallback for image-only PDFs (e.g. scanner output) ──────────────────
+
+def _ocr_text(pdf_bytes: bytes, page_num: int = 0) -> str:
+    """Render PDF page as image and OCR it via pytesseract (Tesseract must be installed)."""
+    try:
+        import fitz
+        import pytesseract
+        from PIL import Image
+        from io import BytesIO as _BytesIO
+
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        if page_num >= len(doc):
+            return ""
+        page = doc[page_num]
+        mat = fitz.Matrix(2.5, 2.5)  # 250 dpi → better OCR accuracy
+        pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
+        img = Image.open(_BytesIO(pix.tobytes("png")))
+        return pytesseract.image_to_string(img, lang="eng")
+    except Exception:
+        return ""
+
+
 # ── MIVAR-VIVA LTD vendor invoice parser ─────────────────────────────────────
 
 def parse_mivar_invoice(pdf_bytes: bytes) -> list[dict]:
@@ -105,6 +127,8 @@ def parse_mivar_invoice(pdf_bytes: bytes) -> list[dict]:
                 text = pdf.pages[0].extract_text() or ''
         except Exception:
             text = ''
+    if not text:
+        text = _ocr_text(pdf_bytes, 0)
 
     def _num_sp(s: str) -> float:
         """Parse number that may use space as thousands separator (e.g. '16 814,97')."""
@@ -118,30 +142,34 @@ def parse_mivar_invoice(pdf_bytes: bytes) -> list[dict]:
         nums = re.findall(r'[\d]+(?:\s[\d]{3})*[,.][\d]{2}', m.group())
         return _num_sp(nums[-1]) if nums else 0.0
 
-    # Invoice number — 4+ digit sequence after "INVOICE:"
-    inv_m = re.search(r'INVOICE:\s*(\d{4,})', text)
+    # Normalize OCR text: collapse multiple spaces, unify colons
+    text_up = text.upper()
+
+    # Invoice number — 4+ digit sequence after "INVOICE:" (OCR may add spaces around colon)
+    inv_m = re.search(r'INVOICE\s*[:#]\s*(\d{4,})', text_up)
     invoice_number = inv_m.group(1) if inv_m else ''
 
-    # Invoice date
-    date_m = re.search(r'INVOICE\s+DATE[:\s]*([\d]{1,2}\.[\d]{1,2}\.[\d]{4})', text)
+    # Invoice date (DD.MM.YYYY)
+    date_m = re.search(r'INVOICE\s+DATE\s*[:#]?\s*([\d]{1,2}\.[\d]{1,2}\.[\d]{4})', text_up)
     invoice_date = _parse_date(date_m.group(1)) if date_m else ''
 
-    # Customer / consignee name (first meaningful line after CONSIGNEE:)
+    # Customer / consignee name — line after CONSIGNEE label
     customer_name = ''
-    con_m = re.search(r'CONSIGNEE[:\s]*\n\s*(.+)', text)
+    con_m = re.search(r'CONSIGNEE[:\s]*\n\s*(.+)', text, re.IGNORECASE)
     if con_m:
         customer_name = con_m.group(1).strip()
     else:
-        # Fallback: company name pattern after CONSIGNEE keyword
+        # OCR fallback: first "real" word sequence after CONSIGNEE on same line or next
         con_m2 = re.search(
-            r'CONSIGNEE[:\s]+([A-Z][A-Z&\-\s]{3,50}(?:GMBH|GmbH|LTD|Ltd|AG|SA|SRL|KG)\.?)',
-            text
+            r'CONSIGNEE[:\s]*([A-Z][A-Z&\-\s]{3,50}(?:GMBH|GmbH|LTD|Ltd|AG|SA|SRL|KG)\.?)',
+            text, re.IGNORECASE
         )
         if con_m2:
             customer_name = con_m2.group(1).strip()
 
-    # Final payable amount (after discount)
-    am_m = re.search(r'AMOUNT[:\s]+EUR[:\s]*([\d][\d\s,\.]+)', text, re.IGNORECASE)
+    # Final payable AMOUNT: EUR (after discount)
+    # Handles: "AMOUNT: EUR: 16 814,97" or "AMOUNT EUR 16814,97" or "AMOUNT : EUR : 16 814.97"
+    am_m = re.search(r'AMOUNT\s*[:#]?\s*EUR\s*[:#]?\s*([\d][\d\s,.]+)', text_up)
     total_after_discount = _num_sp(am_m.group(1).strip()) if am_m else 0.0
 
     # Freight charges to exclude from provision base
@@ -426,8 +454,13 @@ def parse_pdf_auto(pdf_bytes: bytes) -> list[dict]:
         except Exception:
             first_text = ''
 
+    # OCR fallback for image-only PDFs (scanner output without text layer)
+    if not first_text or not first_text.strip():
+        first_text = _ocr_text(pdf_bytes, 0)
+
     # MIVAR-VIVA LTD vendor invoice
-    if 'MIVAR' in first_text and 'INVOICE' in first_text and 'VENDOR' in first_text:
+    ft_upper = first_text.upper()
+    if 'MIVAR' in ft_upper and 'INVOICE' in ft_upper and 'VENDOR' in ft_upper:
         return parse_mivar_invoice(pdf_bytes)
 
     # 'Turnover' is sometimes clipped to 'Turnov' by PyMuPDF on narrow headers
