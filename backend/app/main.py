@@ -90,17 +90,19 @@ async def _report_scheduler():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # DB setup before accepting traffic
-    from sqlalchemy import text as _sql
-    models.Base.metadata.create_all(bind=engine)
-    with engine.connect() as _conn:
-        _conn.execute(_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(120)"))
-        _conn.execute(_sql("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS report_types JSONB"))
-        _conn.commit()
-
     asyncio.create_task(_scheduled_sync())
     asyncio.create_task(_report_scheduler())
     yield
+
+# Create any missing tables without touching existing ones
+models.Base.metadata.create_all(bind=engine)
+
+# Add columns that may not exist in older DB versions
+from sqlalchemy import text as _sql
+with engine.connect() as _conn:
+    _conn.execute(_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(120)"))
+    _conn.execute(_sql("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS report_types JSONB"))
+    _conn.commit()
 
 app = FastAPI(
     lifespan=lifespan,
