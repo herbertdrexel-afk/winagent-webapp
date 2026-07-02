@@ -9,6 +9,7 @@ interface Props {
 }
 
 type Mode = "invoice_and_list" | "list_only";
+type Output = "screen" | "download";
 
 function fmt(n: number) {
   return n.toLocaleString("de-AT", { minimumFractionDigits: 2 });
@@ -21,6 +22,7 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
   const [prSeq, setPrSeq] = useState(0);
   const [mode, setMode] = useState<Mode>("invoice_and_list");
+  const [output, setOutput] = useState<Output>("download");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -30,7 +32,7 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
       .finally(() => setLoading(false));
   }, []);
 
-  async function _fetchPdf(url: string, body: object, filename: string) {
+  async function _fetchPdf(url: string, body: object, filename: string, openInTab = false) {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(token.get() ? { Authorization: `Bearer ${token.get()}` } : {}) },
@@ -38,10 +40,15 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
     });
     if (!res.ok) { const e = await res.json(); throw new Error(e.detail ?? res.statusText); }
     const blob = await res.blob();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
+    const blobUrl = URL.createObjectURL(blob);
+    if (openInTab) {
+      window.open(blobUrl, "_blank");
+    } else {
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      a.click();
+    }
   }
 
   async function handleAction() {
@@ -80,6 +87,7 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
         api.commission.aufstellungPdfUrl(supplierCode),
         { period_from: periodFrom, period_to: periodTo, print_date: invoiceDate, compact: mode === "list_only" },
         `Aufstellung_${supplierCode}_${periodFrom}_${periodTo}.pdf`,
+        output === "screen",
       );
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Fehler");
@@ -184,6 +192,25 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
                 </div>
               )}
 
+              {/* Output choice */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-500 shrink-0">Aufstellung:</span>
+                <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+                  <button
+                    onClick={() => setOutput("screen")}
+                    className={`px-3 py-1.5 font-medium transition-colors ${output === "screen" ? "bg-[#2563eb] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+                  >
+                    Am Bildschirm
+                  </button>
+                  <button
+                    onClick={() => setOutput("download")}
+                    className={`px-3 py-1.5 font-medium border-l border-gray-200 transition-colors ${output === "download" ? "bg-[#2563eb] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+                  >
+                    PDF herunterladen
+                  </button>
+                </div>
+              </div>
+
               {/* Single action button */}
               <div className="pt-2 border-t border-gray-100">
                 <button onClick={handleAction} disabled={busy}
@@ -192,7 +219,9 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
                     ? "Generiere…"
                     : mode === "invoice_and_list"
                       ? "📄 Rechnung + Aufstellung erstellen"
-                      : "📋 Aufstellung drucken"}
+                      : output === "screen"
+                        ? "🖥 Aufstellung am Bildschirm anzeigen"
+                        : "📋 Aufstellung herunterladen"}
                 </button>
               </div>
               <p className="text-xs text-gray-400 text-center -mt-2">
