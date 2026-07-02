@@ -8,6 +8,8 @@ interface Props {
   onClose: () => void;
 }
 
+type Mode = "invoice_and_list" | "list_only";
+
 function fmt(n: number) {
   return n.toLocaleString("de-AT", { minimumFractionDigits: 2 });
 }
@@ -18,7 +20,8 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
   const [error, setError] = useState<string | null>(null);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
   const [prSeq, setPrSeq] = useState(0);
-  const [downloading, setDownloading] = useState<"pdf" | "dbf" | "aufstellung" | null>(null);
+  const [mode, setMode] = useState<Mode>("invoice_and_list");
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     api.commission.invoiceSummary(supplierCode, periodFrom, periodTo)
@@ -27,12 +30,29 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
       .finally(() => setLoading(false));
   }, []);
 
-  async function download(type: "pdf" | "dbf" | "aufstellung") {
+  async function _fetchPdf(url: string, body: object, filename: string) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token.get() ? { Authorization: `Bearer ${token.get()}` } : {}) },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail ?? res.statusText); }
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+  }
+
+  async function handleAction() {
     if (!summary) return;
-    if (type === "pdf") {
-      const year = new Date(invoiceDate).getFullYear() % 100;
+    const year = new Date(invoiceDate).getFullYear() % 100;
+    const yearStr = String(year).padStart(2, "0");
+    const prLabel = `PR${yearStr}-${String(prSeq).padStart(4, "0")}`;
+
+    if (mode === "invoice_and_list") {
       const prNrs = summary.totals.map((_, i) =>
-        `PR${String(year).padStart(2, "0")}-${String(prSeq + i).padStart(4, "0")}`
+        `PR${yearStr}-${String(prSeq + i).padStart(4, "0")}`
       ).join(", ");
       const confirmed = confirm(
         `Provisionsrechnung erstellen und speichern?\n\n` +
@@ -43,50 +63,28 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
       );
       if (!confirmed) return;
     }
-    setDownloading(type);
+
+    setBusy(true);
     setError(null);
-    const year = new Date(invoiceDate).getFullYear() % 100;
-
     try {
-      let url: string;
-      let body: string;
-      let filename: string;
-
-      if (type === "aufstellung") {
-        url = api.commission.aufstellungPdfUrl(supplierCode);
-        body = JSON.stringify({ period_from: periodFrom, period_to: periodTo, print_date: invoiceDate });
-        filename = `Aufstellung_${supplierCode}_${periodFrom}_${periodTo}.pdf`;
-      } else {
-        const payload = {
-          invoice_date: invoiceDate,
-          period_from: periodFrom,
-          period_to: periodTo,
-          pr_seq: prSeq,
-          totals: summary.totals,
-        };
-        url = type === "pdf"
-          ? api.commission.invoicePdfUrl(supplierCode)
-          : api.commission.ubwExportUrl(supplierCode);
-        body = JSON.stringify(payload);
-        const prLabel = `PR${String(year).padStart(2, "0")}-${String(prSeq).padStart(4, "0")}`;
-        filename = type === "pdf" ? `${prLabel}.pdf` : "HDUBW_new.DBF";
+      if (mode === "invoice_and_list") {
+        // 1. Invoice PDF (saves to DB)
+        await _fetchPdf(
+          api.commission.invoicePdfUrl(supplierCode),
+          { invoice_date: invoiceDate, period_from: periodFrom, period_to: periodTo, pr_seq: prSeq, totals: summary.totals },
+          `${prLabel}.pdf`,
+        );
       }
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(token.get() ? { Authorization: `Bearer ${token.get()}` } : {}) },
-        body,
-      });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.detail ?? res.statusText); }
-      const blob = await res.blob();
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
+      // Aufstellung PDF (always)
+      await _fetchPdf(
+        api.commission.aufstellungPdfUrl(supplierCode),
+        { period_from: periodFrom, period_to: periodTo, print_date: invoiceDate },
+        `Aufstellung_${supplierCode}_${periodFrom}_${periodTo}.pdf`,
+      );
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Fehler");
     } finally {
-      setDownloading(null);
+      setBusy(false);
     }
   }
 
@@ -98,7 +96,7 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl">
 
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800">Provisionsrechnung erstellen</h2>
+          <h2 className="text-lg font-semibold text-gray-800">Provisionsabrechnung</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl px-2">✕</button>
         </div>
 
@@ -132,39 +130,72 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
                       <td className="px-4 py-2 text-right text-gray-600">{fmt(t.total_amount)}</td>
                       <td className="px-4 py-2 text-right font-semibold text-emerald-700">{fmt(t.provision_amount)}</td>
                       <td className="px-4 py-2 text-gray-500 font-mono text-xs">
-                        PR{String(year).padStart(2,"0")}-{String(prSeq + i).padStart(4,"0")}
+                        {mode === "invoice_and_list"
+                          ? `PR${String(year).padStart(2,"0")}-${String(prSeq + i).padStart(4,"0")}`
+                          : "–"}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
-              {/* Date + PR number */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Rechnungsdatum</label>
-                  <input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">PR-Nummer ab</label>
-                  <input type="number" value={prSeq} onChange={(e) => setPrSeq(parseInt(e.target.value) || 0)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
-                </div>
+              {/* Mode choice */}
+              <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Was soll erstellt werden?</p>
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="radio"
+                    checked={mode === "invoice_and_list"}
+                    onChange={() => setMode("invoice_and_list")}
+                    className="mt-0.5 accent-[#2563eb]"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">Rechnung + Aufstellung</p>
+                    <p className="text-xs text-gray-500">Erstellt PR-Rechnung (wird gespeichert) und lädt Aufstellungs-PDF herunter</p>
+                  </div>
+                </label>
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="radio"
+                    checked={mode === "list_only"}
+                    onChange={() => setMode("list_only")}
+                    className="mt-0.5 accent-[#2563eb]"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">Nur Liste ausdrucken</p>
+                    <p className="text-xs text-gray-500">Lädt nur die Aufstellung herunter – keine Rechnung wird erstellt</p>
+                  </div>
+                </label>
               </div>
 
-              {/* Action buttons */}
-              <div className="flex gap-3 pt-2 border-t border-gray-100">
-                <button onClick={() => download("pdf")} disabled={!!downloading}
-                  className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#2563eb] text-white hover:bg-[#2563eb]/80 disabled:opacity-50">
-                  {downloading === "pdf" ? "Generiere…" : "📄 Rechnung PDF"}
-                </button>
-                <button onClick={() => download("aufstellung")} disabled={!!downloading}
-                  className="flex-1 py-2.5 rounded-lg text-sm font-medium border border-[#2563eb] text-[#2563eb] hover:bg-[#2563eb]/10 disabled:opacity-50">
-                  {downloading === "aufstellung" ? "Generiere…" : "📋 Aufstellung PDF"}
+              {/* Date + PR number — only relevant when creating invoice */}
+              {mode === "invoice_and_list" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Rechnungsdatum</label>
+                    <input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">PR-Nummer ab</label>
+                    <input type="number" value={prSeq} onChange={(e) => setPrSeq(parseInt(e.target.value) || 0)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
+                  </div>
+                </div>
+              )}
+
+              {/* Single action button */}
+              <div className="pt-2 border-t border-gray-100">
+                <button onClick={handleAction} disabled={busy}
+                  className="w-full py-2.5 rounded-lg text-sm font-medium bg-[#2563eb] text-white hover:bg-[#2563eb]/80 disabled:opacity-50">
+                  {busy
+                    ? "Generiere…"
+                    : mode === "invoice_and_list"
+                      ? "📄 Rechnung + Aufstellung erstellen"
+                      : "📋 Aufstellung drucken"}
                 </button>
               </div>
-              <p className="text-xs text-gray-400 text-center">
+              <p className="text-xs text-gray-400 text-center -mt-2">
                 HDUBW_new.DBF in dein HDAGENTA-Verzeichnis kopieren und mit bestehender HDUBW.DBF zusammenführen
               </p>
             </>
