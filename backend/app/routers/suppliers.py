@@ -159,6 +159,17 @@ async def parse_pdf(
     except Exception as e:
         raise HTTPException(400, f"PDF konnte nicht gelesen werden: {e}")
 
+    # If parser returned provision_rate=0 (e.g. MIVAR), fill from supplier splits
+    if entries and all(e.get('provision_rate', 0) == 0 for e in entries):
+        if supplier.provision_splits:
+            default_rate = sum(s.get('rate', 0) for s in supplier.provision_splits)
+            if default_rate:
+                for e in entries:
+                    e['provision_rate'] = default_rate
+                    e['provision_amount'] = round(
+                        e['total_amount'] * default_rate / 100, 2
+                    )
+
     # For each unique customer find DB matches (by ku_nr first, then by name)
     name_cache: dict[str, list] = {}
     for entry in entries:

@@ -88,6 +88,82 @@ def _fitz_words(pdf_bytes: bytes) -> list[list[dict]]:
         return []
 
 
+# ── MIVAR-VIVA LTD vendor invoice parser ─────────────────────────────────────
+
+def parse_mivar_invoice(pdf_bytes: bytes) -> list[dict]:
+    """Parse a MIVAR-VIVA LTD vendor invoice PDF.
+
+    Returns a single entry: AMOUNT EUR (after discount) minus Transport and
+    Europallets.  Provision rate is left at 0 — the endpoint fills it from
+    the supplier's provision_splits.
+    """
+    text = _fitz_text(pdf_bytes, 0)
+    if not text:
+        try:
+            import pdfplumber
+            with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
+                text = pdf.pages[0].extract_text() or ''
+        except Exception:
+            text = ''
+
+    def _num_sp(s: str) -> float:
+        """Parse number that may use space as thousands separator (e.g. '16 814,97')."""
+        return _parse_num(s.replace(' ', '')) or 0.0
+
+    def _last_num_on_line(keyword: str) -> float:
+        """Return the last decimal number on the line that starts with keyword."""
+        m = re.search(rf'{keyword}\b[^\n]+', text, re.IGNORECASE)
+        if not m:
+            return 0.0
+        nums = re.findall(r'[\d]+(?:\s[\d]{3})*[,.][\d]{2}', m.group())
+        return _num_sp(nums[-1]) if nums else 0.0
+
+    # Invoice number — 4+ digit sequence after "INVOICE:"
+    inv_m = re.search(r'INVOICE:\s*(\d{4,})', text)
+    invoice_number = inv_m.group(1) if inv_m else ''
+
+    # Invoice date
+    date_m = re.search(r'INVOICE\s+DATE[:\s]*([\d]{1,2}\.[\d]{1,2}\.[\d]{4})', text)
+    invoice_date = _parse_date(date_m.group(1)) if date_m else ''
+
+    # Customer / consignee name (first meaningful line after CONSIGNEE:)
+    customer_name = ''
+    con_m = re.search(r'CONSIGNEE[:\s]*\n\s*(.+)', text)
+    if con_m:
+        customer_name = con_m.group(1).strip()
+    else:
+        # Fallback: company name pattern after CONSIGNEE keyword
+        con_m2 = re.search(
+            r'CONSIGNEE[:\s]+([A-Z][A-Z&\-\s]{3,50}(?:GMBH|GmbH|LTD|Ltd|AG|SA|SRL|KG)\.?)',
+            text
+        )
+        if con_m2:
+            customer_name = con_m2.group(1).strip()
+
+    # Final payable amount (after discount)
+    am_m = re.search(r'AMOUNT[:\s]+EUR[:\s]*([\d][\d\s,\.]+)', text, re.IGNORECASE)
+    total_after_discount = _num_sp(am_m.group(1).strip()) if am_m else 0.0
+
+    # Freight charges to exclude from provision base
+    transport = _last_num_on_line(r'Transport')
+    pallets   = _last_num_on_line(r'Europallets')
+
+    net_amount = round(total_after_discount - transport - pallets, 2)
+
+    return [{
+        'customer_name_raw':   customer_name,
+        'customer_name_clean': customer_name,
+        'customer_nr':         None,
+        'invoice_date':        invoice_date,
+        'invoice_number':      invoice_number,
+        'art_nr':              '',
+        'total_amount':        net_amount,
+        'provision_rate':      0.0,
+        'provision_amount':    0.0,
+        'currency':            'EUR',
+    }]
+
+
 # ── HdAgenta RP5 parser ───────────────────────────────────────────────────────
 
 def parse_provisionsabrechnung(pdf_bytes: bytes) -> list[dict]:
@@ -349,6 +425,10 @@ def parse_pdf_auto(pdf_bytes: bytes) -> list[dict]:
                 first_text = pdf.pages[0].extract_text() if pdf.pages else ''
         except Exception:
             first_text = ''
+
+    # MIVAR-VIVA LTD vendor invoice
+    if 'MIVAR' in first_text and 'INVOICE' in first_text and 'VENDOR' in first_text:
+        return parse_mivar_invoice(pdf_bytes)
 
     # 'Turnover' is sometimes clipped to 'Turnov' by PyMuPDF on narrow headers
     if ('Commission-Schedule' in first_text or 'Commission Schedule' in first_text) \
