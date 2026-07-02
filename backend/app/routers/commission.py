@@ -319,7 +319,7 @@ def list_commission_invoices(supplier_code: str | None = None, db: Session = Dep
     q = (
         db.query(models.CommissionInvoice)
         .join(models.Supplier)
-        .order_by(models.CommissionInvoice.id.desc())
+        .order_by(models.Supplier.code, models.CommissionInvoice.invoice_date.desc())
     )
     if supplier_code:
         supplier = _get_supplier(db, supplier_code)
