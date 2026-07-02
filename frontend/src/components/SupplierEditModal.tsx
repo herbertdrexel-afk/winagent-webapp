@@ -7,6 +7,8 @@ interface Props {
   onSaved: (s: Supplier) => void;
 }
 
+type Split = { rate: number; rep_code: string };
+
 type Form = {
   code: string;
   name: string;
@@ -16,6 +18,7 @@ type Form = {
   contact_person: string;
   is_active: boolean;
   notes: string;
+  splits: Split[];
 };
 
 function toForm(s: Supplier | null): Form {
@@ -28,6 +31,7 @@ function toForm(s: Supplier | null): Form {
     contact_person:      s?.contact_person ?? "",
     is_active:           s?.is_active ?? true,
     notes:               "",
+    splits:              s?.provision_splits ? [...s.provision_splits] : [],
   };
 }
 
@@ -61,7 +65,7 @@ export default function SupplierEditModal({ supplier, onClose, onSaved }: Props)
         representative_code: form.representative_code.toUpperCase() || undefined,
         contact_person: form.contact_person || undefined,
         is_active: form.is_active,
-        provision_splits: supplier?.provision_splits ?? undefined,
+        provision_splits: form.splits.length > 0 ? form.splits : null,
       };
       if (isNew) {
         saved = await api.suppliers.create(payload);
@@ -158,6 +162,74 @@ export default function SupplierEditModal({ supplier, onClose, onSaved }: Props)
                 onChange={(e) => set("contact_person", e.target.value)}
                 className={inputCls} />
             </div>
+          </div>
+
+          {/* Provisions-Splits */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium text-gray-500">
+                Provisions-Splits
+                {form.splits.length > 0 && (
+                  <span className={`ml-2 font-normal ${
+                    form.splits.reduce((s, p) => s + p.rate, 0) === 100
+                      ? "text-green-600" : "text-amber-500"
+                  }`}>
+                    ({form.splits.reduce((s, p) => s + p.rate, 0)}% gesamt)
+                  </span>
+                )}
+              </label>
+              <button
+                type="button"
+                onClick={() => setForm(f => ({ ...f, splits: [...f.splits, { rate: 0, rep_code: "" }] }))}
+                className="text-xs text-[#2563eb] hover:underline"
+              >
+                + Split hinzufügen
+              </button>
+            </div>
+            {form.splits.length === 0 ? (
+              <p className="text-xs text-gray-400 italic">Kein Split konfiguriert</p>
+            ) : (
+              <div className="space-y-2">
+                {form.splits.map((sp, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={sp.rate}
+                      onChange={(e) => {
+                        const next = [...form.splits];
+                        next[i] = { ...next[i], rate: Number(e.target.value) };
+                        setForm(f => ({ ...f, splits: next }));
+                      }}
+                      className={inputCls + " w-24 text-right"}
+                      placeholder="Rate %"
+                    />
+                    <span className="text-gray-400 text-sm">%</span>
+                    <input
+                      type="text"
+                      maxLength={4}
+                      value={sp.rep_code}
+                      onChange={(e) => {
+                        const next = [...form.splits];
+                        next[i] = { ...next[i], rep_code: e.target.value.toUpperCase() };
+                        setForm(f => ({ ...f, splits: next }));
+                      }}
+                      className={inputCls + " uppercase font-mono"}
+                      placeholder="Kürzel"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, splits: f.splits.filter((_, j) => j !== i) }))}
+                      className="text-gray-400 hover:text-red-500 px-1 text-lg leading-none"
+                      title="Entfernen"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
