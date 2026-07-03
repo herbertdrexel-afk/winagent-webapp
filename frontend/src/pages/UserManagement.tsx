@@ -150,8 +150,8 @@ export default function UserManagement() {
       )}
 
       {/* User table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto mb-6">
+        <table className="w-full text-sm min-w-[480px]">
           <thead className="bg-[#2563eb] text-white">
             <tr>
               {["Benutzername", "E-Mail", "Rolle", "Status", "Aktionen"].map((h) => (

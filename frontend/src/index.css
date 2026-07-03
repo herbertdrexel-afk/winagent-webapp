@@ -6,3 +6,12 @@ body {
   background: #f5f6fa;
   color: #1a202c;
 }
+
+/* Hide scrollbar for mobile bottom nav */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

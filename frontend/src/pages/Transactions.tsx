@@ -196,48 +196,48 @@ export default function Transactions() {
   return (
     <>
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <h1 className="text-2xl font-semibold text-gray-800">Rechnungen</h1>
         <div className="flex flex-col items-end gap-1">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               onClick={() => setShowCommissionInvoice(true)}
               disabled={!supplierCode || invoices.length === 0}
-              className="border border-emerald-600 text-emerald-700 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-emerald-50 disabled:opacity-40 transition-colors"
+              className="border border-emerald-600 text-emerald-700 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-emerald-50 disabled:opacity-40 transition-colors"
             >
-              🧾 Provisionsrechnung
+              🧾 Prov.-Rechn.
             </button>
             <button
               onClick={() => xmlInputRef.current?.click()}
               disabled={xmlImporting}
               title="XRechnung XML (UBL oder CII) importieren"
-              className="border border-emerald-600 text-emerald-700 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-emerald-50 disabled:opacity-40 transition-colors"
+              className="border border-emerald-600 text-emerald-700 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-emerald-50 disabled:opacity-40 transition-colors"
             >
-              {xmlImporting ? "⏳ Importiere…" : "📨 E-Rechnung"}
+              {xmlImporting ? "⏳…" : "📨 E-Rechnung"}
             </button>
             <input ref={xmlInputRef} type="file" accept=".xml,.XML" className="hidden" onChange={handleXmlFile} />
             <button
               onClick={() => dbfInputRef.current?.click()}
               disabled={!supplierCode || dbfImporting}
               title="Reybex DBF-Export hochladen"
-              className="border border-violet-600 text-violet-700 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-violet-50 disabled:opacity-40 transition-colors"
+              className="border border-violet-600 text-violet-700 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-violet-50 disabled:opacity-40 transition-colors"
             >
-              {dbfImporting ? "⏳ Importiere…" : "🔄 DBF importieren"}
+              {dbfImporting ? "⏳…" : "🔄 DBF"}
             </button>
             <input ref={dbfInputRef} type="file" accept=".dbf,.DBF" className="hidden" onChange={handleDbfFile} />
             <button
               onClick={() => setShowPdfImport(true)}
               disabled={!supplierCode}
-              className="border border-[#2563eb] text-[#2563eb] px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/10 disabled:opacity-40 transition-colors"
+              className="border border-[#2563eb] text-[#2563eb] px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/10 disabled:opacity-40 transition-colors"
             >
-              📊 CSV / Excel importieren
+              📊 CSV/Excel
             </button>
             <button
               onClick={() => setEditing(null)}
               disabled={!supplierCode}
-              className="bg-[#2563eb] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 disabled:opacity-40 transition-colors"
+              className="bg-[#2563eb] text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 disabled:opacity-40 transition-colors"
             >
-              + Neue Rechnung
+              + Neu
             </button>
           </div>
           {xmlResult && (
@@ -282,8 +282,8 @@ export default function Transactions() {
 
       {error && <div className="text-red-600 mb-3">Fehler: {error}</div>}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+        <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-[#2563eb] text-white">
             <tr>
               {["Rg-Nr", "Datum", "Kd-Nr", "Kunde", "Pos.", "Währung", "Betrag", "Prov. %", "Provision"].map((h) => (

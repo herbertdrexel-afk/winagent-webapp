@@ -94,7 +94,7 @@ export default function Dashboard() {
       </div>
 
       {/* Quick tiles */}
-      <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {[
           { label: "Rechnungen", sub: "Transaktionen verwalten", icon: FileText, color: "bg-emerald-50 text-emerald-700 border-emerald-200", iconBg: "bg-emerald-100", to: "/transactions" },
           { label: "Provisionsrechnungen", sub: "PR-Liste & Nachdruck", icon: Receipt, color: "bg-violet-50 text-violet-700 border-violet-200", iconBg: "bg-violet-100", to: "/commission-invoices" },

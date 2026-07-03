@@ -45,8 +45,8 @@ export default function Suppliers() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+        <table className="w-full text-sm min-w-[600px]">
           <thead className="bg-[#2563eb] text-white">
             <tr>
               {["Code", "Name", "Währung", "Vertreter", "Kontakt", "Provisions-Splits", "Aktiv"].map((h) => (

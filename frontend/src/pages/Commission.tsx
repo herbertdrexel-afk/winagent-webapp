@@ -95,8 +95,8 @@ export default function Commission() {
       {loading ? (
         <div className="text-gray-400">Lade…</div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-[#2563eb] text-white">
               <tr>
                 {["Nr.", "Rg.-Nummer", "Zeitraum", "Datum", "Umsatz", "Provision", "Währg.", "Status", ""].map((h) => (
