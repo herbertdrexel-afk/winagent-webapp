@@ -370,33 +370,21 @@ async def test_price_endpoints():
     auth = (username, password)
     results = {}
     paths = [
-        # Artikel-Stammdaten — "material" aus salesItem/purItem abgeleitet
+        # Material / Artikel-Stammdaten (gefunden: /domains/material ✓)
         "/domains/material",
-        "/domains/materialMaster",
-        "/domains/materialVariant",
-        "/domains/materialPrice",
-        # Preis-Gruppen & Stufenpreise — aus salesItem-Feld "vendorPortalScaleGrouping"
-        "/domains/vendorPortalScaleGroup",
-        "/domains/scaleGroup",
-        "/domains/priceGroup",
-        "/domains/salesPriceGroup",
-        "/domains/customerPriceGroup",
-        "/domains/salesCondition",
-        "/domains/salesConditionCustomer",
-        "/domains/customerPrice",
-        # Verschiedene Preis-Listen-Varianten
-        "/domains/salesPriceList",
-        "/domains/purchasePriceList",
-        "/domains/materialPriceList",
-        "/domains/materialSalesPrice",
-        "/domains/materialPurPrice",
-        # Bekannte funktionierende Domains zur Orientierung
-        "/domains/salesItem",
-        "/domains/purItem",
-        "/domains/salesHead",
-        "/domains/purHead",
+        # Stufenpreise-Kandidaten basierend auf bekannten Feldnamen
+        "/domains/salesConditionCustomer",   # aus salesHead
+        "/domains/vendorPortalScaleGroup",   # aus salesItem.vendorPortalScaleGrouping
+        "/domains/matGroup",                 # aus material.matGroup
+        "/domains/discountGroup",
+        "/domains/discountCondition",
+        "/domains/customerGroup",
+        "/domains/quantityScale",
+        "/domains/priceCondition",
+        "/domains/salesPrice",
+        "/domains/purchasePrice",
+        "/domains/vendor",
         "/domains/finHead",
-        "/domains/stockItem",
     ]
     async with httpx.AsyncClient(timeout=20) as client:
         for path in paths:
