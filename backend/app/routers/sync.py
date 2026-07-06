@@ -364,6 +364,48 @@ async def import_einvoice(
 
 
 
+@router.get("/reybex/test-price-endpoints")
+async def test_price_endpoints():
+    """One-time test: which Reybex price/article endpoints are accessible with current credentials."""
+    username, password = _reybex_creds()
+    auth = (username, password)
+    results = {}
+    paths = [
+        "/domains/article",
+        "/domains/priceList",
+        "/domains/scalePrice",
+        "/domains/articlePrice",
+        "/domains/purchasePrice",
+        "/domains/supplierPrice",
+        "/domains/itemPrice",
+    ]
+    async with httpx.AsyncClient(timeout=15) as client:
+        for path in paths:
+            try:
+                r = await client.get(
+                    f"{REYBEX_BASE}{path}",
+                    params={"take": 2, "skip": 0, "responseFormat": "api"},
+                    auth=auth,
+                )
+                if r.status_code == 200:
+                    try:
+                        data = r.json()
+                        if isinstance(data, list):
+                            sample = data[:1]
+                            keys = list(data[0].keys()) if data else []
+                        else:
+                            sample = data
+                            keys = list(data.keys()) if isinstance(data, dict) else []
+                        results[path] = {"status": 200, "count": len(data) if isinstance(data, list) else 1, "fields": keys, "sample": sample}
+                    except Exception:
+                        results[path] = {"status": 200, "raw": r.text[:200]}
+                else:
+                    results[path] = {"status": r.status_code, "body": r.text[:100]}
+            except Exception as e:
+                results[path] = {"status": "error", "error": str(e)}
+    return results
+
+
 async def test_mandant(mandant_id: str | None = None):
     """Reybex connection test — checks credentials and returns customer count."""
     username, password = _reybex_creds()
