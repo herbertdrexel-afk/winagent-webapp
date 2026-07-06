@@ -364,53 +364,6 @@ async def import_einvoice(
 
 
 
-async def test_price_endpoints():
-    """One-time test: which Reybex price/article endpoints are accessible with current credentials."""
-    username, password = _reybex_creds()
-    auth = (username, password)
-    results = {}
-    paths = [
-        # Material / Artikel-Stammdaten (gefunden: /domains/material ✓)
-        "/domains/material",
-        # Stufenpreise-Kandidaten basierend auf bekannten Feldnamen
-        "/domains/salesConditionCustomer",   # aus salesHead
-        "/domains/vendorPortalScaleGroup",   # aus salesItem.vendorPortalScaleGrouping
-        "/domains/matGroup",                 # aus material.matGroup
-        "/domains/discountGroup",
-        "/domains/discountCondition",
-        "/domains/customerGroup",
-        "/domains/quantityScale",
-        "/domains/priceCondition",
-        "/domains/salesPrice",
-        "/domains/purchasePrice",
-        "/domains/vendor",
-        "/domains/finHead",
-    ]
-    async with httpx.AsyncClient(timeout=20) as client:
-        for path in paths:
-            try:
-                r = await client.get(
-                    f"{REYBEX_BASE}{path}",
-                    params={"take": 2, "skip": 0, "responseFormat": "api"},
-                    auth=auth,
-                )
-                if r.status_code == 200:
-                    try:
-                        data = r.json()
-                        keys = list(data[0].keys()) if isinstance(data, list) and data else (list(data.keys()) if isinstance(data, dict) else [])
-                        results[path] = {"status": 200, "count": len(data) if isinstance(data, list) else 1, "fields": keys}
-                    except Exception:
-                        results[path] = {"status": 200, "raw": r.text[:300]}
-                else:
-                    try:
-                        body = r.json()
-                    except Exception:
-                        body = r.text[:100]
-                    results[path] = {"status": r.status_code, "body": body}
-            except Exception as e:
-                results[path] = {"status": "error", "error": str(e)}
-    return results
-
 
 async def test_mandant(mandant_id: str | None = None):
     """Reybex connection test — checks credentials and returns customer count."""
