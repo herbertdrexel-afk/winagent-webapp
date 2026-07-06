@@ -364,7 +364,6 @@ async def import_einvoice(
 
 
 
-@router.get("/reybex/test-price-endpoints")
 async def test_price_endpoints():
     """One-time test: which Reybex price/article endpoints are accessible with current credentials."""
     username, password = _reybex_creds()
