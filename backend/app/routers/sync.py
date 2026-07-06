@@ -370,15 +370,36 @@ async def test_price_endpoints():
     auth = (username, password)
     results = {}
     paths = [
+        # Artikel-Varianten
         "/domains/article",
+        "/domains/articles",
+        "/domains/item",
+        "/domains/items",
+        "/domains/product",
+        "/domains/products",
+        "/domains/catalogue",
+        "/domains/catalog",
+        "/domains/stockItem",
+        "/domains/stock",
+        "/domains/goods",
+        # Preis-Varianten
+        "/domains/price",
+        "/domains/prices",
         "/domains/priceList",
+        "/domains/pricelist",
+        "/domains/salesPrice",
+        "/domains/salesprice",
         "/domains/scalePrice",
-        "/domains/articlePrice",
+        "/domains/scaleprice",
         "/domains/purchasePrice",
         "/domains/supplierPrice",
+        "/domains/buyPrice",
+        "/domains/articlePrice",
         "/domains/itemPrice",
+        "/domains/tierPrice",
+        "/domains/graduatedPrice",
     ]
-    async with httpx.AsyncClient(timeout=15) as client:
+    async with httpx.AsyncClient(timeout=20) as client:
         for path in paths:
             try:
                 r = await client.get(
@@ -389,17 +410,16 @@ async def test_price_endpoints():
                 if r.status_code == 200:
                     try:
                         data = r.json()
-                        if isinstance(data, list):
-                            sample = data[:1]
-                            keys = list(data[0].keys()) if data else []
-                        else:
-                            sample = data
-                            keys = list(data.keys()) if isinstance(data, dict) else []
-                        results[path] = {"status": 200, "count": len(data) if isinstance(data, list) else 1, "fields": keys, "sample": sample}
+                        keys = list(data[0].keys()) if isinstance(data, list) and data else (list(data.keys()) if isinstance(data, dict) else [])
+                        results[path] = {"status": 200, "count": len(data) if isinstance(data, list) else 1, "fields": keys}
                     except Exception:
-                        results[path] = {"status": 200, "raw": r.text[:200]}
+                        results[path] = {"status": 200, "raw": r.text[:300]}
                 else:
-                    results[path] = {"status": r.status_code, "body": r.text[:100]}
+                    try:
+                        body = r.json()
+                    except Exception:
+                        body = r.text[:100]
+                    results[path] = {"status": r.status_code, "body": body}
             except Exception as e:
                 results[path] = {"status": "error", "error": str(e)}
     return results
