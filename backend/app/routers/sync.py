@@ -370,34 +370,33 @@ async def test_price_endpoints():
     auth = (username, password)
     results = {}
     paths = [
-        # Aus stockItem-Referenzen abgeleitet
+        # Artikel-Stammdaten — "material" aus salesItem/purItem abgeleitet
+        "/domains/material",
+        "/domains/materialMaster",
+        "/domains/materialVariant",
+        "/domains/materialPrice",
+        # Preis-Gruppen & Stufenpreise — aus salesItem-Feld "vendorPortalScaleGrouping"
+        "/domains/vendorPortalScaleGroup",
+        "/domains/scaleGroup",
+        "/domains/priceGroup",
+        "/domains/salesPriceGroup",
+        "/domains/customerPriceGroup",
+        "/domains/salesCondition",
+        "/domains/salesConditionCustomer",
+        "/domains/customerPrice",
+        # Verschiedene Preis-Listen-Varianten
+        "/domains/salesPriceList",
+        "/domains/purchasePriceList",
+        "/domains/materialPriceList",
+        "/domains/materialSalesPrice",
+        "/domains/materialPurPrice",
+        # Bekannte funktionierende Domains zur Orientierung
         "/domains/salesItem",
         "/domains/purItem",
-        "/domains/prodOrder",
-        "/domains/salesOrder",
-        "/domains/purchaseOrder",
         "/domains/salesHead",
         "/domains/purHead",
         "/domains/finHead",
-        # Artikel-Stammdaten weitere Varianten
-        "/domains/itemMaster",
-        "/domains/masterItem",
-        "/domains/inventoryItem",
-        "/domains/storeItem",
-        "/domains/itemRecord",
-        "/domains/itemBase",
-        "/domains/inventoryMaster",
-        "/domains/warehouseItem",
-        # Preis-Varianten
-        "/domains/itemPriceList",
-        "/domains/articlePriceList",
-        "/domains/priceScale",
-        "/domains/quantityDiscount",
-        "/domains/volumeDiscount",
-        "/domains/salesPriceList",
-        "/domains/purchasePriceList",
-        "/domains/vendorPrice",
-        "/domains/costPrice",
+        "/domains/stockItem",
     ]
     async with httpx.AsyncClient(timeout=20) as client:
         for path in paths:
