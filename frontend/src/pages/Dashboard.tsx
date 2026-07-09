@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, type SyncResult, BASE, token } from "../api";
-import { FileText, Receipt, RefreshCw, ArrowRight, BarChart2, FileDown } from "lucide-react";
+import { BarChart2, FileDown, RefreshCw } from "lucide-react";
 
 interface StatRow {
   code: string;
@@ -23,17 +23,189 @@ function fmtPct(pct: number | null) {
   if (pct === null) return "–";
   return (pct >= 0 ? "+" : "") + pct.toFixed(1).replace(".", ",") + "%";
 }
+function fmtAxis(n: number) {
+  if (n >= 1_000_000) return (n / 1_000_000).toLocaleString("de-AT", { maximumFractionDigits: 1 }) + "M";
+  if (n >= 1_000)     return (n / 1_000).toLocaleString("de-AT", { maximumFractionDigits: 0 }) + "k";
+  return String(n);
+}
 function yearStart() { return new Date().getFullYear() + "-01-01"; }
-function today() { return new Date().toISOString().slice(0, 10); }
+function today()     { return new Date().toISOString().slice(0, 10); }
 
+// ── Umsatz Balkendiagramm ──────────────────────────────────────────────────
+const C_CURR = "#2563eb";   // Aktuell — WinAgent-Blau
+const C_PREV = "#93c5fd";   // Vorjahr  — helles Blau
+
+function niceMax(val: number): number {
+  if (val === 0) return 100;
+  const mag = Math.pow(10, Math.floor(Math.log10(val)));
+  return Math.ceil(val / mag) * mag;
+}
+
+function TurnoverChart({ rows }: { rows: StatRow[] }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [tooltip, setTooltip] = useState<{
+    x: number; y: number; row: StatRow;
+  } | null>(null);
+
+  const ML = 62, MR = 16, MT = 16, MB = 44;
+  const BAR_W   = 26;
+  const GAP_IN  = 4;
+  const GAP_OUT = 28;
+  const GROUP_W = BAR_W * 2 + GAP_IN + GAP_OUT;
+  const H       = 200;
+  const chartW  = Math.max(300, rows.length * GROUP_W);
+  const SVG_W   = ML + chartW + MR;
+  const SVG_H   = MT + H + MB;
+
+  const maxVal  = Math.max(...rows.flatMap(r => [r.curr_turnover, r.prev_turnover]), 1);
+  const yMax    = niceMax(maxVal);
+  const TICKS   = 4;
+  const scaleY  = (v: number) => H - (v / yMax) * H;
+
+  function groupX(i: number) { return ML + i * GROUP_W + GAP_OUT / 2; }
+
+  function handleMouseMove(e: React.MouseEvent<SVGSVGElement>, row: StatRow) {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setTooltip({ x: e.clientX - rect.left, y: e.clientY - rect.top, row });
+  }
+
+  return (
+    <div className="relative">
+      {/* Legend */}
+      <div className="flex items-center gap-5 px-5 pb-2 pt-1">
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm inline-block" style={{ background: C_CURR }} />
+          <span className="text-xs text-gray-600">Aktuell</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm inline-block" style={{ background: C_PREV }} />
+          <span className="text-xs text-gray-600">Vorjahr</span>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto pb-1">
+        <svg
+          ref={svgRef}
+          width={SVG_W}
+          height={SVG_H}
+          style={{ display: "block", minWidth: SVG_W }}
+          onMouseLeave={() => setTooltip(null)}
+        >
+          {/* Gridlines + Y-axis labels */}
+          {Array.from({ length: TICKS + 1 }, (_, i) => {
+            const v  = (yMax / TICKS) * i;
+            const gy = MT + scaleY(v);
+            return (
+              <g key={i}>
+                <line x1={ML} x2={ML + chartW} y1={gy} y2={gy}
+                  stroke={i === 0 ? "#c3c2b7" : "#e5e7eb"} strokeWidth={i === 0 ? 1 : 0.5} />
+                <text x={ML - 6} y={gy + 4} textAnchor="end"
+                  fontSize={10} fill="#898781" fontFamily="system-ui, sans-serif">
+                  {fmtAxis(v)}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Bars */}
+          {rows.map((row, i) => {
+            const gx      = groupX(i);
+            const xPrev   = gx;
+            const xCurr   = gx + BAR_W + GAP_IN;
+            const hPrev   = Math.max((row.prev_turnover / yMax) * H, 1);
+            const hCurr   = Math.max((row.curr_turnover / yMax) * H, 1);
+            const yPrev   = MT + H - hPrev;
+            const yCurr   = MT + H - hCurr;
+            const baseY   = MT + H;
+
+            return (
+              <g key={row.code}
+                onMouseMove={(e) => handleMouseMove(e, row)}
+                onMouseLeave={() => setTooltip(null)}
+                style={{ cursor: "default" }}
+              >
+                {/* Invisible hit target */}
+                <rect x={gx - 2} y={MT} width={BAR_W * 2 + GAP_IN + 4} height={H + 2} fill="transparent" />
+
+                {/* Vorjahr bar */}
+                <rect x={xPrev} y={yPrev} width={BAR_W} height={hPrev}
+                  rx={3} ry={3} fill={C_PREV} />
+                {/* Clip bottom radius */}
+                <rect x={xPrev} y={yPrev + hPrev - 4} width={BAR_W} height={4} fill={C_PREV} />
+
+                {/* Aktuell bar */}
+                <rect x={xCurr} y={yCurr} width={BAR_W} height={hCurr}
+                  rx={3} ry={3} fill={C_CURR} />
+                <rect x={xCurr} y={yCurr + hCurr - 4} width={BAR_W} height={4} fill={C_CURR} />
+
+                {/* X-axis label */}
+                <text x={gx + BAR_W + GAP_IN / 2} y={baseY + 14}
+                  textAnchor="middle" fontSize={11} fill="#374151"
+                  fontWeight={600} fontFamily="system-ui, sans-serif">
+                  {row.code}
+                </text>
+                <text x={gx + BAR_W + GAP_IN / 2} y={baseY + 27}
+                  textAnchor="middle" fontSize={9} fill="#9ca3af"
+                  fontFamily="system-ui, sans-serif">
+                  {row.name.length > 12 ? row.name.slice(0, 11) + "…" : row.name}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Baseline */}
+          <line x1={ML} x2={ML + chartW} y1={MT + H} y2={MT + H}
+            stroke="#c3c2b7" strokeWidth={1} />
+        </svg>
+      </div>
+
+      {/* Tooltip */}
+      {tooltip && (
+        <div
+          className="absolute z-10 pointer-events-none bg-white border border-gray-200 rounded-xl shadow-lg px-3 py-2 text-xs"
+          style={{
+            left: Math.min(tooltip.x + 12, 340),
+            top: tooltip.y - 10,
+            minWidth: 160,
+          }}
+        >
+          <div className="font-semibold text-gray-800 mb-1">{tooltip.row.name}</div>
+          <div className="flex justify-between gap-4">
+            <span className="text-gray-500">Aktuell</span>
+            <span className="font-medium" style={{ color: C_CURR }}>{fmt(tooltip.row.curr_turnover)}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-gray-500">Vorjahr</span>
+            <span className="text-gray-600">{fmt(tooltip.row.prev_turnover)}</span>
+          </div>
+          {tooltip.row.prev_turnover > 0 && (
+            <div className="flex justify-between gap-4 mt-0.5 pt-0.5 border-t border-gray-100">
+              <span className="text-gray-500">Änderung</span>
+              <span className={
+                tooltip.row.curr_turnover >= tooltip.row.prev_turnover
+                  ? "text-emerald-700 font-medium"
+                  : "text-red-600 font-medium"
+              }>
+                {fmtPct(((tooltip.row.curr_turnover - tooltip.row.prev_turnover) / tooltip.row.prev_turnover) * 100)}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [syncing, setSyncing] = useState(false);
+  const [syncing, setSyncing]       = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
-  const [lastSync, setLastSync] = useState<string | null>(null);
-  const [stats, setStats] = useState<StatData | null>(null);
+  const [lastSync, setLastSync]     = useState<string | null>(null);
+  const [stats, setStats]           = useState<StatData | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
-  const [downloading, setDownloading] = useState(false);
+  const [downloading, setDownloading]   = useState(false);
 
   useEffect(() => {
     api.sync.status().then((s) => setLastSync(s.last_sync)).catch(() => {});
@@ -46,7 +218,10 @@ export default function Dashboard() {
       const h: Record<string, string> = {};
       const t = token.get();
       if (t) h["Authorization"] = `Bearer ${t}`;
-      const res = await fetch(`${BASE}/stats/supplier-summary?period_from=${yearStart()}&period_to=${today()}`, { headers: h });
+      const res = await fetch(
+        `${BASE}/stats/supplier-summary?period_from=${yearStart()}&period_to=${today()}`,
+        { headers: h },
+      );
       if (res.ok) setStats(await res.json());
     } catch { /* silent */ } finally { setStatsLoading(false); }
   }
@@ -70,7 +245,10 @@ export default function Dashboard() {
       const h: Record<string, string> = {};
       const t = token.get();
       if (t) h["Authorization"] = `Bearer ${t}`;
-      const res = await fetch(`${BASE}/stats/supplier-summary/pdf?period_from=${yearStart()}&period_to=${today()}`, { headers: h });
+      const res = await fetch(
+        `${BASE}/stats/supplier-summary/pdf?period_from=${yearStart()}&period_to=${today()}`,
+        { headers: h },
+      );
       if (!res.ok) throw new Error(`${res.status}`);
       const blob = await res.blob();
       const a = document.createElement("a");
@@ -83,7 +261,7 @@ export default function Dashboard() {
 
   const totals = stats?.rows.reduce(
     (s, r) => ({ ct: s.ct + r.curr_turnover, pt: s.pt + r.prev_turnover, cc: s.cc + r.curr_commission, pc: s.pc + r.prev_commission }),
-    { ct: 0, pt: 0, cc: 0, pc: 0 }
+    { ct: 0, pt: 0, cc: 0, pc: 0 },
   );
 
   return (
@@ -93,27 +271,10 @@ export default function Dashboard() {
         <p className="text-sm text-gray-500 mt-0.5">Willkommen bei WinAgent</p>
       </div>
 
-      {/* Quick tiles */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {[
-          { label: "Rechnungen", sub: "Transaktionen verwalten", icon: FileText, color: "bg-emerald-50 text-emerald-700 border-emerald-200", iconBg: "bg-emerald-100", to: "/transactions" },
-          { label: "Provisionsrechnungen", sub: "PR-Liste & Nachdruck", icon: Receipt, color: "bg-violet-50 text-violet-700 border-violet-200", iconBg: "bg-violet-100", to: "/commission-invoices" },
-          { label: "Statistik", sub: "Lieferanten Übersicht", icon: BarChart2, color: "bg-blue-50 text-blue-700 border-blue-200", iconBg: "bg-blue-100", to: "/stats" },
-        ].map(({ label, sub, icon: Icon, color, iconBg, to }) => (
-          <button key={to} onClick={() => navigate(to)}
-            className={`flex items-center gap-4 p-5 rounded-xl border text-left hover:shadow-md transition-all ${color}`}>
-            <div className={`p-2.5 rounded-lg shrink-0 ${iconBg}`}><Icon size={22} /></div>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-base leading-tight">{label}</div>
-              <div className="text-xs mt-1 opacity-70">{sub}</div>
-            </div>
-            <ArrowRight size={16} className="opacity-40 shrink-0" />
-          </button>
-        ))}
-      </div>
-
-      {/* Statistics preview */}
+      {/* Umsatz chart + table in one card */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+
+        {/* Card header */}
         <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100">
           <BarChart2 size={17} className="text-[#2563eb]" />
           <h2 className="font-semibold text-gray-800">Lieferanten Statistik</h2>
@@ -131,8 +292,18 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        {/* Chart area */}
+        {statsLoading ? (
+          <div className="h-[260px] flex items-center justify-center text-gray-400 text-sm">Lade…</div>
+        ) : !stats || stats.rows.length === 0 ? (
+          <div className="h-[160px] flex items-center justify-center text-gray-400 text-sm">Keine Daten</div>
+        ) : (
+          <TurnoverChart rows={stats.rows} />
+        )}
+
+        {/* Table */}
+        <div className="overflow-x-auto border-t border-gray-100">
+          <table className="w-full text-sm min-w-[540px]">
             <thead className="bg-[#2563eb] text-white text-xs">
               <tr>
                 <th className="px-4 py-2 text-left font-medium">Lieferant</th>
