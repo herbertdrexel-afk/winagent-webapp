@@ -64,7 +64,7 @@ function TurnoverChart({ rows }: { rows: StatRow[] }) {
 
   function groupX(i: number) { return ML + i * GROUP_W + GAP_OUT / 2; }
 
-  function handleMouseMove(e: React.MouseEvent<SVGSVGElement>, row: StatRow) {
+  function handleMouseMove(e: React.MouseEvent<SVGElement>, row: StatRow) {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return;
     setTooltip({ x: e.clientX - rect.left, y: e.clientY - rect.top, row });
