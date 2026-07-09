@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, type SyncResult, BASE, token } from "../api";
-import { BarChart2, FileDown, RefreshCw } from "lucide-react";
+import { api, BASE, token } from "../api";
+import { BarChart2, FileDown } from "lucide-react";
 
 interface StatRow {
   code: string;
@@ -200,15 +200,11 @@ function TurnoverChart({ rows }: { rows: StatRow[] }) {
 // ── Dashboard ──────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [syncing, setSyncing]       = useState(false);
-  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
-  const [lastSync, setLastSync]     = useState<string | null>(null);
   const [stats, setStats]           = useState<StatData | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [downloading, setDownloading]   = useState(false);
 
   useEffect(() => {
-    api.sync.status().then((s) => setLastSync(s.last_sync)).catch(() => {});
     loadStats();
   }, []);
 
@@ -224,19 +220,6 @@ export default function Dashboard() {
       );
       if (res.ok) setStats(await res.json());
     } catch { /* silent */ } finally { setStatsLoading(false); }
-  }
-
-  async function runSync() {
-    setSyncing(true);
-    setSyncResult(null);
-    try {
-      const result = await api.sync.customers();
-      setSyncResult(result);
-      const s = await api.sync.status();
-      setLastSync(s.last_sync);
-    } catch (e: unknown) {
-      setSyncResult({ ok: false, total: 0, message: e instanceof Error ? e.message : "Fehler" });
-    } finally { setSyncing(false); }
   }
 
   async function downloadPdf() {
@@ -357,23 +340,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Reybex Sync — compact */}
-      <div className="bg-white rounded-xl border border-gray-200 px-5 py-3 flex items-center gap-4 flex-wrap">
-        <RefreshCw size={16} className="text-[#2563eb] shrink-0" />
-        <span className="font-medium text-sm text-gray-700">Reybex Kunden-Sync</span>
-        <button onClick={runSync} disabled={syncing}
-          className="flex items-center gap-1.5 border border-[#2563eb] text-[#2563eb] px-3 py-1 rounded-lg text-xs font-medium hover:bg-[#2563eb]/5 disabled:opacity-50 transition-colors">
-          <RefreshCw size={12} className={syncing ? "animate-spin" : ""} />
-          {syncing ? "Synchronisiere…" : "Jetzt synchronisieren"}
-        </button>
-        {lastSync && <span className="text-xs text-gray-400">Zuletzt: {new Date(lastSync).toLocaleString("de-AT")}</span>}
-        <span className="text-xs text-gray-300">· Automatisch stündlich</span>
-        {syncResult && (
-          <span className={`text-xs px-2 py-0.5 rounded-full ${syncResult.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>
-            {syncResult.ok ? `✓ ${syncResult.total} Kunden` : `✗ ${syncResult.message}`}
-          </span>
-        )}
-      </div>
     </div>
   );
 }

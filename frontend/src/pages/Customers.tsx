@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { api, type Customer } from "../api";
+import { api, type Customer, type SyncResult } from "../api";
 import CustomerEditModal from "../components/CustomerEditModal";
+import { RefreshCw } from "lucide-react";
 
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -8,7 +9,14 @@ export default function Customers() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Customer | null | undefined>(undefined);
+  const [syncing, setSyncing]       = useState(false);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+  const [lastSync, setLastSync]     = useState<string | null>(null);
   // undefined = geschlossen, null = Neuanlage, Customer = bearbeiten
+
+  useEffect(() => {
+    api.sync.status().then((s) => setLastSync(s.last_sync)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -20,6 +28,22 @@ export default function Customers() {
     }, 300);
     return () => clearTimeout(t);
   }, [search]);
+
+  async function runSync() {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const result = await api.sync.customers();
+      setSyncResult(result);
+      const s = await api.sync.status();
+      setLastSync(s.last_sync);
+      // Kundenliste neu laden
+      const fresh = await api.customers.list(search || undefined);
+      setCustomers(fresh);
+    } catch (e: unknown) {
+      setSyncResult({ ok: false, total: 0, message: e instanceof Error ? e.message : "Fehler" });
+    } finally { setSyncing(false); }
+  }
 
   function handleSaved(saved: Customer) {
     setCustomers((prev) => {
@@ -99,6 +123,24 @@ export default function Customers() {
           </div>
         )}
       </div>
+    </div>
+
+    {/* Reybex Sync */}
+    <div className="bg-white rounded-xl border border-gray-200 px-5 py-3 flex items-center gap-4 flex-wrap mt-4">
+      <RefreshCw size={16} className="text-[#2563eb] shrink-0" />
+      <span className="font-medium text-sm text-gray-700">Reybex Kunden-Sync</span>
+      <button onClick={runSync} disabled={syncing}
+        className="flex items-center gap-1.5 border border-[#2563eb] text-[#2563eb] px-3 py-1 rounded-lg text-xs font-medium hover:bg-[#2563eb]/5 disabled:opacity-50 transition-colors">
+        <RefreshCw size={12} className={syncing ? "animate-spin" : ""} />
+        {syncing ? "Synchronisiere…" : "Jetzt synchronisieren"}
+      </button>
+      {lastSync && <span className="text-xs text-gray-400">Zuletzt: {new Date(lastSync).toLocaleString("de-AT")}</span>}
+      <span className="text-xs text-gray-300">· Automatisch stündlich</span>
+      {syncResult && (
+        <span className={`text-xs px-2 py-0.5 rounded-full ${syncResult.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>
+          {syncResult.ok ? `✓ ${syncResult.total} Kunden` : `✗ ${syncResult.message}`}
+        </span>
+      )}
     </div>
 
     {editing !== undefined && (
