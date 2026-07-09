@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, BASE, token } from "../api";
+import { BASE, token } from "../api";
 import { BarChart2, FileDown } from "lucide-react";
 
 interface StatRow {
