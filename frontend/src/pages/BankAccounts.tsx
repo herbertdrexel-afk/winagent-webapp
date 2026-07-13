@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { api, type BankAccount, type BankAccounts } from "../api";
+import { api, type BankAccount } from "../api";
 import { Upload, Trash2, Save, Plus } from "lucide-react";
 
 const CURRENCIES = ["EUR", "USD", "CHF"];
 const inputCls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30";
 
 export default function BankAccountsPage() {
-  const [accounts, setAccounts]   = useState<BankAccounts>({});
+  const [accounts, setAccounts]   = useState<Record<string, BankAccount>>({});
   const [uidNr, setUidNr]         = useState("");
   const [registration, setReg]    = useState("");
   const [logoUrl, setLogoUrl]     = useState<string | null>(null);
@@ -19,7 +19,7 @@ export default function BankAccountsPage() {
   useEffect(() => {
     Promise.all([api.settings.getBankAccounts(), api.settings.getLogo()])
       .then(([ba, logo]) => {
-        const filled: BankAccounts = {};
+        const filled: Record<string, BankAccount> = {};
         for (const c of CURRENCIES) {
           filled[c] = (ba[c] as BankAccount | undefined) ?? { bank: "", iban: "", bic: "" };
         }
