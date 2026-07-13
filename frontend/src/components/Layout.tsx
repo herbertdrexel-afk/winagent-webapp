@@ -1,146 +1,310 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import {
-  LayoutDashboard, Building2, Users, FileText, Receipt, UserCog, LogOut, BarChart2, Mail, Landmark,
-} from "lucide-react";
+import { LogOut, Search, X } from "lucide-react";
 
 interface NavItem {
   to: string;
   label: string;
-  icon: React.ElementType;
+  short: string;
   adminOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: "/",                    label: "Dashboard",       icon: LayoutDashboard },
-  { to: "/suppliers",           label: "Lieferanten",     icon: Building2 },
-  { to: "/customers",           label: "Kunden",          icon: Users },
-  { to: "/transactions",        label: "Rechnungen",      icon: FileText },
-  { to: "/commission-invoices", label: "Prov.-Rechn.",    icon: Receipt },
-  { to: "/stats",               label: "Statistik",       icon: BarChart2 },
-  { to: "/reports",             label: "Berichte",        icon: Mail },
-  { to: "/bank-accounts",       label: "Bankkonten",      icon: Landmark,  adminOnly: true },
-  { to: "/users",               label: "Benutzer",        icon: UserCog,   adminOnly: true },
+  { to: "/",                    label: "Dashboard",     short: "D" },
+  { to: "/commission-invoices", label: "Provisionen",   short: "%" },
+  { to: "/suppliers",           label: "Lieferanten",   short: "L" },
+  { to: "/customers",           label: "Kunden",        short: "K" },
+  { to: "/transactions",        label: "Rechnungen",    short: "R" },
+  { to: "/stats",               label: "Statistik",     short: "S" },
+  { to: "/reports",             label: "Berichte",      short: "B" },
+  { to: "/bank-accounts",       label: "Einstellungen", short: "⚙", adminOnly: true },
+  { to: "/users",               label: "Benutzer",      short: "U",  adminOnly: true },
 ];
+
+function LetterBox({ short, active }: { short: string; active?: boolean }) {
+  return (
+    <div
+      className="flex items-center justify-center shrink-0 text-white font-bold text-[11px]"
+      style={{ width: 22, height: 22, borderRadius: 5, background: active ? "#1d4ed8" : "#2563eb" }}
+    >
+      {short}
+    </div>
+  );
+}
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   function handleLogout() {
     logout();
     navigate("/");
   }
 
-  const items = NAV_ITEMS.filter((n) => !n.adminOnly || user?.role === "admin");
+  const items = NAV_ITEMS.filter(n => !n.adminOnly || user?.role === "admin");
+
+  const currentItem = items.find(item =>
+    item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to)
+  );
+
+  const initials = (user?.username ?? "NA").slice(0, 2).toUpperCase();
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
-
-      {/* ── Desktop sidebar ── */}
-      <aside className="hidden md:flex w-52 bg-white border-r border-gray-200 flex-col shrink-0 shadow-sm">
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-gray-100">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
-            <span className="text-white font-bold text-xs leading-tight">WA</span>
+    <div
+      className="flex flex-col overflow-hidden"
+      style={{ height: "100dvh", minHeight: "-webkit-fill-available", background: "#f7f8fa" }}
+    >
+      {/* ══ TOP BAR ══ */}
+      <header
+        className="flex items-center gap-3 shrink-0 z-30 px-4"
+        style={{ height: 52, background: "#f7f8fa", borderBottom: "1px solid #e2e5eb" }}
+      >
+        {/* Hamburger — mobile only */}
+        <button
+          className="md:hidden p-1 -ml-1"
+          onClick={() => setDrawerOpen(true)}
+          style={{ background: "none", border: "none", cursor: "pointer" }}
+          aria-label="Menü öffnen"
+        >
+          <div className="flex flex-col gap-[5px]">
+            {[0, 1, 2].map(i => (
+              <span key={i} style={{ display: "block", height: 2, width: 18, background: "#4b5563", borderRadius: 1 }} />
+            ))}
           </div>
-          <span className="font-semibold text-gray-800 text-sm">WinAgent</span>
+        </button>
+
+        {/* Logo */}
+        <div
+          className="flex items-center gap-2 shrink-0"
+          style={{ fontWeight: 700, fontSize: 17, color: "#111827" }}
+        >
+          <div
+            className="flex items-center justify-center text-white font-extrabold text-xs shrink-0"
+            style={{ width: 22, height: 22, borderRadius: 5, background: "#2563eb" }}
+          >W</div>
+          <span className="hidden sm:block">WinAgent</span>
         </div>
 
-        <nav className="flex flex-col gap-0.5 flex-1 px-3 py-4">
-          {items.map(({ to, label, icon: Icon }) => (
+        {/* Search — tablet/desktop */}
+        <div className="hidden md:flex flex-1 max-w-lg ml-2">
+          <input
+            placeholder="Nach Lieferant, Provision, Zeitraum ..."
+            className="flex-1 bg-white text-[13px] px-3 focus:outline-none"
+            style={{ height: 32, border: "1px solid #d1d5db", borderRight: "none", borderRadius: "4px 0 0 4px" }}
+            onFocus={e => (e.currentTarget.style.borderColor = "#2563eb")}
+            onBlur={e => (e.currentTarget.style.borderColor = "#d1d5db")}
+          />
+          <button
+            className="flex items-center gap-1.5 text-white text-[13px] font-semibold px-4 shrink-0"
+            style={{ height: 32, background: "#2563eb", border: "none", borderRadius: "0 4px 4px 0", cursor: "pointer" }}
+          >
+            <Search size={13} /> Suchen
+          </button>
+        </div>
+
+        <div className="flex-1" />
+
+        {/* Username */}
+        <span className="hidden sm:block text-[13px]" style={{ color: "#374151" }}>
+          {user?.username}
+        </span>
+
+        {/* Avatar */}
+        <div
+          className="flex items-center justify-center shrink-0 text-white text-[12px] font-bold"
+          style={{ width: 30, height: 30, borderRadius: "50%", background: "#2563eb" }}
+        >
+          {initials}
+        </div>
+
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className="flex items-center p-1"
+          style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280" }}
+          title="Abmelden"
+        >
+          <LogOut size={15} />
+        </button>
+      </header>
+
+      {/* ══ TAB BAR — desktop only (lg+) ══ */}
+      <div
+        className="hidden lg:flex items-stretch shrink-0 pl-1"
+        style={{ height: 36, background: "#f0f2f5", borderBottom: "1px solid #d1d5db" }}
+      >
+        {currentItem && (
+          <div
+            className="flex items-center gap-2 px-4 text-white text-[12px]"
+            style={{ background: "#111827" }}
+          >
+            {currentItem.label}
+          </div>
+        )}
+      </div>
+
+      {/* ══ BODY ══ */}
+      <div className="flex flex-1 overflow-hidden">
+
+        {/* Mobile drawer overlay */}
+        {drawerOpen && (
+          <div
+            className="md:hidden fixed inset-0 z-40"
+            style={{ background: "rgba(0,0,0,0.4)" }}
+            onClick={() => setDrawerOpen(false)}
+          />
+        )}
+
+        {/* Mobile drawer */}
+        <aside
+          className={`md:hidden fixed top-0 left-0 h-full z-50 flex flex-col transition-transform duration-200 ease-in-out ${
+            drawerOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+          style={{ width: 200, background: "#fff", borderRight: "1px solid #e2e5eb" }}
+        >
+          <div
+            className="flex items-center justify-between px-4 py-4 shrink-0"
+            style={{ borderBottom: "1px solid #e2e5eb" }}
+          >
+            <div
+              className="flex items-center gap-2"
+              style={{ fontWeight: 700, fontSize: 17, color: "#111827" }}
+            >
+              <div
+                className="flex items-center justify-center text-white font-extrabold text-xs"
+                style={{ width: 22, height: 22, borderRadius: 5, background: "#2563eb" }}
+              >W</div>
+              WinAgent
+            </div>
+            <button
+              onClick={() => setDrawerOpen(false)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280" }}
+              aria-label="Menü schließen"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <nav className="flex-1 flex flex-col gap-0.5 p-3 overflow-y-auto">
+            {items.map(({ to, label, short }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === "/"}
+                onClick={() => setDrawerOpen(false)}
+                style={{ textDecoration: "none" }}
+              >
+                {({ isActive }) => (
+                  <div
+                    className="flex items-center gap-3 px-3 py-2 transition-colors"
+                    style={{ borderRadius: 6, background: isActive ? "#dbeafe" : "transparent", cursor: "pointer" }}
+                  >
+                    <LetterBox short={short} />
+                    <span style={{ fontSize: 13, color: isActive ? "#1d4ed8" : "#374151", fontWeight: isActive ? 600 : 400 }}>
+                      {label}
+                    </span>
+                  </div>
+                )}
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className="shrink-0 p-3" style={{ borderTop: "1px solid #e2e5eb" }}>
+            <button
+              onClick={() => { handleLogout(); setDrawerOpen(false); }}
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-[13px] rounded-[6px] transition-colors hover:bg-red-50"
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626" }}
+            >
+              <LogOut size={15} /> Abmelden
+            </button>
+          </div>
+        </aside>
+
+        {/* Desktop / tablet sidebar (md+) */}
+        <aside
+          className="hidden md:flex flex-col items-center shrink-0 py-2"
+          style={{ width: 74, background: "#f7f8fa", borderRight: "1px solid #e2e5eb", gap: 2 }}
+        >
+          {items.map(({ to, label, short }) => (
             <NavLink
               key={to}
               to={to}
               end={to === "/"}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ` +
-                (isActive
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-500 hover:text-gray-800 hover:bg-gray-100")
-              }
+              style={{ textDecoration: "none", width: 58 }}
             >
               {({ isActive }) => (
-                <>
-                  <Icon size={17} strokeWidth={isActive ? 2 : 1.75} />
-                  <span>{label}</span>
-                </>
+                <div
+                  className={
+                    "flex flex-col items-center py-2 transition-colors " +
+                    (isActive ? "bg-[#dbeafe]" : "hover:bg-[#eff6ff]")
+                  }
+                  style={{ width: 58, borderRadius: 6, cursor: "pointer", gap: 4 }}
+                >
+                  <LetterBox short={short} active={isActive} />
+                  <span
+                    className="text-center leading-tight"
+                    style={{ fontSize: 10, color: "#374151" }}
+                  >{label}</span>
+                </div>
               )}
             </NavLink>
           ))}
-        </nav>
-
-        <div className="border-t border-gray-100 px-3 py-3 flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-bold uppercase shrink-0">
-            {user?.username?.slice(0, 2)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium text-gray-700 truncate">{user?.username}</div>
-            <div className="text-[10px] text-gray-400">{user?.role === "admin" ? "Admin" : "Benutzer"}</div>
-          </div>
-          <button onClick={handleLogout} title="Abmelden"
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
-            <LogOut size={15} />
-          </button>
-        </div>
-      </aside>
-
-      {/* ── Main column ── */}
-      <div className="flex-1 flex flex-col min-w-0">
-
-        {/* Top bar */}
-        <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 flex items-center gap-3 shrink-0">
-          {/* Logo — mobile only */}
-          <div className="flex items-center gap-2 md:hidden">
-            <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
-              <span className="text-white font-bold text-[10px] leading-tight">WA</span>
-            </div>
-            <span className="font-semibold text-gray-800 text-sm">WinAgent</span>
-          </div>
 
           <div className="flex-1" />
 
-          <span className="text-sm text-gray-500 hidden sm:inline">{user?.username}</span>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium hidden sm:inline ${
-            user?.role === "admin" ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-500"
-          }`}>
-            {user?.role === "admin" ? "Admin" : "Benutzer"}
-          </span>
-
-          {/* Mobile logout button in top bar */}
-          <button onClick={handleLogout} title="Abmelden"
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all md:hidden">
-            <LogOut size={16} />
+          <button
+            onClick={handleLogout}
+            className="flex flex-col items-center py-2 rounded-[6px] transition-colors hover:bg-red-50 w-[58px]"
+            style={{ background: "none", border: "none", cursor: "pointer", gap: 4 }}
+            title="Abmelden"
+          >
+            <LogOut size={15} style={{ color: "#9ca3af" }} />
+            <span className="leading-tight" style={{ fontSize: 10, color: "#9ca3af" }}>Abmelden</span>
           </button>
-        </header>
+        </aside>
 
-        {/* Page content — pb-16 on mobile to clear bottom nav */}
-        <main className="flex-1 p-3 md:p-6 overflow-auto pb-20 md:pb-6">
+        {/* Main content */}
+        <main
+          className="flex-1 overflow-y-auto"
+          style={{ padding: "16px 16px 80px" }}
+        >
           <Outlet />
         </main>
       </div>
 
-      {/* ── Mobile bottom nav ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 shadow-lg">
-        <div className="flex overflow-x-auto scrollbar-none">
-          {items.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === "/"}
-              className={({ isActive }) =>
-                `flex flex-col items-center justify-center gap-0.5 px-3 py-2 min-w-[64px] shrink-0 transition-colors ` +
-                (isActive ? "text-blue-600" : "text-gray-400")
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <Icon size={20} strokeWidth={isActive ? 2.5 : 1.75} />
-                  <span className="text-[10px] font-medium leading-tight text-center">{label}</span>
-                </>
-              )}
-            </NavLink>
-          ))}
-        </div>
+      {/* ══ MOBILE BOTTOM NAV ══ */}
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex overflow-x-auto"
+        style={{ background: "#f7f8fa", borderTop: "1px solid #e2e5eb" }}
+      >
+        {items.map(({ to, label, short }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === "/"}
+            style={{ textDecoration: "none" }}
+          >
+            {({ isActive }) => (
+              <div
+                className="flex flex-col items-center justify-center"
+                style={{ minWidth: 56, padding: "6px 8px", gap: 3, cursor: "pointer", flexShrink: 0 }}
+              >
+                <div
+                  className="flex items-center justify-center text-white font-bold text-[10px]"
+                  style={{ width: 22, height: 22, borderRadius: 5, background: isActive ? "#2563eb" : "#9ca3af" }}
+                >
+                  {short}
+                </div>
+                <span style={{ fontSize: 9, color: isActive ? "#2563eb" : "#6b7280", fontWeight: 500, textAlign: "center", lineHeight: 1.2 }}>
+                  {label}
+                </span>
+              </div>
+            )}
+          </NavLink>
+        ))}
       </nav>
     </div>
   );
