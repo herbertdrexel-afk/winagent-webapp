@@ -59,36 +59,20 @@ def generate_invoice_pdf(
 
     story = []
 
-    # ── Header: Sender (left) + Logo (right) ──────────────────────────────
-    sender_lines = [
-        "amv ltd.",
-        "86, Main Street",
-        "STJ 1015 - St. Julians",
-        "Malta",
-        "amv@nagroup.biz",
-    ]
+    # ── Header: full-width logo OR small sender text (no address when logo present) ──
+    PAGE_W = 16.5 * cm   # A4 usable width (21cm - 2.5cm left - 2cm right)
 
     if logo_b64:
         try:
             logo_bytes = base64.b64decode(logo_b64)
-            logo_img = Image(BytesIO(logo_bytes), width=3.5*cm, height=2*cm)
-            logo_img.hAlign = "RIGHT"
-            sender_cell = [[Paragraph(line, grey8) for line in sender_lines]]
-            logo_cell   = [[logo_img]]
-            header_table = Table(
-                [[sender_cell[0], logo_img]],
-                colWidths=[10*cm, 5*cm],
-            )
-            header_table.setStyle(TableStyle([
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("ALIGN",  (1, 0), (1, 0),   "RIGHT"),
-            ]))
-            story.append(header_table)
+            logo_img = Image(BytesIO(logo_bytes), width=PAGE_W, height=3*cm,
+                             kind="proportional")
+            logo_img.hAlign = "CENTER"
+            story.append(logo_img)
         except Exception:
-            for line in sender_lines:
-                story.append(Paragraph(line, grey8))
+            story.append(Paragraph("amv ltd.", grey8))
     else:
-        for line in sender_lines:
+        for line in ("amv ltd.", "86, Main Street", "STJ 1015 - St. Julians", "Malta", "amv@nagroup.biz"):
             story.append(Paragraph(line, grey8))
 
     story.append(Spacer(1, 0.8*cm))
