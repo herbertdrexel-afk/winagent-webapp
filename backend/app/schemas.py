@@ -15,6 +15,7 @@ class SupplierOut(BaseModel):
     representative_code: Optional[str] = None
     contact_person: Optional[str] = None
     is_active: bool
+    invoice_language: Optional[str] = "de+en"
 
 
 class SupplierCreate(BaseModel):
@@ -27,6 +28,7 @@ class SupplierCreate(BaseModel):
     contact_person: Optional[str] = None
     is_active: bool = True
     notes: Optional[str] = None
+    invoice_language: Optional[str] = "de+en"
 
 
 class SupplierUpdate(BaseModel):
@@ -38,6 +40,7 @@ class SupplierUpdate(BaseModel):
     contact_person: Optional[str] = None
     is_active: Optional[bool] = None
     notes: Optional[str] = None
+    invoice_language: Optional[str] = None
 
 
 class CustomerOut(BaseModel):

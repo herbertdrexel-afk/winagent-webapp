@@ -49,7 +49,11 @@ export interface Supplier {
   representative_code?: string;
   contact_person?: string;
   is_active: boolean;
+  invoice_language?: string;  // "de" | "en" | "de+en"
 }
+
+export interface BankAccount { bank: string; iban: string; bic: string; }
+export type BankAccounts = Record<string, BankAccount>;
 
 export interface Customer {
   id: number;
@@ -253,6 +257,25 @@ export const api = {
         }
         return r.json() as Promise<{ sent_to: string[]; period: string }>;
       }),
+  },
+  settings: {
+    getBankAccounts: () => get<BankAccounts>("/settings/bank-accounts"),
+    saveBankAccounts: (data: BankAccounts) =>
+      fetch(`${BASE}/settings/bank-accounts`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(data),
+      }).then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json(); }),
+    getLogo: () => get<{ data_url: string | null }>("/settings/logo"),
+    uploadLogo: (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      return fetch(`${BASE}/settings/logo`, { method: "POST", headers: authHeaders(), body: fd })
+        .then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json(); });
+    },
+    deleteLogo: () =>
+      fetch(`${BASE}/settings/logo`, { method: "DELETE", headers: authHeaders() })
+        .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   },
   mandants: {
     list: () => get<ReybexMandant[]>("/mandants"),

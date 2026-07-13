@@ -19,6 +19,7 @@ type Form = {
   is_active: boolean;
   notes: string;
   splits: Split[];
+  invoice_language: string;
 };
 
 function toForm(s: Supplier | null): Form {
@@ -32,6 +33,7 @@ function toForm(s: Supplier | null): Form {
     is_active:           s?.is_active ?? true,
     notes:               "",
     splits:              s?.provision_splits ? [...s.provision_splits] : [],
+    invoice_language:    s?.invoice_language ?? "de+en",
   };
 }
 
@@ -66,6 +68,7 @@ export default function SupplierEditModal({ supplier, onClose, onSaved }: Props)
         contact_person: form.contact_person || undefined,
         is_active: form.is_active,
         provision_splits: form.splits.length > 0 ? form.splits : undefined,
+        invoice_language: form.invoice_language || "de+en",
       };
       if (isNew) {
         saved = await api.suppliers.create(payload);
@@ -162,6 +165,17 @@ export default function SupplierEditModal({ supplier, onClose, onSaved }: Props)
                 onChange={(e) => set("contact_person", e.target.value)}
                 className={inputCls} />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Rechnungssprache</label>
+            <select value={form.invoice_language}
+              onChange={(e) => set("invoice_language", e.target.value)}
+              className={inputCls}>
+              <option value="de+en">Deutsch / English (zweisprachig)</option>
+              <option value="de">Deutsch</option>
+              <option value="en">English</option>
+            </select>
           </div>
 
           {/* Provisions-Splits */}

@@ -15,6 +15,15 @@ from ..dbf_writer import write_hdubw_dbf
 router = APIRouter(prefix="/commission", tags=["commission"])
 
 
+def _load_invoice_settings(db: Session) -> tuple[dict, str | None]:
+    """Load bank accounts and logo from AppSetting."""
+    bank_row = db.get(models.AppSetting, "bank_accounts")
+    logo_row = db.get(models.AppSetting, "amv_logo_b64")
+    bank_accounts = bank_row.value if bank_row else {}
+    logo_b64 = logo_row.value if logo_row else None
+    return bank_accounts, logo_b64
+
+
 def _get_supplier(db: Session, code: str) -> models.Supplier:
     supplier = db.query(models.Supplier).filter(models.Supplier.code == code.upper()).first()
     if not supplier:
@@ -259,6 +268,7 @@ def create_invoice_pdf(
             ))
     db.commit()
 
+    bank_accounts, logo_b64 = _load_invoice_settings(db)
     pdf_bytes = generate_invoice_pdf(
         pr_number=f"PR{year_suffix}-{payload.pr_seq:04d}",
         invoice_date=payload.invoice_date,
@@ -267,6 +277,9 @@ def create_invoice_pdf(
         period_from=payload.period_from,
         period_to=payload.period_to,
         totals=[{"currency": t["currency"], "amount": t["provision_amount"]} for t in payload.totals],
+        invoice_language=supplier.invoice_language or "de+en",
+        bank_accounts=bank_accounts,
+        logo_b64=logo_b64,
     )
     pr_label = f"PR{year_suffix}-{payload.pr_seq:04d}"
     return Response(
@@ -371,6 +384,7 @@ def reprint_commission_invoice_pdf(inv_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Rechnung nicht gefunden")
     supplier = db.get(models.Supplier, inv.supplier_id)
     address_lines = [supplier.address] if supplier.address else []
+    bank_accounts, logo_b64 = _load_invoice_settings(db)
     pdf_bytes = generate_invoice_pdf(
         pr_number=inv.pr_number,
         invoice_date=inv.invoice_date,
@@ -379,6 +393,9 @@ def reprint_commission_invoice_pdf(inv_id: int, db: Session = Depends(get_db)):
         period_from=inv.period_from,
         period_to=inv.period_to,
         totals=[{"currency": inv.currency, "amount": float(inv.amount)}],
+        invoice_language=supplier.invoice_language or "de+en",
+        bank_accounts=bank_accounts,
+        logo_b64=logo_b64,
     )
     return Response(
         content=pdf_bytes,

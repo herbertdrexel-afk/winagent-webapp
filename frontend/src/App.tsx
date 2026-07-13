@@ -8,6 +8,7 @@ import CommissionInvoices from "./pages/CommissionInvoices";
 import SupplierStats from "./pages/SupplierStats";
 import UserManagement from "./pages/UserManagement";
 import ReybexMandants from "./pages/ReybexMandants";
+import BankAccounts from "./pages/BankAccounts";
 import Reports from "./pages/Reports";
 import Login from "./pages/Login";
 import { useAuth } from "./context/AuthContext";
@@ -34,6 +35,7 @@ function ProtectedRoutes() {
           <>
             <Route path="users" element={<UserManagement />} />
             <Route path="mandants" element={<ReybexMandants />} />
+            <Route path="bank-accounts" element={<BankAccounts />} />
           </>
         )}
       </Route>

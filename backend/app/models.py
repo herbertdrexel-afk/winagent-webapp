@@ -56,6 +56,7 @@ class Supplier(Base):
     display_config = Column(JSONB)
     is_active = Column(Boolean, default=True)
     notes = Column(Text)
+    invoice_language = Column(String(5), default="de+en")  # "de", "en", "de+en"
 
     transactions = relationship("Transaction", back_populates="supplier")
     statements = relationship("CommissionStatement", back_populates="supplier")

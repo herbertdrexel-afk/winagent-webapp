@@ -6,7 +6,7 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import suppliers, customers, commission, sync, stats, mandants
-from .routers import auth as auth_router, reports as reports_router
+from .routers import auth as auth_router, reports as reports_router, settings as settings_router
 from .routers.sync import run_customer_sync, test_mandant
 from .auth import get_current_user
 from .database import engine, SessionLocal
@@ -102,6 +102,7 @@ from sqlalchemy import text as _sql
 with engine.connect() as _conn:
     _conn.execute(_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(120)"))
     _conn.execute(_sql("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS report_types JSONB"))
+    _conn.execute(_sql("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS invoice_language VARCHAR(5) DEFAULT 'de+en'"))
     _conn.commit()
 
 app = FastAPI(
@@ -132,6 +133,7 @@ app.include_router(sync.router, **_auth)
 app.include_router(stats.router, **_auth)
 app.include_router(mandants.router, **_auth)
 app.include_router(reports_router.router, **_auth)
+app.include_router(settings_router.router, **_auth)
 
 
 @app.get("/health")
