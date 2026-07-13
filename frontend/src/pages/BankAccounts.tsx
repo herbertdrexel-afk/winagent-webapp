@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, type BankAccounts } from "../api";
+import { api, type BankAccount, type BankAccounts } from "../api";
 import { Upload, Trash2, Save, Plus } from "lucide-react";
 
 const CURRENCIES = ["EUR", "USD", "CHF"];
@@ -7,6 +7,8 @@ const inputCls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm foc
 
 export default function BankAccountsPage() {
   const [accounts, setAccounts]   = useState<BankAccounts>({});
+  const [uidNr, setUidNr]         = useState("");
+  const [registration, setReg]    = useState("");
   const [logoUrl, setLogoUrl]     = useState<string | null>(null);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
@@ -17,12 +19,13 @@ export default function BankAccountsPage() {
   useEffect(() => {
     Promise.all([api.settings.getBankAccounts(), api.settings.getLogo()])
       .then(([ba, logo]) => {
-        // Pre-fill missing currencies
         const filled: BankAccounts = {};
         for (const c of CURRENCIES) {
-          filled[c] = ba[c] ?? { bank: "", iban: "", bic: "" };
+          filled[c] = (ba[c] as BankAccount | undefined) ?? { bank: "", iban: "", bic: "" };
         }
         setAccounts(filled);
+        setUidNr((ba.uid_nr as string | undefined) ?? "");
+        setReg((ba.registration as string | undefined) ?? "");
         setLogoUrl(logo.data_url);
       })
       .catch(() => {})
@@ -40,8 +43,8 @@ export default function BankAccountsPage() {
     setSaving(true);
     setMsg(null);
     try {
-      await api.settings.saveBankAccounts(accounts);
-      setMsg({ ok: true, text: "Bankkonten gespeichert." });
+      await api.settings.saveBankAccounts({ ...accounts, uid_nr: uidNr, registration });
+      setMsg({ ok: true, text: "Einstellungen gespeichert." });
     } catch (e: unknown) {
       setMsg({ ok: false, text: e instanceof Error ? e.message : "Fehler" });
     } finally { setSaving(false); }
@@ -110,6 +113,28 @@ export default function BankAccountsPage() {
           </button>
         )}
         <input ref={fileRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={handleLogoUpload} />
+      </div>
+
+      {/* ── Company details ─────────────────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
+        <h2 className="font-semibold text-gray-800">Firmendaten</h2>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">UID-Nr. / VAT-no.</label>
+          <input type="text" value={uidNr} onChange={e => setUidNr(e.target.value)}
+            className={inputCls} placeholder="ATU12345678" />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Registation / Company No.</label>
+          <input type="text" value={registration} onChange={e => setReg(e.target.value)}
+            className={inputCls} placeholder="C12345" />
+        </div>
+        <div className="flex justify-end pt-1">
+          <button onClick={handleSave} disabled={saving}
+            className="flex items-center gap-2 bg-[#2563eb] text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 disabled:opacity-50 transition-colors">
+            <Save size={14} />
+            {saving ? "Speichert…" : "Speichern"}
+          </button>
+        </div>
       </div>
 
       {/* ── Bank accounts ───────────────────────────────────────────────── */}

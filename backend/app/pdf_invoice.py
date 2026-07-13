@@ -123,37 +123,83 @@ def generate_invoice_pdf(
     story.append(Spacer(1, 1.5*cm))
 
     # ── Payment details ────────────────────────────────────────────────────
-    # Select bank account for the invoice currency (first total's currency)
+    ba = bank_accounts or {}
     inv_currency = totals[0]["currency"] if totals else "EUR"
-    bank_info = (bank_accounts or {}).get(inv_currency, {})
-    bank_name = bank_info.get("bank", "UBS Europe")
-    iban      = bank_info.get("iban", "")
-    bic       = bank_info.get("bic", "")
+    bank_info    = ba.get(inv_currency, {})
+    bank_name    = bank_info.get("bank", "")
+    iban         = bank_info.get("iban", "")
+    bic          = bank_info.get("bic", "")
+    uid_nr       = ba.get("uid_nr", "")
+    registration = ba.get("registration", "")
 
-    bank_block = (
-        f"{representative_name}<br/>"
-        "86, Main Street<br/>STJ 1015 St. Julians / Malta<br/><br/>"
-        "UID-Nr./VAT-no.:&nbsp;&nbsp;MT27557923<br/>"
-        "Registation:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C 96538"
-    )
+    # Inner 2-column table for the "To credit to:" right cell (label | value)
+    # colWidths must sum to 10cm (the right column of the outer table)
+    LABEL_W = 3.5 * cm
+    VALUE_W = 6.5 * cm
+    pad0 = ("LEFTPADDING",   (0, 0), (-1, -1), 0)
+    pad1 = ("RIGHTPADDING",  (0, 0), (-1, -1), 0)
+    pad2 = ("TOPPADDING",    (0, 0), (-1, -1), 1)
+    pad3 = ("BOTTOMPADDING", (0, 0), (-1, -1), 1)
+    vtop = ("VALIGN",        (0, 0), (-1, -1), "TOP")
+
+    inner_rows  = []
+    inner_spans = []   # (col0, row), (col1, row) pairs for SPAN
+
+    def _span(r_idx):
+        inner_spans.append(("SPAN", (0, r_idx), (1, r_idx)))
+
+    def _full(content):
+        idx = len(inner_rows)
+        inner_rows.append([content, ""])
+        _span(idx)
+
+    def _detail(label: str, value: str):
+        inner_rows.append([Paragraph(label, normal), Paragraph(value, normal)])
+
+    def _gap():
+        idx = len(inner_rows)
+        inner_rows.append([Spacer(1, 4), ""])
+        _span(idx)
+
+    # Address block
+    _full(Paragraph(representative_name, normal))
+    _full(Paragraph("86, Main Street", normal))
+    _full(Paragraph("STJ 1015 St. Julians / Malta", normal))
+    _gap()
+
+    # UID / Registration
+    if uid_nr:
+        _detail("UID-Nr./VAT-no.:", uid_nr)
+    if registration:
+        _detail("Registation:", registration)
+
+    # Bank details
     if bank_name or iban or bic:
-        bank_block += (
-            f"<br/><br/>"
-            f"Bank account:&nbsp;&nbsp;&nbsp;{bank_name}<br/>"
-            f"IBAN:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{iban}<br/>"
-            f"BIC:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{bic}"
-        )
+        _gap()
+        if bank_name:
+            _detail("Bank account:", bank_name)
+        if iban:
+            _detail("IBAN:", iban)
+        if bic:
+            _detail("BIC:", bic)
+
+    inner_tbl = Table(inner_rows, colWidths=[LABEL_W, VALUE_W])
+    inner_tbl.setStyle(TableStyle([vtop, pad0, pad1, pad2, pad3, *inner_spans]))
+
+    # Payment text (terms)
+    if lang == "de":
+        pmt_text = "Prompte Banküberweisung"
+    elif lang == "en":
+        pmt_text = "immediate bank transfer"
+    else:
+        pmt_text = "Prompte Banküberweisung<br/>immediate bank transfer"
 
     payment_data = [
         [Paragraph(f"<b>{_t('Zahlungsbedingung', 'terms of payment', lang)}:</b>", normal),
-         Paragraph(
-             _t("Prompte Banküberweisung", "immediate bank transfer", lang)
-             .replace(" / ", "<br/>"),
-             normal
-         )],
+         Paragraph(pmt_text, normal)],
         [Spacer(1, 0.3*cm), ""],
         [Paragraph(f"<b>{_t('Zu bezahlen an', 'To credit to', lang)}:</b>", normal),
-         Paragraph(bank_block, normal)],
+         inner_tbl],
     ]
     pay_table = Table(payment_data, colWidths=[6*cm, 10*cm])
     pay_table.setStyle(TableStyle([

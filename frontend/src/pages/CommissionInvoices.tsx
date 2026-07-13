@@ -101,6 +101,20 @@ export default function CommissionInvoices() {
     }
   }
 
+  async function previewPdf(id: number) {
+    try {
+      const res = await fetch(api.commission.reprintPdfUrl(id), {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const blob = await res.blob();
+      window.open(URL.createObjectURL(blob), "_blank");
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Fehler bei Vorschau");
+    }
+  }
+
   function authHeaders(): Record<string, string> {
     const t = token.get();
     return t ? { Authorization: `Bearer ${t}` } : {};
@@ -151,10 +165,17 @@ export default function CommissionInvoices() {
                   <div className="flex gap-1 justify-end">
                     <button
                       onClick={() => reprintPdf(r.id, r.pr_number)}
-                      title="PDF drucken"
+                      title="PDF herunterladen"
                       className="text-[#2563eb] hover:text-[#2563eb]/70 px-1.5 py-0.5 rounded text-xs border border-[#2563eb]/30 hover:bg-[#2563eb]/10"
                     >
                       PDF
+                    </button>
+                    <button
+                      onClick={() => previewPdf(r.id)}
+                      title="Bildschirmausgabe"
+                      className="text-emerald-600 hover:text-emerald-800 px-1.5 py-0.5 rounded text-xs border border-emerald-300 hover:bg-emerald-50"
+                    >
+                      🖥
                     </button>
                     <button
                       onClick={() => openEdit(r)}

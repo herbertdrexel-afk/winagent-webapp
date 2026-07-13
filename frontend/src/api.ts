@@ -53,7 +53,12 @@ export interface Supplier {
 }
 
 export interface BankAccount { bank: string; iban: string; bic: string; }
-export type BankAccounts = Record<string, BankAccount>;
+export interface BankAccountsSettings {
+  uid_nr?: string;
+  registration?: string;
+  [currency: string]: BankAccount | string | undefined;
+}
+export type BankAccounts = BankAccountsSettings;
 
 export interface Customer {
   id: number;
