@@ -13,6 +13,10 @@ type Form = {
   code: string;
   name: string;
   address: string;
+  address2: string;
+  zip: string;
+  city: string;
+  country: string;
   default_currency: string;
   representative_code: string;
   contact_person: string;
@@ -27,6 +31,10 @@ function toForm(s: Supplier | null): Form {
     code:                s?.code ?? "",
     name:                s?.name ?? "",
     address:             s?.address ?? "",
+    address2:            s?.address2 ?? "",
+    zip:                 s?.zip ?? "",
+    city:                s?.city ?? "",
+    country:             s?.country ?? "",
     default_currency:    s?.default_currency ?? "",
     representative_code: s?.representative_code ?? "",
     contact_person:      s?.contact_person ?? "",
@@ -63,6 +71,10 @@ export default function SupplierEditModal({ supplier, onClose, onSaved }: Props)
         code,
         name: form.name.trim(),
         address: form.address || undefined,
+        address2: form.address2 || undefined,
+        zip: form.zip || undefined,
+        city: form.city || undefined,
+        country: form.country || undefined,
         default_currency: form.default_currency.toUpperCase() || undefined,
         representative_code: form.representative_code.toUpperCase() || undefined,
         contact_person: form.contact_person || undefined,
@@ -146,10 +158,39 @@ export default function SupplierEditModal({ supplier, onClose, onSaved }: Props)
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Adresse</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Adresse / Straße</label>
             <input type="text" value={form.address}
               onChange={(e) => set("address", e.target.value)}
-              className={inputCls} />
+              className={inputCls} placeholder="z.B. 1018A Ocean Centre" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Adresse Zeile 2</label>
+            <input type="text" value={form.address2}
+              onChange={(e) => set("address2", e.target.value)}
+              className={inputCls} placeholder="z.B. 5 Canton Road, Kowloon" />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">PLZ</label>
+              <input type="text" value={form.zip}
+                onChange={(e) => set("zip", e.target.value)}
+                className={inputCls} placeholder="z.B. HK-" />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Ort / Stadt</label>
+              <input type="text" value={form.city}
+                onChange={(e) => set("city", e.target.value)}
+                className={inputCls} placeholder="z.B. Hong Kong" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Land</label>
+            <input type="text" value={form.country}
+              onChange={(e) => set("country", e.target.value)}
+              className={inputCls} placeholder="z.B. Hongkong" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

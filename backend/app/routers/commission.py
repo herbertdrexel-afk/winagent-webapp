@@ -15,6 +15,20 @@ from ..dbf_writer import write_hdubw_dbf
 router = APIRouter(prefix="/commission", tags=["commission"])
 
 
+def _supplier_address_lines(supplier) -> list[str]:
+    lines = []
+    if supplier.address:
+        lines.append(supplier.address)
+    if supplier.address2:
+        lines.append(supplier.address2)
+    zip_city = " ".join(filter(None, [getattr(supplier, "zip", None), supplier.city]))
+    if zip_city:
+        lines.append(zip_city)
+    if supplier.country:
+        lines.append(supplier.country)
+    return lines
+
+
 def _load_invoice_settings(db: Session) -> tuple[dict, str | None]:
     """Load bank accounts and logo from AppSetting."""
     bank_row = db.get(models.AppSetting, "bank_accounts")
@@ -244,9 +258,7 @@ def create_invoice_pdf(
         setting.value = val
     db.commit()
 
-    address_lines = []
-    if supplier.address:
-        address_lines.append(supplier.address)
+    address_lines = _supplier_address_lines(supplier)
 
     # Save each PR entry to commission_invoices (skip if already exists)
     period_text = f"Provision {payload.period_from.strftime('%m')}-{payload.period_to.strftime('%m/%y')}"
@@ -383,7 +395,7 @@ def reprint_commission_invoice_pdf(inv_id: int, db: Session = Depends(get_db)):
     if not inv:
         raise HTTPException(404, "Rechnung nicht gefunden")
     supplier = db.get(models.Supplier, inv.supplier_id)
-    address_lines = [supplier.address] if supplier.address else []
+    address_lines = _supplier_address_lines(supplier)
     bank_accounts, logo_b64 = _load_invoice_settings(db)
     pdf_bytes = generate_invoice_pdf(
         pr_number=inv.pr_number,

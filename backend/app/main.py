@@ -103,6 +103,10 @@ with engine.connect() as _conn:
     _conn.execute(_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(120)"))
     _conn.execute(_sql("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS report_types JSONB"))
     _conn.execute(_sql("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS invoice_language VARCHAR(5) DEFAULT 'de+en'"))
+    _conn.execute(_sql("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS address2 VARCHAR(100)"))
+    _conn.execute(_sql("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS zip VARCHAR(20)"))
+    _conn.execute(_sql("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS city VARCHAR(60)"))
+    _conn.execute(_sql("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS country VARCHAR(60)"))
     _conn.commit()
 
 app = FastAPI(

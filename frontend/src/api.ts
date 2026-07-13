@@ -44,6 +44,10 @@ export interface Supplier {
   code: string;
   name: string;
   address?: string;
+  address2?: string;
+  zip?: string;
+  city?: string;
+  country?: string;
   default_currency?: string;
   provision_splits?: { rate: number; rep_code: string }[];
   representative_code?: string;

@@ -10,6 +10,10 @@ class SupplierOut(BaseModel):
     code: str
     name: str
     address: Optional[str] = None
+    address2: Optional[str] = None
+    zip: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
     default_currency: Optional[str] = None
     provision_splits: Optional[Any] = None
     representative_code: Optional[str] = None
@@ -22,6 +26,10 @@ class SupplierCreate(BaseModel):
     code: str
     name: str
     address: Optional[str] = None
+    address2: Optional[str] = None
+    zip: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
     default_currency: Optional[str] = None
     provision_splits: Optional[Any] = None
     representative_code: Optional[str] = None
@@ -34,6 +42,10 @@ class SupplierCreate(BaseModel):
 class SupplierUpdate(BaseModel):
     name: Optional[str] = None
     address: Optional[str] = None
+    address2: Optional[str] = None
+    zip: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
     default_currency: Optional[str] = None
     provision_splits: Optional[Any] = None
     representative_code: Optional[str] = None
