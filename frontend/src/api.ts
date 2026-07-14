@@ -375,4 +375,5 @@ export interface CommissionInvoiceRecord {
   period_to: string;
   v_code?: string;
   notes?: string;
+  status?: string;
 }

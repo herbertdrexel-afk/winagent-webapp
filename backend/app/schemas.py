@@ -235,6 +235,7 @@ class CommissionInvoiceOut(BaseModel):
     period_to: date
     v_code: Optional[str] = None
     notes: Optional[str] = None
+    status: Optional[str] = None
 
 
 class CommissionInvoiceUpdate(BaseModel):
@@ -247,6 +248,7 @@ class CommissionInvoiceUpdate(BaseModel):
     period_to: Optional[date] = None
     v_code: Optional[str] = None
     notes: Optional[str] = None
+    status: Optional[str] = None
 
 
 class AufstellungRequest(BaseModel):

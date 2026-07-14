@@ -215,6 +215,7 @@ class CommissionInvoice(Base):
     period_to = Column(Date, nullable=False)
     v_code = Column(String(5), default="NA")
     notes = Column(Text)
+    status = Column(String(20), default="offen")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     supplier = relationship("Supplier")

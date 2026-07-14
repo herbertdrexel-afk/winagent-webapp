@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { SearchProvider, useSearch } from "../context/SearchContext";
 import { LogOut, Search, X } from "lucide-react";
 
 interface NavItem {
@@ -33,18 +34,54 @@ function LetterBox({ short, active }: { short: string; active?: boolean }) {
   );
 }
 
-export default function Layout() {
+// Inner component so it can use SearchContext
+function LayoutInner() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { setQuery } = useSearch();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [localSearch, setLocalSearch] = useState("");
+  // open tabs: array of route paths in visit order
+  const [openTabs, setOpenTabs] = useState<string[]>([location.pathname]);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const items = NAV_ITEMS.filter(n => !n.adminOnly || user?.role === "admin");
+
+  function labelFor(path: string) {
+    const item = items.find(n =>
+      n.to === "/" ? path === "/" : path === n.to || path.startsWith(n.to + "/")
+    );
+    return item?.label ?? path;
+  }
+
+  // Track visited tabs; clear search on navigation
+  useEffect(() => {
+    const path = location.pathname;
+    setOpenTabs(prev => prev.includes(path) ? prev : [...prev, path]);
+    setLocalSearch("");
+    setQuery("");
+  }, [location.pathname]);
+
+  function closeTab(path: string) {
+    setOpenTabs(prev => {
+      const next = prev.filter(t => t !== path);
+      if (location.pathname === path) {
+        navigate(next[next.length - 1] ?? "/");
+      }
+      return next.length > 0 ? next : ["/"];
+    });
+  }
+
+  function handleSearchChange(val: string) {
+    setLocalSearch(val);
+    setQuery(val);
+  }
 
   function handleLogout() {
     logout();
     navigate("/");
   }
-
-  const items = NAV_ITEMS.filter(n => !n.adminOnly || user?.role === "admin");
 
   const currentItem = items.find(item =>
     item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to)
@@ -77,10 +114,7 @@ export default function Layout() {
         </button>
 
         {/* Logo */}
-        <div
-          className="flex items-center gap-2 shrink-0"
-          style={{ fontWeight: 700, fontSize: 17, color: "#111827" }}
-        >
+        <div className="flex items-center gap-2 shrink-0" style={{ fontWeight: 700, fontSize: 17, color: "#111827" }}>
           <div
             className="flex items-center justify-center text-white font-extrabold text-xs shrink-0"
             style={{ width: 22, height: 22, borderRadius: 5, background: "#2563eb" }}
@@ -91,13 +125,26 @@ export default function Layout() {
         {/* Search — tablet/desktop */}
         <div className="hidden md:flex flex-1 max-w-lg ml-2">
           <input
-            placeholder="Nach Lieferant, Provision, Zeitraum ..."
+            ref={searchRef}
+            value={localSearch}
+            onChange={e => handleSearchChange(e.target.value)}
+            placeholder={`${currentItem?.label ?? "Inhalt"} durchsuchen …`}
             className="flex-1 bg-white text-[13px] px-3 focus:outline-none"
             style={{ height: 32, border: "1px solid #d1d5db", borderRight: "none", borderRadius: "4px 0 0 4px" }}
             onFocus={e => (e.currentTarget.style.borderColor = "#2563eb")}
             onBlur={e => (e.currentTarget.style.borderColor = "#d1d5db")}
           />
+          {localSearch ? (
+            <button
+              onClick={() => handleSearchChange("")}
+              className="flex items-center justify-center bg-white px-2"
+              style={{ height: 32, border: "1px solid #d1d5db", borderLeft: "none", borderRight: "none", cursor: "pointer" }}
+            >
+              <X size={13} style={{ color: "#6b7280" }} />
+            </button>
+          ) : null}
           <button
+            onClick={() => searchRef.current?.focus()}
             className="flex items-center gap-1.5 text-white text-[13px] font-semibold px-4 shrink-0"
             style={{ height: 32, background: "#2563eb", border: "none", borderRadius: "0 4px 4px 0", cursor: "pointer" }}
           >
@@ -107,12 +154,8 @@ export default function Layout() {
 
         <div className="flex-1" />
 
-        {/* Username */}
-        <span className="hidden sm:block text-[13px]" style={{ color: "#374151" }}>
-          {user?.username}
-        </span>
+        <span className="hidden sm:block text-[13px]" style={{ color: "#374151" }}>{user?.username}</span>
 
-        {/* Avatar */}
         <div
           className="flex items-center justify-center shrink-0 text-white text-[12px] font-bold"
           style={{ width: 30, height: 30, borderRadius: "50%", background: "#2563eb" }}
@@ -120,7 +163,6 @@ export default function Layout() {
           {initials}
         </div>
 
-        {/* Logout */}
         <button
           onClick={handleLogout}
           className="flex items-center p-1"
@@ -133,17 +175,38 @@ export default function Layout() {
 
       {/* ══ TAB BAR — desktop only (lg+) ══ */}
       <div
-        className="hidden lg:flex items-stretch shrink-0 pl-1"
-        style={{ height: 36, background: "#f0f2f5", borderBottom: "1px solid #d1d5db" }}
+        className="hidden lg:flex items-stretch shrink-0 overflow-x-auto"
+        style={{ height: 36, background: "#f0f2f5", borderBottom: "1px solid #d1d5db", flexShrink: 0 }}
       >
-        {currentItem && (
-          <div
-            className="flex items-center gap-2 px-4 text-white text-[12px]"
-            style={{ background: "#111827" }}
-          >
-            {currentItem.label}
-          </div>
-        )}
+        {openTabs.map(path => {
+          const isActive = location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
+          return (
+            <div
+              key={path}
+              className="flex items-center shrink-0"
+              style={{
+                background: isActive ? "#111827" : "transparent",
+                borderRight: "1px solid #d1d5db",
+              }}
+            >
+              <button
+                onClick={() => navigate(path)}
+                className="flex items-center gap-1.5 px-3 text-[12px] h-full"
+                style={{ background: "none", border: "none", cursor: "pointer", color: isActive ? "#fff" : "#6b7280", whiteSpace: "nowrap" }}
+              >
+                {labelFor(path)}
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); closeTab(path); }}
+                className="flex items-center justify-center pr-2"
+                style={{ background: "none", border: "none", cursor: "pointer", color: isActive ? "#9ca3af" : "#9ca3af", opacity: isActive ? 1 : 0.6 }}
+                aria-label="Tab schließen"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       {/* ══ BODY ══ */}
@@ -169,10 +232,7 @@ export default function Layout() {
             className="flex items-center justify-between px-4 py-4 shrink-0"
             style={{ borderBottom: "1px solid #e2e5eb" }}
           >
-            <div
-              className="flex items-center gap-2"
-              style={{ fontWeight: 700, fontSize: 17, color: "#111827" }}
-            >
+            <div className="flex items-center gap-2" style={{ fontWeight: 700, fontSize: 17, color: "#111827" }}>
               <div
                 className="flex items-center justify-center text-white font-extrabold text-xs"
                 style={{ width: 22, height: 22, borderRadius: 5, background: "#2563eb" }}
@@ -186,6 +246,17 @@ export default function Layout() {
             >
               <X size={18} />
             </button>
+          </div>
+
+          {/* Mobile search */}
+          <div className="px-3 pt-3 pb-2" style={{ borderBottom: "1px solid #e2e5eb" }}>
+            <input
+              value={localSearch}
+              onChange={e => handleSearchChange(e.target.value)}
+              placeholder="Suchen …"
+              className="w-full bg-white text-[13px] px-3 focus:outline-none"
+              style={{ height: 32, border: "1px solid #d1d5db", borderRadius: 4 }}
+            />
           </div>
 
           <nav className="flex-1 flex flex-col gap-0.5 p-3 overflow-y-auto">
@@ -244,10 +315,9 @@ export default function Layout() {
                   style={{ width: 58, borderRadius: 6, cursor: "pointer", gap: 4 }}
                 >
                   <LetterBox short={short} active={isActive} />
-                  <span
-                    className="text-center leading-tight"
-                    style={{ fontSize: 10, color: "#374151" }}
-                  >{label}</span>
+                  <span className="text-center leading-tight" style={{ fontSize: 10, color: "#374151" }}>
+                    {label}
+                  </span>
                 </div>
               )}
             </NavLink>
@@ -267,10 +337,7 @@ export default function Layout() {
         </aside>
 
         {/* Main content */}
-        <main
-          className="flex-1 overflow-y-auto"
-          style={{ padding: "16px 16px 80px" }}
-        >
+        <main className="flex-1 overflow-y-auto" style={{ padding: "16px 16px 80px" }}>
           <Outlet />
         </main>
       </div>
@@ -281,12 +348,7 @@ export default function Layout() {
         style={{ background: "#f7f8fa", borderTop: "1px solid #e2e5eb" }}
       >
         {items.map(({ to, label, short }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === "/"}
-            style={{ textDecoration: "none" }}
-          >
+          <NavLink key={to} to={to} end={to === "/"} style={{ textDecoration: "none" }}>
             {({ isActive }) => (
               <div
                 className="flex flex-col items-center justify-center"
@@ -307,5 +369,13 @@ export default function Layout() {
         ))}
       </nav>
     </div>
+  );
+}
+
+export default function Layout() {
+  return (
+    <SearchProvider>
+      <LayoutInner />
+    </SearchProvider>
   );
 }

@@ -107,6 +107,7 @@ with engine.connect() as _conn:
     _conn.execute(_sql("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS zip VARCHAR(20)"))
     _conn.execute(_sql("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS city VARCHAR(60)"))
     _conn.execute(_sql("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS country VARCHAR(60)"))
+    _conn.execute(_sql("ALTER TABLE commission_invoices ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'offen'"))
     _conn.commit()
 
 app = FastAPI(
