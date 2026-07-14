@@ -18,6 +18,9 @@ class UserOut(BaseModel):
     id: int
     username: str
     email: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    language: str | None = "de"
     role: str
     is_approved: bool
 
@@ -35,6 +38,9 @@ class UpdateUserRequest(BaseModel):
     role: str | None = None
     password: str | None = None
     email: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    language: str | None = None
 
 
 class TokenResponse(BaseModel):
@@ -92,22 +98,33 @@ def list_users(
 def update_user(
     user_id: int,
     body: UpdateUserRequest,
-    current_user: models.User = Depends(require_admin),
+    current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    is_self = user_id == current_user.id
+    is_admin = current_user.role == "admin"
+    if not is_self and not is_admin:
+        raise HTTPException(403, "Nicht erlaubt")
     user = db.get(models.User, user_id)
     if not user:
         raise HTTPException(404, "Benutzer nicht gefunden")
-    if body.is_approved is not None:
-        user.is_approved = body.is_approved
-    if body.role is not None:
-        if body.role not in ("admin", "user"):
-            raise HTTPException(400, "Rolle muss 'admin' oder 'user' sein")
-        user.role = body.role
+    if is_admin:
+        if body.is_approved is not None:
+            user.is_approved = body.is_approved
+        if body.role is not None:
+            if body.role not in ("admin", "user"):
+                raise HTTPException(400, "Rolle muss 'admin' oder 'user' sein")
+            user.role = body.role
     if body.password:
         user.password_hash = hash_password(body.password)
     if body.email is not None:
         user.email = body.email or None
+    if body.first_name is not None:
+        user.first_name = body.first_name or None
+    if body.last_name is not None:
+        user.last_name = body.last_name or None
+    if body.language is not None:
+        user.language = body.language or "de"
     db.commit()
     db.refresh(user)
     return user

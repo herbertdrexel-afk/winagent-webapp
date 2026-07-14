@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type BankAccount } from "../api";
+import { useT } from "../context/LocaleContext";
 import { Upload, Trash2, Save, Plus } from "lucide-react";
 
 const CURRENCIES = ["EUR", "USD", "CHF"];
 const inputCls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30";
 
 export default function BankAccountsPage() {
+  const t = useT();
   const [accounts, setAccounts]   = useState<Record<string, BankAccount>>({});
   const [uidNr, setUidNr]         = useState("");
   const [registration, setReg]    = useState("");
@@ -44,9 +46,9 @@ export default function BankAccountsPage() {
     setMsg(null);
     try {
       await api.settings.saveBankAccounts({ ...accounts, uid_nr: uidNr, registration });
-      setMsg({ ok: true, text: "Einstellungen gespeichert." });
+      setMsg({ ok: true, text: t.settings.savedMsg });
     } catch (e: unknown) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : "Fehler" });
+      setMsg({ ok: false, text: e instanceof Error ? e.message : t.common.error });
     } finally { setSaving(false); }
   }
 
@@ -59,9 +61,9 @@ export default function BankAccountsPage() {
       await api.settings.uploadLogo(file);
       const logo = await api.settings.getLogo();
       setLogoUrl(logo.data_url);
-      setMsg({ ok: true, text: "Logo hochgeladen." });
+      setMsg({ ok: true, text: t.settings.logoUploaded });
     } catch (err: unknown) {
-      setMsg({ ok: false, text: err instanceof Error ? err.message : "Fehler" });
+      setMsg({ ok: false, text: err instanceof Error ? err.message : t.common.error });
     } finally { setUploading(false); if (fileRef.current) fileRef.current.value = ""; }
   }
 
@@ -72,13 +74,13 @@ export default function BankAccountsPage() {
     setMsg({ ok: true, text: "Logo gelöscht." });
   }
 
-  if (loading) return <div className="text-gray-400 p-8">Lade…</div>;
+  if (loading) return <div className="text-gray-400 p-8">{t.common.loading}</div>;
 
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-800">Einstellungen</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Bankkonten und Logo für Provisionsrechnungen</p>
+        <h1 className="text-2xl font-semibold text-gray-800">{t.settings.title}</h1>
+        <p className="text-sm text-gray-500 mt-0.5">{t.settings.subtitle}</p>
       </div>
 
       {msg && (
@@ -89,8 +91,8 @@ export default function BankAccountsPage() {
 
       {/* ── Logo ───────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-        <h2 className="font-semibold text-gray-800">AMV Logo</h2>
-        <p className="text-xs text-gray-500">PNG oder JPEG, max. 500 KB. Wird oben rechts auf den Provisionsrechnungen platziert.</p>
+        <h2 className="font-semibold text-gray-800">{t.settings.logo}</h2>
+        <p className="text-xs text-gray-500">{t.settings.logoHint}</p>
 
         {logoUrl ? (
           <div className="flex items-start gap-4">
@@ -98,18 +100,18 @@ export default function BankAccountsPage() {
             <div className="flex flex-col gap-2">
               <button onClick={() => fileRef.current?.click()} disabled={uploading}
                 className="flex items-center gap-1.5 text-xs border border-[#2563eb] text-[#2563eb] px-3 py-1.5 rounded-lg hover:bg-[#2563eb]/5 disabled:opacity-50">
-                <Upload size={12} /> {uploading ? "Hochladen…" : "Ersetzen"}
+                <Upload size={12} /> {uploading ? t.settings.uploading : t.settings.replaceLogo}
               </button>
               <button onClick={handleLogoDelete}
                 className="flex items-center gap-1.5 text-xs border border-red-300 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50">
-                <Trash2 size={12} /> Löschen
+                <Trash2 size={12} /> {t.settings.deleteLogo}
               </button>
             </div>
           </div>
         ) : (
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
             className="flex items-center gap-2 border-2 border-dashed border-gray-300 rounded-xl px-6 py-4 text-sm text-gray-500 hover:border-[#2563eb]/50 hover:text-[#2563eb] transition-colors disabled:opacity-50">
-            <Plus size={16} /> {uploading ? "Hochladen…" : "Logo hochladen (PNG / JPEG)"}
+            <Plus size={16} /> {uploading ? t.settings.uploading : t.settings.uploadLogo}
           </button>
         )}
         <input ref={fileRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={handleLogoUpload} />
@@ -117,14 +119,14 @@ export default function BankAccountsPage() {
 
       {/* ── Company details ─────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
-        <h2 className="font-semibold text-gray-800">Firmendaten</h2>
+        <h2 className="font-semibold text-gray-800">{t.settings.companyData}</h2>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">UID-Nr. / VAT-no.</label>
+          <label className="block text-xs text-gray-500 mb-1">{t.settings.uid}</label>
           <input type="text" value={uidNr} onChange={e => setUidNr(e.target.value)}
             className={inputCls} placeholder="ATU12345678" />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Registation / Company No.</label>
+          <label className="block text-xs text-gray-500 mb-1">{t.settings.registration}</label>
           <input type="text" value={registration} onChange={e => setReg(e.target.value)}
             className={inputCls} placeholder="C12345" />
         </div>
@@ -132,17 +134,15 @@ export default function BankAccountsPage() {
           <button onClick={handleSave} disabled={saving}
             className="flex items-center gap-2 bg-[#2563eb] text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 disabled:opacity-50 transition-colors">
             <Save size={14} />
-            {saving ? "Speichert…" : "Speichern"}
+            {saving ? t.settings.saving : t.common.save}
           </button>
         </div>
       </div>
 
       {/* ── Bank accounts ───────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-5">
-        <h2 className="font-semibold text-gray-800">Bankkonten nach Währung</h2>
-        <p className="text-xs text-gray-500">
-          Das richtige Bankkonto wird automatisch anhand der Rechnungswährung gewählt.
-        </p>
+        <h2 className="font-semibold text-gray-800">{t.settings.bankAccounts}</h2>
+        <p className="text-xs text-gray-500">{t.settings.bankHint}</p>
 
         {CURRENCIES.map(cur => (
           <div key={cur} className="space-y-2 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
@@ -151,7 +151,7 @@ export default function BankAccountsPage() {
             </div>
             <div className="grid grid-cols-1 gap-2">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Bank</label>
+                <label className="block text-xs text-gray-500 mb-1">{t.settings.bank}</label>
                 <input type="text" value={accounts[cur]?.bank ?? ""}
                   onChange={e => setField(cur, "bank", e.target.value)}
                   className={inputCls} placeholder="z.B. UBS Europe" />
@@ -176,7 +176,7 @@ export default function BankAccountsPage() {
           <button onClick={handleSave} disabled={saving}
             className="flex items-center gap-2 bg-[#2563eb] text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 disabled:opacity-50 transition-colors">
             <Save size={14} />
-            {saving ? "Speichert…" : "Bankkonten speichern"}
+            {saving ? t.settings.saving : t.settings.saveBanks}
           </button>
         </div>
       </div>

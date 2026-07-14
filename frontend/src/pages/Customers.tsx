@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { api, type Customer, type SyncResult } from "../api";
+import { useT } from "../context/LocaleContext";
 import CustomerEditModal from "../components/CustomerEditModal";
 import { RefreshCw } from "lucide-react";
 
 export default function Customers() {
+  const t = useT();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -62,7 +64,7 @@ export default function Customers() {
     <>
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold text-gray-800">Kunden</h1>
+        <h1 className="text-2xl font-semibold text-gray-800">{t.customers.title}</h1>
         <div className="flex gap-3">
           <input
             type="search"
@@ -75,12 +77,12 @@ export default function Customers() {
             onClick={() => setEditing(null)}
             className="bg-[#2563eb] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 transition-colors"
           >
-            + Neuer Kunde
+            {t.customers.newCustomer}
           </button>
         </div>
       </div>
 
-      {error && <div className="text-red-600 mb-3">Fehler: {error}</div>}
+      {error && <div className="text-red-600 mb-3">{t.common.error}: {error}</div>}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
         <table className="w-full text-sm min-w-[560px]">
@@ -93,9 +95,9 @@ export default function Customers() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Lade…</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">{t.common.loading}</td></tr>
             ) : customers.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Keine Treffer</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">{t.customers.noData}</td></tr>
             ) : customers.map((c, i) => (
               <tr
                 key={c.id}

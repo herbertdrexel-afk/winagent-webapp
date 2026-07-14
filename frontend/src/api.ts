@@ -7,6 +7,9 @@ export interface AuthUser {
   id: number;
   username: string;
   email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  language?: string | null;
   role: "admin" | "user";
   is_approved: boolean;
 }
@@ -147,7 +150,7 @@ export const api = {
       post<AuthUser>("/auth/register", { username, password }),
     me: () => get<AuthUser>("/auth/me"),
     users: () => get<AuthUser[]>("/auth/users"),
-    updateUser: (id: number, data: { is_approved?: boolean; role?: string; password?: string; email?: string }) =>
+    updateUser: (id: number, data: { is_approved?: boolean; role?: string; password?: string; email?: string; first_name?: string | null; last_name?: string | null; language?: string }) =>
       fetch(`${BASE}/auth/users/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...authHeaders() },

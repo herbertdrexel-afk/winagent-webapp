@@ -11,6 +11,7 @@ import BankAccounts from "./pages/BankAccounts";
 import Reports from "./pages/Reports";
 import Login from "./pages/Login";
 import { useAuth } from "./context/AuthContext";
+import { LocaleProvider } from "./context/LocaleContext";
 
 function ProtectedRoutes() {
   const { user, loading } = useAuth();
@@ -19,25 +20,30 @@ function ProtectedRoutes() {
       Lade…
     </div>
   );
-  if (!user) return <Login />;
   return (
-    <Routes>
-      <Route path="/" element={<Layout />}>
-        <Route index element={<Dashboard />} />
-        <Route path="suppliers"           element={<Suppliers />} />
-        <Route path="customers"           element={<Customers />} />
-        <Route path="transactions"        element={<Transactions />} />
-        <Route path="commission-invoices" element={<CommissionInvoices />} />
-        <Route path="stats"               element={<SupplierStats />} />
-        <Route path="reports"             element={<Reports />} />
-        {user.role === "admin" && (
-          <>
-            <Route path="users" element={<UserManagement />} />
-            <Route path="bank-accounts" element={<BankAccounts />} />
-          </>
-        )}
-      </Route>
-    </Routes>
+    <LocaleProvider>
+      {!user ? (
+        <Login />
+      ) : (
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="suppliers"           element={<Suppliers />} />
+            <Route path="customers"           element={<Customers />} />
+            <Route path="transactions"        element={<Transactions />} />
+            <Route path="commission-invoices" element={<CommissionInvoices />} />
+            <Route path="stats"               element={<SupplierStats />} />
+            <Route path="reports"             element={<Reports />} />
+            {user.role === "admin" && (
+              <>
+                <Route path="users" element={<UserManagement />} />
+                <Route path="bank-accounts" element={<BankAccounts />} />
+              </>
+            )}
+          </Route>
+        </Routes>
+      )}
+    </LocaleProvider>
   );
 }
 

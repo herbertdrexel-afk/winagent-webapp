@@ -2,25 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { SearchProvider, useSearch } from "../context/SearchContext";
+import { useT } from "../context/LocaleContext";
+import { api } from "../api";
 import { LogOut, Search, X } from "lucide-react";
 
-interface NavItem {
+interface NavItemDef {
   to: string;
-  label: string;
+  tKey: keyof ReturnType<typeof useT>["nav"];
   short: string;
   adminOnly?: boolean;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { to: "/",                    label: "Dashboard",     short: "D" },
-  { to: "/commission-invoices", label: "Provisionen",   short: "%" },
-  { to: "/suppliers",           label: "Lieferanten",   short: "L" },
-  { to: "/customers",           label: "Kunden",        short: "K" },
-  { to: "/transactions",        label: "Rechnungen",    short: "R" },
-  { to: "/stats",               label: "Statistik",     short: "S" },
-  { to: "/reports",             label: "Berichte",      short: "B" },
-  { to: "/bank-accounts",       label: "Einstellungen", short: "⚙", adminOnly: true },
-  { to: "/users",               label: "Benutzer",      short: "U",  adminOnly: true },
+const NAV_DEFS: NavItemDef[] = [
+  { to: "/",                    tKey: "dashboard",  short: "D" },
+  { to: "/commission-invoices", tKey: "provisions", short: "%" },
+  { to: "/suppliers",           tKey: "suppliers",  short: "L" },
+  { to: "/customers",           tKey: "customers",  short: "K" },
+  { to: "/transactions",        tKey: "invoices",   short: "R" },
+  { to: "/stats",               tKey: "stats",      short: "S" },
+  { to: "/reports",             tKey: "reports",    short: "B" },
+  { to: "/bank-accounts",       tKey: "settings",   short: "⚙", adminOnly: true },
+  { to: "/users",               tKey: "users",      short: "U", adminOnly: true },
 ];
 
 function LetterBox({ short, active }: { short: string; active?: boolean }) {
@@ -34,28 +36,35 @@ function LetterBox({ short, active }: { short: string; active?: boolean }) {
   );
 }
 
-// Inner component so it can use SearchContext
 function LayoutInner() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
+  const t = useT();
   const navigate = useNavigate();
   const location = useLocation();
   const { setQuery } = useSearch();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [localSearch, setLocalSearch] = useState("");
-  // open tabs: array of route paths in visit order
   const [openTabs, setOpenTabs] = useState<string[]>([location.pathname]);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const items = NAV_ITEMS.filter(n => !n.adminOnly || user?.role === "admin");
+  // Profile modal state
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileFirst, setProfileFirst] = useState("");
+  const [profileLast, setProfileLast] = useState("");
+  const [profileLang, setProfileLang] = useState("de");
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  const navItems = NAV_DEFS
+    .filter(n => !n.adminOnly || user?.role === "admin")
+    .map(n => ({ ...n, label: t.nav[n.tKey] as string }));
 
   function labelFor(path: string) {
-    const item = items.find(n =>
+    const item = navItems.find(n =>
       n.to === "/" ? path === "/" : path === n.to || path.startsWith(n.to + "/")
     );
     return item?.label ?? path;
   }
 
-  // Track visited tabs; clear search on navigation
   useEffect(() => {
     const path = location.pathname;
     setOpenTabs(prev => prev.includes(path) ? prev : [...prev, path]);
@@ -83,7 +92,30 @@ function LayoutInner() {
     navigate("/");
   }
 
-  const currentItem = items.find(item =>
+  function openProfile() {
+    setProfileFirst(user?.first_name ?? "");
+    setProfileLast(user?.last_name ?? "");
+    setProfileLang(user?.language ?? "de");
+    setProfileOpen(true);
+  }
+
+  async function saveProfile() {
+    if (!user) return;
+    setProfileSaving(true);
+    try {
+      await api.auth.updateUser(user.id, {
+        first_name: profileFirst,
+        last_name: profileLast,
+        language: profileLang,
+      });
+      await refreshUser();
+      setProfileOpen(false);
+    } finally {
+      setProfileSaving(false);
+    }
+  }
+
+  const currentItem = navItems.find(item =>
     item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to)
   );
 
@@ -128,7 +160,7 @@ function LayoutInner() {
             ref={searchRef}
             value={localSearch}
             onChange={e => handleSearchChange(e.target.value)}
-            placeholder={`${currentItem?.label ?? "Inhalt"} durchsuchen …`}
+            placeholder={t.nav.searchIn(currentItem?.label ?? "…")}
             className="flex-1 bg-white text-[13px] px-3 focus:outline-none"
             style={{ height: 32, border: "1px solid #d1d5db", borderRight: "none", borderRadius: "4px 0 0 4px" }}
             onFocus={e => (e.currentTarget.style.borderColor = "#2563eb")}
@@ -148,26 +180,31 @@ function LayoutInner() {
             className="flex items-center gap-1.5 text-white text-[13px] font-semibold px-4 shrink-0"
             style={{ height: 32, background: "#2563eb", border: "none", borderRadius: "0 4px 4px 0", cursor: "pointer" }}
           >
-            <Search size={13} /> Suchen
+            <Search size={13} /> {t.nav.search}
           </button>
         </div>
 
         <div className="flex-1" />
 
-        <span className="hidden sm:block text-[13px]" style={{ color: "#374151" }}>{user?.username}</span>
+        <span className="hidden sm:block text-[13px]" style={{ color: "#374151" }}>
+          {user?.first_name ? `${user.first_name} ${user.last_name ?? ""}`.trim() : user?.username}
+        </span>
 
-        <div
+        {/* Avatar — opens profile modal */}
+        <button
+          onClick={openProfile}
           className="flex items-center justify-center shrink-0 text-white text-[12px] font-bold"
-          style={{ width: 30, height: 30, borderRadius: "50%", background: "#2563eb" }}
+          style={{ width: 30, height: 30, borderRadius: "50%", background: "#2563eb", border: "none", cursor: "pointer" }}
+          title={t.profile.title}
         >
           {initials}
-        </div>
+        </button>
 
         <button
           onClick={handleLogout}
           className="flex items-center p-1"
           style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280" }}
-          title="Abmelden"
+          title={t.nav.logout}
         >
           <LogOut size={15} />
         </button>
@@ -199,7 +236,7 @@ function LayoutInner() {
               <button
                 onClick={e => { e.stopPropagation(); closeTab(path); }}
                 className="flex items-center justify-center pr-2"
-                style={{ background: "none", border: "none", cursor: "pointer", color: isActive ? "#9ca3af" : "#9ca3af", opacity: isActive ? 1 : 0.6 }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", opacity: isActive ? 1 : 0.6 }}
                 aria-label="Tab schließen"
               >
                 <X size={11} />
@@ -253,14 +290,14 @@ function LayoutInner() {
             <input
               value={localSearch}
               onChange={e => handleSearchChange(e.target.value)}
-              placeholder="Suchen …"
+              placeholder={`${t.nav.search} …`}
               className="w-full bg-white text-[13px] px-3 focus:outline-none"
               style={{ height: 32, border: "1px solid #d1d5db", borderRadius: 4 }}
             />
           </div>
 
           <nav className="flex-1 flex flex-col gap-0.5 p-3 overflow-y-auto">
-            {items.map(({ to, label, short }) => (
+            {navItems.map(({ to, label, short }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -289,7 +326,7 @@ function LayoutInner() {
               className="flex items-center gap-2.5 w-full px-3 py-2 text-[13px] rounded-[6px] transition-colors hover:bg-red-50"
               style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626" }}
             >
-              <LogOut size={15} /> Abmelden
+              <LogOut size={15} /> {t.nav.logout}
             </button>
           </div>
         </aside>
@@ -299,7 +336,7 @@ function LayoutInner() {
           className="hidden md:flex flex-col items-center shrink-0 py-2"
           style={{ width: 74, background: "#f7f8fa", borderRight: "1px solid #e2e5eb", gap: 2 }}
         >
-          {items.map(({ to, label, short }) => (
+          {navItems.map(({ to, label, short }) => (
             <NavLink
               key={to}
               to={to}
@@ -329,10 +366,10 @@ function LayoutInner() {
             onClick={handleLogout}
             className="flex flex-col items-center py-2 rounded-[6px] transition-colors hover:bg-red-50 w-[58px]"
             style={{ background: "none", border: "none", cursor: "pointer", gap: 4 }}
-            title="Abmelden"
+            title={t.nav.logout}
           >
             <LogOut size={15} style={{ color: "#9ca3af" }} />
-            <span className="leading-tight" style={{ fontSize: 10, color: "#9ca3af" }}>Abmelden</span>
+            <span className="leading-tight" style={{ fontSize: 10, color: "#9ca3af" }}>{t.nav.logout}</span>
           </button>
         </aside>
 
@@ -347,7 +384,7 @@ function LayoutInner() {
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex overflow-x-auto"
         style={{ background: "#f7f8fa", borderTop: "1px solid #e2e5eb" }}
       >
-        {items.map(({ to, label, short }) => (
+        {navItems.map(({ to, label, short }) => (
           <NavLink key={to} to={to} end={to === "/"} style={{ textDecoration: "none" }}>
             {({ isActive }) => (
               <div
@@ -368,6 +405,63 @@ function LayoutInner() {
           </NavLink>
         ))}
       </nav>
+
+      {/* ══ PROFILE MODAL ══ */}
+      {profileOpen && (
+        <>
+          <div className="fixed inset-0 z-50" onClick={() => setProfileOpen(false)} />
+          <div
+            className="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-200 p-4"
+            style={{ right: 16, top: 60, width: 260 }}
+          >
+            <h3 className="text-sm font-semibold text-gray-800 mb-4">{t.profile.title}</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">{t.profile.firstName}</label>
+                <input
+                  value={profileFirst}
+                  onChange={e => setProfileFirst(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#2563eb]/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">{t.profile.lastName}</label>
+                <input
+                  value={profileLast}
+                  onChange={e => setProfileLast(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#2563eb]/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">{t.profile.language}</label>
+                <select
+                  value={profileLang}
+                  onChange={e => setProfileLang(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none"
+                >
+                  <option value="de">{t.profile.langDe}</option>
+                  <option value="en">{t.profile.langEn}</option>
+                </select>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={saveProfile}
+                  disabled={profileSaving}
+                  className="flex-1 bg-[#2563eb] text-white text-sm py-1.5 rounded font-medium hover:bg-[#2563eb]/80 disabled:opacity-50"
+                >
+                  {profileSaving ? "…" : t.common.save}
+                </button>
+                <button
+                  onClick={() => setProfileOpen(false)}
+                  className="flex-1 border border-gray-200 text-gray-600 text-sm py-1.5 rounded hover:bg-gray-50"
+                >
+                  {t.common.cancel}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useT } from "../context/LocaleContext";
 import { api } from "../api";
 
 export default function Login() {
   const { login } = useAuth();
+  const t = useT();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -21,13 +23,13 @@ export default function Login() {
         await login(username, password);
       } else {
         await api.auth.register(username, password);
-        setSuccess("Registrierung erfolgreich. Bitte warte auf Freigabe durch einen Administrator.");
+        setSuccess(t.login.registerSuccess);
         setMode("login");
         setUsername("");
         setPassword("");
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Fehler");
+      setError(e instanceof Error ? e.message : t.common.error);
     } finally {
       setLoading(false);
     }
@@ -38,7 +40,7 @@ export default function Login() {
       <div className="bg-white rounded-2xl shadow-lg w-full max-w-sm p-8">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-[#2563eb]">WinAgent</h1>
-          <p className="text-sm text-gray-500 mt-1">Provisionsabrechnungssystem</p>
+          <p className="text-sm text-gray-500 mt-1">{t.login.subtitle}</p>
         </div>
 
         <div className="flex rounded-lg border border-gray-200 mb-6 overflow-hidden">
@@ -50,14 +52,14 @@ export default function Login() {
                 mode === m ? "bg-[#2563eb] text-white" : "text-gray-500 hover:bg-gray-50"
               }`}
             >
-              {m === "login" ? "Anmelden" : "Registrieren"}
+              {m === "login" ? t.login.login : t.login.register}
             </button>
           ))}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Benutzername</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{t.login.username}</label>
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -67,7 +69,7 @@ export default function Login() {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Passwort</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{t.login.password}</label>
             <input
               type="password"
               value={password}
@@ -86,7 +88,7 @@ export default function Login() {
             disabled={loading}
             className="w-full bg-[#2563eb] text-white py-2.5 rounded-lg font-medium hover:bg-[#2563eb]/80 disabled:opacity-50 transition-colors"
           >
-            {loading ? "…" : mode === "login" ? "Anmelden" : "Registrieren"}
+            {loading ? "…" : mode === "login" ? t.login.login : t.login.register}
           </button>
         </form>
       </div>

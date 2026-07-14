@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BASE, token } from "../api";
+import { useT } from "../context/LocaleContext";
 import { BarChart2, FileDown } from "lucide-react";
 
 interface StatRow {
@@ -42,6 +43,7 @@ function niceMax(val: number): number {
 }
 
 function TurnoverChart({ rows }: { rows: StatRow[] }) {
+  const t = useT();
   const svgRef = useRef<SVGSVGElement>(null);
   const [tooltip, setTooltip] = useState<{
     x: number; y: number; row: StatRow;
@@ -76,11 +78,11 @@ function TurnoverChart({ rows }: { rows: StatRow[] }) {
       <div className="flex items-center gap-5 px-5 pb-2 pt-1">
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-sm inline-block" style={{ background: C_CURR }} />
-          <span className="text-xs text-gray-600">Aktuell</span>
+          <span className="text-xs text-gray-600">{t.dashboard.currTurnover}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-sm inline-block" style={{ background: C_PREV }} />
-          <span className="text-xs text-gray-600">Vorjahr</span>
+          <span className="text-xs text-gray-600">{t.dashboard.prevTurnover}</span>
         </div>
       </div>
 
@@ -172,16 +174,16 @@ function TurnoverChart({ rows }: { rows: StatRow[] }) {
         >
           <div className="font-semibold text-gray-800 mb-1">{tooltip.row.name}</div>
           <div className="flex justify-between gap-4">
-            <span className="text-gray-500">Aktuell</span>
+            <span className="text-gray-500">{t.dashboard.currTurnover}</span>
             <span className="font-medium" style={{ color: C_CURR }}>{fmt(tooltip.row.curr_turnover)}</span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-gray-500">Vorjahr</span>
+            <span className="text-gray-500">{t.dashboard.prevTurnover}</span>
             <span className="text-gray-600">{fmt(tooltip.row.prev_turnover)}</span>
           </div>
           {tooltip.row.prev_turnover > 0 && (
             <div className="flex justify-between gap-4 mt-0.5 pt-0.5 border-t border-gray-100">
-              <span className="text-gray-500">Änderung</span>
+              <span className="text-gray-500">{t.dashboard.commChange}</span>
               <span className={
                 tooltip.row.curr_turnover >= tooltip.row.prev_turnover
                   ? "text-emerald-700 font-medium"
@@ -200,6 +202,7 @@ function TurnoverChart({ rows }: { rows: StatRow[] }) {
 // ── Dashboard ──────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate();
+  const t = useT();
   const [stats, setStats]           = useState<StatData | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [downloading, setDownloading]   = useState(false);
@@ -250,8 +253,8 @@ export default function Dashboard() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-800">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Willkommen bei WinAgent</p>
+        <h1 className="text-2xl font-semibold text-gray-800">{t.dashboard.title}</h1>
+        <p className="text-sm text-gray-500 mt-0.5">WinAgent</p>
       </div>
 
       {/* Umsatz chart + table in one card */}
@@ -260,13 +263,13 @@ export default function Dashboard() {
         {/* Card header */}
         <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100">
           <BarChart2 size={17} className="text-[#2563eb]" />
-          <h2 className="font-semibold text-gray-800">Lieferanten Statistik</h2>
+          <h2 className="font-semibold text-gray-800">{t.dashboard.supplierStats}</h2>
           <span className="text-xs text-gray-400 ml-1">
             {yearStart().slice(0, 7).replace("-", "/")} – {today().slice(0, 7).replace("-", "/")}
           </span>
           <div className="ml-auto flex gap-2">
             <button onClick={() => navigate("/stats")}
-              className="text-xs text-[#2563eb] hover:underline">Details →</button>
+              className="text-xs text-[#2563eb] hover:underline">{t.dashboard.details}</button>
             <button onClick={downloadPdf} disabled={downloading || !stats}
               className="flex items-center gap-1 text-xs border border-[#2563eb]/30 text-[#2563eb] px-2 py-1 rounded hover:bg-[#2563eb]/5 disabled:opacity-40">
               <FileDown size={12} />
@@ -277,9 +280,9 @@ export default function Dashboard() {
 
         {/* Chart area */}
         {statsLoading ? (
-          <div className="h-[260px] flex items-center justify-center text-gray-400 text-sm">Lade…</div>
+          <div className="h-[260px] flex items-center justify-center text-gray-400 text-sm">{t.common.loading}</div>
         ) : !stats || stats.rows.length === 0 ? (
-          <div className="h-[160px] flex items-center justify-center text-gray-400 text-sm">Keine Daten</div>
+          <div className="h-[160px] flex items-center justify-center text-gray-400 text-sm">{t.common.noData}</div>
         ) : (
           <TurnoverChart rows={stats.rows} />
         )}
@@ -289,20 +292,20 @@ export default function Dashboard() {
           <table className="w-full text-sm min-w-[540px]">
             <thead className="bg-[#2563eb] text-white text-xs">
               <tr>
-                <th className="px-4 py-2 text-left font-medium">Lieferant</th>
-                <th className="px-3 py-2 text-right font-medium">Umsatz Vorjahr</th>
-                <th className="px-3 py-2 text-right font-medium">Umsatz Aktuell</th>
-                <th className="px-3 py-2 text-right font-medium">Provision Vorjahr</th>
-                <th className="px-3 py-2 text-right font-medium">Provision Aktuell</th>
-                <th className="px-3 py-2 text-right font-medium">Differenz</th>
+                <th className="px-4 py-2 text-left font-medium">{t.dashboard.supplier}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.dashboard.prevTurnover}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.dashboard.currTurnover}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.dashboard.prevCommission}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.dashboard.currCommission}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.dashboard.commDiff}</th>
                 <th className="px-3 py-2 text-right font-medium">%</th>
               </tr>
             </thead>
             <tbody>
               {statsLoading ? (
-                <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">Lade…</td></tr>
+                <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">{t.common.loading}</td></tr>
               ) : !stats || stats.rows.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">Keine Daten</td></tr>
+                <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">{t.common.noData}</td></tr>
               ) : stats.rows.map((r, i) => (
                 <tr key={r.code} className={i % 2 === 0 ? "bg-white" : "bg-[#dce8f5]/30"}>
                   <td className="px-4 py-1.5 font-medium text-gray-800">{r.name}</td>
@@ -322,7 +325,7 @@ export default function Dashboard() {
             {totals && (
               <tfoot>
                 <tr className="border-t-2 border-[#2563eb] bg-[#f0f5fb] font-semibold text-sm">
-                  <td className="px-4 py-2">Gesamt</td>
+                  <td className="px-4 py-2">{t.dashboard.total}</td>
                   <td className="px-3 py-2 text-right text-gray-600">{fmt(totals.pt)}</td>
                   <td className="px-3 py-2 text-right">{fmt(totals.ct)}</td>
                   <td className="px-3 py-2 text-right text-gray-600">{fmt(totals.pc)}</td>

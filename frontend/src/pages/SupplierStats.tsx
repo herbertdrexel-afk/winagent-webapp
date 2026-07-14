@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { FileDown, RefreshCw } from "lucide-react";
 import { BASE, token } from "../api";
+import { useT } from "../context/LocaleContext";
 import DateRangePicker from "../components/DateRangePicker";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -15,8 +16,8 @@ function fmtPct(pct: number | null) {
 function yearStart() { return new Date().getFullYear() + "-01-01"; }
 function today()     { return new Date().toISOString().slice(0, 10); }
 function authHeaders(): Record<string, string> {
-  const t = token.get();
-  return t ? { Authorization: `Bearer ${t}` } : {};
+  const tok = token.get();
+  return tok ? { Authorization: `Bearer ${tok}` } : {};
 }
 
 // ── types ────────────────────────────────────────────────────────────────────
@@ -25,8 +26,9 @@ interface CustomerRow { customer_name: string; curr_turnover: number; curr_provi
 interface DetailQRow  { label: string; prev_turnover: number; budget_turnover: number; curr_turnover: number; prev_commission: number; budget_commission: number; curr_commission: number; }
 interface DetailSupplier { code: string; name: string; rows: DetailQRow[]; }
 
-// ── Tab: Lieferant Statistik (existing) ──────────────────────────────────────
+// ── Tab: Lieferant Statistik ──────────────────────────────────────────────────
 function SupplierSummaryTab() {
+  const t = useT();
   const [from, setFrom] = useState(yearStart());
   const [to,   setTo  ] = useState(today());
   const [rows, setRows] = useState<SupplierRow[]>([]);
@@ -61,9 +63,9 @@ function SupplierSummaryTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+        <DateRangePicker from={from} to={to} onChange={(f, newTo) => { setFrom(f); setTo(newTo); }} />
         <button onClick={load} disabled={loading} className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Laden
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> {t.stats.load}
         </button>
         <button onClick={downloadPdf} disabled={downloading || !rows.length} className="flex items-center gap-1.5 border border-blue-600 text-blue-600 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-50 disabled:opacity-50">
           <FileDown size={14} /> {downloading ? "…" : "PDF"}
@@ -73,22 +75,22 @@ function SupplierSummaryTab() {
         <table className="w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="bg-blue-600 text-white">
-              <th className="px-4 py-2 text-left" rowSpan={2}>Lieferant</th>
-              <th className="px-3 py-2 text-center border-l border-white/20" colSpan={2}>Umsatz</th>
-              <th className="px-3 py-2 text-center border-l border-white/20" colSpan={2}>Provision</th>
-              <th className="px-3 py-2 text-center border-l border-white/20" colSpan={2}>Differenz</th>
+              <th className="px-4 py-2 text-left" rowSpan={2}>{t.stats.supplier}</th>
+              <th className="px-3 py-2 text-center border-l border-white/20" colSpan={2}>{t.stats.turnoverLabel}</th>
+              <th className="px-3 py-2 text-center border-l border-white/20" colSpan={2}>{t.stats.commissionLabel}</th>
+              <th className="px-3 py-2 text-center border-l border-white/20" colSpan={2}>{t.stats.commDiff}</th>
             </tr>
             <tr className="bg-blue-500 text-white text-xs">
-              <th className="px-3 py-1.5 text-right border-l border-white/20">Vorjahr</th>
-              <th className="px-3 py-1.5 text-right">Aktuell</th>
-              <th className="px-3 py-1.5 text-right border-l border-white/20">Vorjahr</th>
-              <th className="px-3 py-1.5 text-right">Aktuell</th>
-              <th className="px-3 py-1.5 text-right border-l border-white/20">Betrag</th>
+              <th className="px-3 py-1.5 text-right border-l border-white/20">{t.stats.prevYear}</th>
+              <th className="px-3 py-1.5 text-right">{t.stats.current}</th>
+              <th className="px-3 py-1.5 text-right border-l border-white/20">{t.stats.prevYear}</th>
+              <th className="px-3 py-1.5 text-right">{t.stats.current}</th>
+              <th className="px-3 py-1.5 text-right border-l border-white/20">{t.stats.amount}</th>
               <th className="px-3 py-1.5 text-right">%</th>
             </tr>
           </thead>
           <tbody>
-            {loading ? <tr><td colSpan={7} className="py-8 text-center text-gray-400">Lade…</td></tr>
+            {loading ? <tr><td colSpan={7} className="py-8 text-center text-gray-400">{t.common.loading}</td></tr>
             : rows.map((r, i) => (
               <tr key={r.code} className={i % 2 === 0 ? "bg-white" : "bg-blue-50/40"}>
                 <td className="px-4 py-1.5 font-medium text-gray-800">{r.name}</td>
@@ -105,7 +107,7 @@ function SupplierSummaryTab() {
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-blue-600 bg-blue-50 font-semibold">
-              <td className="px-4 py-2">Gesamt</td>
+              <td className="px-4 py-2">{t.stats.total}</td>
               <td className="px-3 py-2 text-right text-gray-600">{fmt(totals.pt)}</td>
               <td className="px-3 py-2 text-right">{fmt(totals.ct)}</td>
               <td className="px-3 py-2 text-right text-gray-600">{fmt(totals.pc)}</td>
@@ -122,6 +124,7 @@ function SupplierSummaryTab() {
 
 // ── Tab: AdrUms (Kunden nach Provision/Umsatz) ───────────────────────────────
 function CustomerTurnoverTab({ sortBy }: { sortBy: "provision" | "turnover" }) {
+  const t = useT();
   const [from, setFrom] = useState(yearStart());
   const [to,   setTo  ] = useState(today());
   const [rows, setRows] = useState<CustomerRow[]>([]);
@@ -155,9 +158,9 @@ function CustomerTurnoverTab({ sortBy }: { sortBy: "provision" | "turnover" }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+        <DateRangePicker from={from} to={to} onChange={(f, newTo) => { setFrom(f); setTo(newTo); }} />
         <button onClick={load} disabled={loading} className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Laden
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> {t.stats.load}
         </button>
         <button onClick={downloadPdf} disabled={downloading || !rows.length} className="flex items-center gap-1.5 border border-blue-600 text-blue-600 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-50 disabled:opacity-50">
           <FileDown size={14} /> {downloading ? "…" : "PDF"}
@@ -167,17 +170,17 @@ function CustomerTurnoverTab({ sortBy }: { sortBy: "provision" | "turnover" }) {
         <table className="w-full text-sm whitespace-nowrap">
           <thead className="bg-blue-600 text-white text-xs">
             <tr>
-              <th className="px-4 py-2 text-left font-medium">Name / Firma</th>
-              <th className="px-3 py-2 text-right font-medium">Umsatz VJ</th>
-              <th className="px-3 py-2 text-right font-medium">Umsatz Aktuell</th>
-              <th className="px-3 py-2 text-right font-medium">Provision</th>
-              <th className="px-3 py-2 text-right font-medium">DuPr %</th>
-              <th className="px-3 py-2 text-right font-medium">Anteil %</th>
-              <th className="px-3 py-2 text-center font-medium">P.</th>
+              <th className="px-4 py-2 text-left font-medium">{t.stats.nameCompany}</th>
+              <th className="px-3 py-2 text-right font-medium">{t.stats.turnoverPrev}</th>
+              <th className="px-3 py-2 text-right font-medium">{t.stats.turnoverCurr}</th>
+              <th className="px-3 py-2 text-right font-medium">{t.stats.commissionLabel}</th>
+              <th className="px-3 py-2 text-right font-medium">{t.stats.duPrPct}</th>
+              <th className="px-3 py-2 text-right font-medium">{t.stats.sharePct}</th>
+              <th className="px-3 py-2 text-center font-medium">{t.stats.rank}</th>
             </tr>
           </thead>
           <tbody>
-            {loading ? <tr><td colSpan={7} className="py-8 text-center text-gray-400">Lade…</td></tr>
+            {loading ? <tr><td colSpan={7} className="py-8 text-center text-gray-400">{t.common.loading}</td></tr>
             : rows.map((r, i) => (
               <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-blue-50/40"}>
                 <td className="px-4 py-1.5 text-gray-800">{r.customer_name}</td>
@@ -192,7 +195,7 @@ function CustomerTurnoverTab({ sortBy }: { sortBy: "provision" | "turnover" }) {
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-blue-600 bg-blue-50 font-semibold">
-              <td className="px-4 py-2">Gesamtsumme: EUR</td>
+              <td className="px-4 py-2">{t.stats.grandTotal}</td>
               <td className="px-3 py-2 text-right text-gray-500">{fmt(rows.reduce((s,r)=>s+r.prev_turnover,0))}</td>
               <td className="px-3 py-2 text-right">{fmt(totT)}</td>
               <td className="px-3 py-2 text-right text-emerald-700">{fmt(totP)}</td>
@@ -207,6 +210,7 @@ function CustomerTurnoverTab({ sortBy }: { sortBy: "provision" | "turnover" }) {
 
 // ── Tab: Lieferant Detail (quarterly) ───────────────────────────────────────
 function SupplierDetailTab() {
+  const t = useT();
   const [year, setYear] = useState(new Date().getFullYear());
   const [data, setData] = useState<DetailSupplier[]>([]);
   const [loading, setLoading] = useState(false);
@@ -245,19 +249,19 @@ function SupplierDetailTab() {
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-500">Jahr</label>
+          <label className="text-xs text-gray-500">{t.stats.year}</label>
           <input type="number" value={year} onChange={e => setYear(parseInt(e.target.value))}
             className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-blue-600/30" />
         </div>
         <button onClick={load} disabled={loading} className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Laden
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> {t.stats.load}
         </button>
         <button onClick={downloadPdf} disabled={downloading || !data.length} className="flex items-center gap-1.5 border border-blue-600 text-blue-600 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-50 disabled:opacity-50">
           <FileDown size={14} /> {downloading ? "…" : "PDF"}
         </button>
       </div>
 
-      {loading && <div className="text-center text-gray-400 py-8">Lade…</div>}
+      {loading && <div className="text-center text-gray-400 py-8">{t.common.loading}</div>}
       {!loading && data.map(s => (
         <div key={s.code} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 font-semibold text-gray-800 text-sm">{s.name}</div>
@@ -266,16 +270,16 @@ function SupplierDetailTab() {
               <thead className="bg-blue-600 text-white">
                 <tr>
                   <th className="px-3 py-1.5 text-left w-12">des.</th>
-                  <th className="px-3 py-1.5 text-right">Umsatz VJ</th>
+                  <th className="px-3 py-1.5 text-right">{t.stats.turnoverPrev}</th>
                   <th className="px-3 py-1.5 text-right">Budget</th>
                   <th className="px-3 py-1.5 text-right">+/-</th>
-                  <th className="px-3 py-1.5 text-right">Umsatz Aktuell</th>
+                  <th className="px-3 py-1.5 text-right">{t.stats.turnoverCurr}</th>
                   <th className="px-3 py-1.5 text-right">+/-</th>
-                  <th className="px-3 py-1.5 text-right">Prov. VJ</th>
-                  <th className="px-3 py-1.5 text-right">Prov. Budget</th>
-                  <th className="px-3 py-1.5 text-right">Prov. Aktuell</th>
+                  <th className="px-3 py-1.5 text-right">{t.stats.commPrev}</th>
+                  <th className="px-3 py-1.5 text-right">{t.stats.commissionLabel} Budget</th>
+                  <th className="px-3 py-1.5 text-right">{t.stats.commCurr}</th>
                   <th className="px-3 py-1.5 text-right">+/-</th>
-                  <th className="px-3 py-1.5 text-right">Differenz</th>
+                  <th className="px-3 py-1.5 text-right">{t.stats.commDiff}</th>
                   <th className="px-3 py-1.5 text-right">+/-</th>
                 </tr>
               </thead>
@@ -321,29 +325,30 @@ function SupplierDetailTab() {
 type Tab = "summary" | "adrumsProvision" | "adrumsUmsatz" | "detail";
 
 export default function SupplierStats() {
+  const t = useT();
   const [tab, setTab] = useState<Tab>("summary");
 
   const TABS: { id: Tab; label: string }[] = [
-    { id: "summary",        label: "Lieferant Statistik" },
-    { id: "adrumsProvision",label: "AdrUms nach Provision" },
-    { id: "adrumsUmsatz",   label: "AdrUms nach Umsatz" },
-    { id: "detail",         label: "Lieferant Detail (Quartale)" },
+    { id: "summary",         label: t.stats.tabSummary },
+    { id: "adrumsProvision", label: t.stats.tabAdrumsP },
+    { id: "adrumsUmsatz",    label: t.stats.tabAdrumsU },
+    { id: "detail",          label: t.stats.tabDetail },
   ];
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold text-gray-800">Statistik</h1>
+      <h1 className="text-2xl font-semibold text-gray-800">{t.stats.title}</h1>
 
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-gray-200">
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
+        {TABS.map(tab_ => (
+          <button key={tab_.id} onClick={() => setTab(tab_.id)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
-              tab === t.id
+              tab === tab_.id
                 ? "border-blue-600 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-700"
             }`}>
-            {t.label}
+            {tab_.label}
           </button>
         ))}
       </div>

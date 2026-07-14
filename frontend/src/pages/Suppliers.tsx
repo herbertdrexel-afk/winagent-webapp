@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { api, type Supplier } from "../api";
+import { useT } from "../context/LocaleContext";
 import SupplierEditModal from "../components/SupplierEditModal";
 
 export default function Suppliers() {
+  const t = useT();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,19 +31,19 @@ export default function Suppliers() {
     setEditing(undefined);
   }
 
-  if (loading) return <div className="text-gray-500">Lade Lieferanten…</div>;
-  if (error)   return <div className="text-red-600">Fehler: {error}</div>;
+  if (loading) return <div className="text-gray-500">{t.suppliers.loading}</div>;
+  if (error)   return <div className="text-red-600">{t.common.error}: {error}</div>;
 
   return (
     <>
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold text-gray-800">Lieferanten</h1>
+        <h1 className="text-2xl font-semibold text-gray-800">{t.suppliers.title}</h1>
         <button
           onClick={() => setEditing(null)}
           className="bg-[#2563eb] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 transition-colors"
         >
-          + Neuer Lieferant
+          {t.suppliers.newSupplier}
         </button>
       </div>
 
@@ -49,7 +51,7 @@ export default function Suppliers() {
         <table className="w-full text-sm min-w-[600px]">
           <thead className="bg-[#2563eb] text-white">
             <tr>
-              {["Code", "Name", "Währung", "Vertreter", "Kontakt", "Provisions-Splits", "Aktiv"].map((h) => (
+              {[t.suppliers.code, t.suppliers.name, t.suppliers.currency, t.suppliers.representative, t.suppliers.contact, t.suppliers.splits, t.suppliers.active].map((h) => (
                 <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
               ))}
             </tr>

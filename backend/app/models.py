@@ -13,6 +13,9 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False)
     password_hash = Column(String(200), nullable=False)
     email = Column(String(120))
+    first_name = Column(String(60))
+    last_name = Column(String(60))
+    language = Column(String(5), default="de")
     role = Column(String(20), nullable=False, default="user")  # "admin" | "user"
     is_approved = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
