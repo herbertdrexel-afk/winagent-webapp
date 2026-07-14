@@ -303,11 +303,11 @@ export default function UserManagement() {
             <div className="flex gap-2 mt-5">
               <button onClick={saveEdit} disabled={editSaving}
                 className="flex-1 bg-[#2563eb] text-white py-2 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 disabled:opacity-50">
-                {editSaving ? "…" : t.users.save}
+                {editSaving ? "…" : t.common.save}
               </button>
               <button onClick={() => setEditUser(null)}
                 className="flex-1 border border-gray-200 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-50">
-                {t.users.cancel}
+                {t.common.cancel}
               </button>
             </div>
           </div>
