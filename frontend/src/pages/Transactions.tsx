@@ -7,9 +7,43 @@ import CommissionInvoiceModal from "../components/CommissionInvoiceModal";
 import { RefreshCw, X } from "lucide-react";
 
 const THIS_YEAR = new Date().getFullYear();
-const YEARS = Array.from({ length: 4 }, (_, i) => THIS_YEAR - i);
+const YEARS = Array.from({ length: 5 }, (_, i) => THIS_YEAR - i);
 const LS_SUPPLIER = "winagent_tx_supplier";
-const LS_YEAR = "winagent_tx_year";
+const LS_YEAR     = "winagent_tx_year";
+const LS_FROM     = "winagent_tx_from";
+const LS_TO       = "winagent_tx_to";
+const LS_PERIOD   = "winagent_tx_period";
+
+type PeriodKey = "this_week" | "this_month" | "last_month" | "q1" | "q2" | "q3" | "q4" | "year" | null;
+
+function isoDate(d: Date) { return d.toISOString().slice(0, 10); }
+
+function computePeriod(key: PeriodKey, year: number): { from: string; to: string } {
+  const now = new Date();
+  switch (key) {
+    case "this_week": {
+      const dow = now.getDay(); // 0=Sun
+      const diffToMon = dow === 0 ? -6 : 1 - dow;
+      const mon = new Date(now); mon.setDate(now.getDate() + diffToMon);
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      return { from: isoDate(mon), to: isoDate(sun) };
+    }
+    case "this_month": {
+      const y = now.getFullYear(), m = now.getMonth();
+      return { from: isoDate(new Date(y, m, 1)), to: isoDate(new Date(y, m + 1, 0)) };
+    }
+    case "last_month": {
+      const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const last  = new Date(now.getFullYear(), now.getMonth(), 0);
+      return { from: isoDate(first), to: isoDate(last) };
+    }
+    case "q1": return { from: `${year}-01-01`, to: `${year}-03-31` };
+    case "q2": return { from: `${year}-04-01`, to: `${year}-06-30` };
+    case "q3": return { from: `${year}-07-01`, to: `${year}-09-30` };
+    case "q4": return { from: `${year}-10-01`, to: `${year}-12-31` };
+    default:   return { from: `${year}-01-01`, to: `${year}-12-31` };
+  }
+}
 
 export interface Invoice {
   invoice_number: string;
@@ -47,7 +81,7 @@ function groupInvoices(rows: Transaction[]): Invoice[] {
     const inv = map.get(key)!;
     const amount = parseFloat(r.total_amount as unknown as string) || 0;
     const rate   = parseFloat(r.provision_rate as unknown as string) || 0;
-    inv.total_amount    += amount;
+    inv.total_amount     += amount;
     inv.provision_amount += (amount * rate) / 100;
     inv.positions.push(r);
   }
@@ -62,21 +96,24 @@ function groupInvoices(rows: Transaction[]): Invoice[] {
 export default function Transactions() {
   const t = useT();
 
-  const [suppliers, setSuppliers]         = useState<Supplier[]>([]);
-  const [supplierCode, setSupplierCode]   = useState(() => localStorage.getItem(LS_SUPPLIER) ?? "");
-  const [year, setYear]                   = useState(() => parseInt(localStorage.getItem(LS_YEAR) ?? String(THIS_YEAR)));
+  const [suppliers, setSuppliers]       = useState<Supplier[]>([]);
+  const [supplierCode, setSupplierCode] = useState(() => localStorage.getItem(LS_SUPPLIER) ?? "");
+  const [year, setYear]                 = useState(() => parseInt(localStorage.getItem(LS_YEAR) ?? String(THIS_YEAR)));
+  const [activePeriod, setActivePeriod] = useState<PeriodKey>(() => (localStorage.getItem(LS_PERIOD) as PeriodKey) ?? "year");
 
-  // Period is always the full chosen year
-  const from = `${year}-01-01`;
-  const to   = `${year}-12-31`;
+  const initYear   = parseInt(localStorage.getItem(LS_YEAR) ?? String(THIS_YEAR));
+  const initPeriod = (localStorage.getItem(LS_PERIOD) as PeriodKey) ?? "year";
+  const initDates  = computePeriod(initPeriod, initYear);
+  const [from, setFrom] = useState(() => localStorage.getItem(LS_FROM) ?? initDates.from);
+  const [to,   setTo]   = useState(() => localStorage.getItem(LS_TO)   ?? initDates.to);
 
-  const [rows, setRows]         = useState<Transaction[]>([]);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState<string | null>(null);
+  const [rows, setRows]       = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState<string | null>(null);
 
-  const [editing, setEditing]                         = useState<Invoice | null | undefined>(undefined);
-  const [showPdfImport, setShowPdfImport]             = useState(false);
-  const [showCommissionInvoice, setShowCommissionInvoice] = useState(false);
+  const [editing, setEditing]                               = useState<Invoice | null | undefined>(undefined);
+  const [showPdfImport, setShowPdfImport]                   = useState(false);
+  const [showCommissionInvoice, setShowCommissionInvoice]   = useState(false);
 
   const [dbfImporting, setDbfImporting] = useState(false);
   const [dbfResult, setDbfResult]       = useState<string | null>(null);
@@ -87,9 +124,9 @@ export default function Transactions() {
   const xmlInputRef = useRef<HTMLInputElement>(null);
 
   // Client-side search
-  const [searchNr,      setSearchNr]      = useState("");
-  const [searchKunde,   setSearchKunde]   = useState("");
-  const [searchDatum,   setSearchDatum]   = useState("");
+  const [searchNr,    setSearchNr]    = useState("");
+  const [searchKunde, setSearchKunde] = useState("");
+  const [searchDatum, setSearchDatum] = useState("");
 
   // Load supplier list once
   useEffect(() => {
@@ -102,11 +139,12 @@ export default function Transactions() {
     });
   }, []);
 
-  // Auto-load whenever supplier or year changes
+  // Auto-load whenever supplier or date range changes
   useEffect(() => {
-    if (!supplierCode) return;
+    if (!supplierCode || !from || !to) return;
     loadData();
-  }, [supplierCode, year]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supplierCode, from, to]);
 
   function loadData() {
     if (!supplierCode) return;
@@ -116,6 +154,42 @@ export default function Transactions() {
       .then(setRows)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+  }
+
+  function selectPeriod(key: PeriodKey) {
+    const p = computePeriod(key, year);
+    setActivePeriod(key);
+    setFrom(p.from);
+    setTo(p.to);
+    localStorage.setItem(LS_PERIOD, key ?? "year");
+    localStorage.setItem(LS_FROM, p.from);
+    localStorage.setItem(LS_TO, p.to);
+  }
+
+  function changeYear(y: number) {
+    setYear(y);
+    localStorage.setItem(LS_YEAR, String(y));
+    if (activePeriod && ["q1","q2","q3","q4","year"].includes(activePeriod)) {
+      const p = computePeriod(activePeriod, y);
+      setFrom(p.from);
+      setTo(p.to);
+      localStorage.setItem(LS_FROM, p.from);
+      localStorage.setItem(LS_TO, p.to);
+    }
+  }
+
+  function setCustomFrom(v: string) {
+    setFrom(v);
+    setActivePeriod(null);
+    localStorage.setItem(LS_FROM, v);
+    localStorage.removeItem(LS_PERIOD);
+  }
+
+  function setCustomTo(v: string) {
+    setTo(v);
+    setActivePeriod(null);
+    localStorage.setItem(LS_TO, v);
+    localStorage.removeItem(LS_PERIOD);
   }
 
   function handleSaved(updatedPositions: Transaction[]) {
@@ -200,14 +274,11 @@ export default function Transactions() {
 
   // Group and filter
   const invoices = groupInvoices(rows);
-
   const isFiltered = !!(searchNr || searchKunde || searchDatum);
 
   const filteredInvoices = isFiltered
     ? invoices.filter((inv) => {
-        if (searchNr) {
-          if (!inv.invoice_number.toLowerCase().includes(searchNr.toLowerCase())) return false;
-        }
+        if (searchNr && !inv.invoice_number.toLowerCase().includes(searchNr.toLowerCase())) return false;
         if (searchKunde) {
           const q = searchKunde.toLowerCase();
           const hit =
@@ -216,14 +287,11 @@ export default function Transactions() {
             (inv.customer_code  ?? "").toLowerCase().includes(q);
           if (!hit) return false;
         }
-        if (searchDatum) {
-          if (!inv.invoice_date.includes(searchDatum)) return false;
-        }
+        if (searchDatum && !inv.invoice_date.includes(searchDatum)) return false;
         return true;
       })
     : invoices;
 
-  // Totals always from filtered set
   const totalsByCurrency = filteredInvoices.reduce<
     Record<string, { amount: number; provision: number; invoices: number; positions: number }>
   >((acc, inv) => {
@@ -236,6 +304,13 @@ export default function Transactions() {
     return acc;
   }, {});
   const currencyTotals = Object.entries(totalsByCurrency).sort(([a], [b]) => a.localeCompare(b));
+
+  // Period chip helper
+  function chipCls(key: PeriodKey) {
+    return activePeriod === key
+      ? "bg-[#2563eb] text-white border-[#2563eb]"
+      : "bg-white text-gray-600 border-gray-300 hover:border-[#2563eb] hover:text-[#2563eb]";
+  }
 
   return (
     <>
@@ -298,10 +373,11 @@ export default function Transactions() {
         </div>
       </div>
 
-      {/* ── Filter bar ── */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
+      {/* ── Filter box ── */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4 space-y-3">
+
+        {/* Row 1: Supplier */}
         <div className="flex flex-wrap gap-3 items-end">
-          {/* Supplier */}
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t.transactions.supplier}</label>
             <select
@@ -317,27 +393,85 @@ export default function Transactions() {
               ))}
             </select>
           </div>
+        </div>
 
-          {/* Year */}
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">{t.stats.year}</label>
+        {/* Row 2: Period chips + year */}
+        <div>
+          <label className="block text-xs text-gray-500 mb-1.5">{t.transactions.period}</label>
+          <div className="flex flex-wrap gap-1.5 items-center">
+            {/* Relative chips */}
+            {(["this_week", "this_month", "last_month"] as PeriodKey[]).map((key) => (
+              <button
+                key={key!}
+                onClick={() => selectPeriod(key)}
+                className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors ${chipCls(key)}`}
+              >
+                {key === "this_week"  ? t.transactions.thisWeek  :
+                 key === "this_month" ? t.transactions.thisMonth :
+                                        t.transactions.lastMonth}
+              </button>
+            ))}
+
+            <div className="w-px h-5 bg-gray-200 mx-1" />
+
+            {/* Quarter chips */}
+            {(["q1","q2","q3","q4"] as PeriodKey[]).map((key) => (
+              <button
+                key={key!}
+                onClick={() => selectPeriod(key)}
+                className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors ${chipCls(key)}`}
+              >
+                {key!.toUpperCase()}
+              </button>
+            ))}
+
+            <div className="w-px h-5 bg-gray-200 mx-1" />
+
+            {/* Full year chip */}
+            <button
+              onClick={() => selectPeriod("year")}
+              className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors ${chipCls("year")}`}
+            >
+              {t.transactions.year}
+            </button>
+
+            {/* Year selector */}
             <select
               value={year}
-              onChange={(e) => {
-                const y = parseInt(e.target.value);
-                setYear(y);
-                localStorage.setItem(LS_YEAR, String(y));
-              }}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30"
+              onChange={(e) => changeYear(parseInt(e.target.value))}
+              className="border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30 ml-1"
             >
               {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
+        </div>
 
-          {/* Divider */}
+        {/* Row 3: Von / Bis date inputs + search */}
+        <div className="flex flex-wrap gap-3 items-end pt-1 border-t border-gray-100">
+          {/* Von */}
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">{t.transactions.from}</label>
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30"
+            />
+          </div>
+          {/* Bis */}
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">{t.transactions.to}</label>
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => setCustomTo(e.target.value)}
+              className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30"
+            />
+          </div>
+
           <div className="w-px h-8 bg-gray-200 self-end mb-0.5 hidden sm:block" />
 
-          {/* Search: Rg-Nr */}
+          {/* Rg-Nr */}
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t.transactions.invoiceNr}</label>
             <input
@@ -349,7 +483,7 @@ export default function Transactions() {
             />
           </div>
 
-          {/* Search: Kunde */}
+          {/* Kunde */}
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t.transactions.customer}</label>
             <input
@@ -361,7 +495,7 @@ export default function Transactions() {
             />
           </div>
 
-          {/* Search: Datum */}
+          {/* Datum */}
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t.transactions.date}</label>
             <input
@@ -369,7 +503,7 @@ export default function Transactions() {
               value={searchDatum}
               onChange={(e) => setSearchDatum(e.target.value)}
               placeholder={t.transactions.searchDate}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30"
+              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30"
             />
           </div>
 
