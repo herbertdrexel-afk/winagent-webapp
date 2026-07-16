@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
+from ..auth import get_current_user, get_allowed_supplier_ids, check_supplier_access
 from ..database import get_db
 
 router = APIRouter(prefix="/suppliers", tags=["suppliers"])
@@ -23,8 +24,15 @@ def _tx_to_out(tx: models.Transaction) -> schemas.TransactionOut:
 
 
 @router.get("", response_model=list[schemas.SupplierOut])
-def list_suppliers(db: Session = Depends(get_db)):
-    return db.query(models.Supplier).order_by(models.Supplier.code).all()
+def list_suppliers(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    q = db.query(models.Supplier)
+    allowed = get_allowed_supplier_ids(current_user, db)
+    if allowed is not None:
+        q = q.filter(models.Supplier.id.in_(allowed))
+    return q.order_by(models.Supplier.code).all()
 
 
 @router.post("", response_model=schemas.SupplierOut, status_code=201)
@@ -40,18 +48,29 @@ def create_supplier(payload: schemas.SupplierCreate, db: Session = Depends(get_d
 
 
 @router.get("/{code}", response_model=schemas.SupplierOut)
-def get_supplier(code: str, db: Session = Depends(get_db)):
+def get_supplier(
+    code: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     supplier = db.query(models.Supplier).filter(models.Supplier.code == code.upper()).first()
     if not supplier:
         raise HTTPException(404, "Lieferant nicht gefunden")
+    check_supplier_access(current_user, db, supplier.id)
     return supplier
 
 
 @router.patch("/{code}", response_model=schemas.SupplierOut)
-def update_supplier(code: str, payload: schemas.SupplierUpdate, db: Session = Depends(get_db)):
+def update_supplier(
+    code: str,
+    payload: schemas.SupplierUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     supplier = db.query(models.Supplier).filter(models.Supplier.code == code.upper()).first()
     if not supplier:
         raise HTTPException(404, "Lieferant nicht gefunden")
+    check_supplier_access(current_user, db, supplier.id)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(supplier, field, value)
     db.commit()
@@ -64,10 +83,12 @@ def create_transaction(
     code: str,
     payload: schemas.TransactionCreate,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     supplier = db.query(models.Supplier).filter(models.Supplier.code == code.upper()).first()
     if not supplier:
         raise HTTPException(404, "Lieferant nicht gefunden")
+    check_supplier_access(current_user, db, supplier.id)
     from sqlalchemy import extract
     year = int(payload.invoice_date.split("-")[0]) if isinstance(payload.invoice_date, str) else payload.invoice_date.year
     tx = models.Transaction(**{**payload.model_dump(), "supplier_id": supplier.id, "year": year})
@@ -79,10 +100,15 @@ def create_transaction(
 
 
 @router.delete("/transactions/{transaction_id}", status_code=204)
-def delete_transaction(transaction_id: int, db: Session = Depends(get_db)):
+def delete_transaction(
+    transaction_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     tx = db.query(models.Transaction).filter(models.Transaction.id == transaction_id).first()
     if not tx:
         raise HTTPException(404, "Position nicht gefunden")
+    check_supplier_access(current_user, db, tx.supplier_id)
     db.delete(tx)
     db.commit()
 
@@ -92,12 +118,14 @@ def update_transaction(
     transaction_id: int,
     payload: schemas.TransactionUpdate,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     tx = db.query(models.Transaction).options(
         joinedload(models.Transaction.customer)
     ).filter(models.Transaction.id == transaction_id).first()
     if not tx:
         raise HTTPException(404, "Transaktion nicht gefunden")
+    check_supplier_access(current_user, db, tx.supplier_id)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(tx, field, value)
     db.commit()
@@ -113,10 +141,12 @@ def list_transactions(
     date_from: date = Query(alias="from"),
     date_to: date = Query(alias="to"),
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     supplier = db.query(models.Supplier).filter(models.Supplier.code == code.upper()).first()
     if not supplier:
         raise HTTPException(404, "Lieferant nicht gefunden")
+    check_supplier_access(current_user, db, supplier.id)
     txs = (
         db.query(models.Transaction)
         .options(joinedload(models.Transaction.customer))
@@ -278,11 +308,13 @@ async def parse_csv(
     code: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     """Import transactions from a CSV or Excel file (Provisionsabrechnung format)."""
     supplier = db.query(models.Supplier).filter(models.Supplier.code == code.upper()).first()
     if not supplier:
         raise HTTPException(404, "Lieferant nicht gefunden")
+    check_supplier_access(current_user, db, supplier.id)
 
     content = await file.read()
     fname = (file.filename or "").lower()

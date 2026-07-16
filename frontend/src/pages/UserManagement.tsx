@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Pencil } from "lucide-react";
-import { api, type AuthUser } from "../api";
+import { api, type AuthUser, type Supplier } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { useT } from "../context/LocaleContext";
 
@@ -63,6 +63,10 @@ export default function UserManagement() {
   const [editLang, setEditLang] = useState("de");
   const [editSaving, setEditSaving] = useState(false);
 
+  // Supplier access
+  const [allSuppliers, setAllSuppliers] = useState<Supplier[]>([]);
+  const [editSupplierCodes, setEditSupplierCodes] = useState<Set<string>>(new Set());
+
   function load() {
     setLoading(true);
     api.auth.users()
@@ -72,12 +76,25 @@ export default function UserManagement() {
   }
 
   useEffect(() => { load(); }, []);
+  useEffect(() => { api.suppliers.list().then(setAllSuppliers).catch(() => {}); }, []);
 
   function openEdit(u: AuthUser) {
     setEditUser(u);
     setEditFirst(u.first_name ?? "");
     setEditLast(u.last_name ?? "");
     setEditLang(u.language ?? "de");
+    setEditSupplierCodes(new Set());
+    api.auth.userSuppliers(u.id)
+      .then(codes => setEditSupplierCodes(new Set(codes)))
+      .catch(() => {});
+  }
+
+  function toggleSupplierCode(code: string) {
+    setEditSupplierCodes(prev => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code); else next.add(code);
+      return next;
+    });
   }
 
   async function saveEdit() {
@@ -89,6 +106,7 @@ export default function UserManagement() {
         last_name: editLast,
         language: editLang,
       });
+      await api.auth.setUserSuppliers(editUser.id, Array.from(editSupplierCodes));
       setUsers(prev => prev.map(x => x.id === updated.id ? updated : x));
       setEditUser(null);
     } catch (e: unknown) {
@@ -299,6 +317,29 @@ export default function UserManagement() {
                   <option value="en">{t.users.langEn}</option>
                 </select>
               </div>
+
+              {/* Supplier access — nur für Nicht-Admins relevant */}
+              {editUser.role !== "admin" && (
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{t.users.supplierAccess}</label>
+                  <div className="border border-gray-200 rounded-lg max-h-44 overflow-y-auto divide-y divide-gray-100">
+                    {allSuppliers.map(s => (
+                      <label key={s.code}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editSupplierCodes.has(s.code)}
+                          onChange={() => toggleSupplierCode(s.code)}
+                          className="accent-[#2563eb]"
+                        />
+                        <span className="font-mono text-xs text-gray-500 w-7">{s.code}</span>
+                        <span className="truncate">{s.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-1">{t.users.supplierAccessHint}</p>
+                </div>
+              )}
             </div>
             <div className="flex gap-2 mt-5">
               <button onClick={saveEdit} disabled={editSaving}

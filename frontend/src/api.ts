@@ -159,6 +159,13 @@ export const api = {
     deleteUser: (id: number) =>
       fetch(`${BASE}/auth/users/${id}`, { method: "DELETE", headers: authHeaders() })
         .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
+    userSuppliers: (id: number) => get<string[]>(`/auth/users/${id}/suppliers`),
+    setUserSuppliers: (id: number, codes: string[]) =>
+      fetch(`${BASE}/auth/users/${id}/suppliers`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ codes }),
+      }).then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json() as Promise<string[]>; }),
   },
   suppliers: {
     list: () => get<Supplier[]>("/suppliers"),

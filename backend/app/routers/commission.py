@@ -6,6 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..auth import get_current_user, get_allowed_supplier_ids, check_supplier_access
 from ..database import get_db
 from ..pdf_commission import build_pdf
 from ..pdf_invoice import generate_invoice_pdf
@@ -38,10 +39,12 @@ def _load_invoice_settings(db: Session) -> tuple[dict, str | None]:
     return bank_accounts, logo_b64
 
 
-def _get_supplier(db: Session, code: str) -> models.Supplier:
+def _get_supplier(db: Session, code: str, user: models.User | None = None) -> models.Supplier:
     supplier = db.query(models.Supplier).filter(models.Supplier.code == code.upper()).first()
     if not supplier:
         raise HTTPException(404, "Lieferant nicht gefunden")
+    if user is not None:
+        check_supplier_access(user, db, supplier.id)
     return supplier
 
 
@@ -51,12 +54,13 @@ def commission_statistic(
     period_from: date,
     period_to: date,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     """
     Entspricht der alten 'Lieferant Statistik' -> Aufstellung:
     aggregiert die Transaktionen im Zeitraum pro Kunde + Provisionssatz.
     """
-    supplier = _get_supplier(db, supplier_code)
+    supplier = _get_supplier(db, supplier_code, current_user)
 
     rows = (
         db.query(
@@ -114,10 +118,15 @@ def commission_statistic(
 
 
 @router.get("/statements/{statement_id}/pdf")
-def get_statement_pdf(statement_id: int, db: Session = Depends(get_db)):
+def get_statement_pdf(
+    statement_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     statement = db.get(models.CommissionStatement, statement_id)
     if not statement:
         raise HTTPException(404, "Abrechnung nicht gefunden")
+    check_supplier_access(current_user, db, statement.supplier_id)
     pdf_bytes = build_pdf(statement)
     filename = f"Provisionsabrechnung_{statement.statement_number or f'Entwurf-{statement_id}'}.pdf"
     return Response(
@@ -128,11 +137,15 @@ def get_statement_pdf(statement_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/statements", response_model=schemas.CommissionStatementOut)
-def create_statement(payload: schemas.CommissionStatementCreate, db: Session = Depends(get_db)):
+def create_statement(
+    payload: schemas.CommissionStatementCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     """Legt eine neue Provisionsabrechnung als 'draft' an, befüllt mit den
     aggregierten Positionen aus der Statistik (siehe /statistic)."""
-    supplier = _get_supplier(db, payload.supplier_code)
-    summary = commission_statistic(payload.supplier_code, payload.period_from, payload.period_to, db)
+    supplier = _get_supplier(db, payload.supplier_code, current_user)
+    summary = commission_statistic(payload.supplier_code, payload.period_from, payload.period_to, db, current_user)
 
     statement = models.CommissionStatement(
         supplier_id=supplier.id,
@@ -162,19 +175,32 @@ def create_statement(payload: schemas.CommissionStatementCreate, db: Session = D
 
 
 @router.get("/statements", response_model=list[schemas.CommissionStatementOut])
-def list_statements(supplier_code: str | None = None, db: Session = Depends(get_db)):
+def list_statements(
+    supplier_code: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     query = db.query(models.CommissionStatement)
     if supplier_code:
-        supplier = _get_supplier(db, supplier_code)
+        supplier = _get_supplier(db, supplier_code, current_user)
         query = query.filter(models.CommissionStatement.supplier_id == supplier.id)
+    else:
+        allowed = get_allowed_supplier_ids(current_user, db)
+        if allowed is not None:
+            query = query.filter(models.CommissionStatement.supplier_id.in_(allowed))
     return query.order_by(models.CommissionStatement.id.desc()).all()
 
 
 @router.get("/statements/{statement_id}", response_model=schemas.CommissionStatementOut)
-def get_statement(statement_id: int, db: Session = Depends(get_db)):
+def get_statement(
+    statement_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     statement = db.get(models.CommissionStatement, statement_id)
     if not statement:
         raise HTTPException(404, "Abrechnung nicht gefunden")
+    check_supplier_access(current_user, db, statement.supplier_id)
     return statement
 
 
@@ -184,9 +210,10 @@ def invoice_summary(
     period_from: date,
     period_to: date,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     """Provision totals per currency for the given period — used by invoice modal."""
-    supplier = _get_supplier(db, supplier_code)
+    supplier = _get_supplier(db, supplier_code, current_user)
     rows = (
         db.query(
             models.Transaction.currency,
@@ -238,9 +265,10 @@ def create_invoice_pdf(
     supplier_code: str,
     payload: schemas.CommissionInvoiceCreate,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     """Generate PR invoice PDF and save statement_number to DB."""
-    supplier = _get_supplier(db, supplier_code)
+    supplier = _get_supplier(db, supplier_code, current_user)
 
     # Save PR numbers to app_settings
     year_suffix = payload.invoice_date.strftime("%y")
@@ -306,9 +334,10 @@ def ubw_export(
     supplier_code: str,
     payload: schemas.CommissionInvoiceCreate,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     """Generate HDUBW.DBF rows for the given period as a downloadable DBF file."""
-    supplier = _get_supplier(db, supplier_code)
+    supplier = _get_supplier(db, supplier_code, current_user)
     year_suffix = payload.invoice_date.strftime("%y")
     period_text = f"Provision {payload.period_from.strftime('%m')}-{payload.period_to.strftime('%m/%y')}"
 
@@ -341,15 +370,23 @@ def ubw_export(
 
 
 @router.get("/invoices", response_model=list[schemas.CommissionInvoiceOut])
-def list_commission_invoices(supplier_code: str | None = None, db: Session = Depends(get_db)):
+def list_commission_invoices(
+    supplier_code: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     q = (
         db.query(models.CommissionInvoice)
         .join(models.Supplier)
         .order_by(models.Supplier.code, models.CommissionInvoice.invoice_date.desc())
     )
     if supplier_code:
-        supplier = _get_supplier(db, supplier_code)
+        supplier = _get_supplier(db, supplier_code, current_user)
         q = q.filter(models.CommissionInvoice.supplier_id == supplier.id)
+    else:
+        allowed = get_allowed_supplier_ids(current_user, db)
+        if allowed is not None:
+            q = q.filter(models.CommissionInvoice.supplier_id.in_(allowed))
     rows = q.all()
     result = []
     for inv in rows:
@@ -365,10 +402,12 @@ def update_commission_invoice(
     inv_id: int,
     payload: schemas.CommissionInvoiceUpdate,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     inv = db.get(models.CommissionInvoice, inv_id)
     if not inv:
         raise HTTPException(404, "Rechnung nicht gefunden")
+    check_supplier_access(current_user, db, inv.supplier_id)
     for k, v in payload.model_dump(exclude_none=True).items():
         setattr(inv, k, v)
     db.commit()
@@ -380,20 +419,30 @@ def update_commission_invoice(
 
 
 @router.delete("/invoices/{inv_id}")
-def delete_commission_invoice(inv_id: int, db: Session = Depends(get_db)):
+def delete_commission_invoice(
+    inv_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     inv = db.get(models.CommissionInvoice, inv_id)
     if not inv:
         raise HTTPException(404, "Rechnung nicht gefunden")
+    check_supplier_access(current_user, db, inv.supplier_id)
     db.delete(inv)
     db.commit()
     return {"ok": True}
 
 
 @router.post("/invoices/{inv_id}/pdf")
-def reprint_commission_invoice_pdf(inv_id: int, db: Session = Depends(get_db)):
+def reprint_commission_invoice_pdf(
+    inv_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     inv = db.get(models.CommissionInvoice, inv_id)
     if not inv:
         raise HTTPException(404, "Rechnung nicht gefunden")
+    check_supplier_access(current_user, db, inv.supplier_id)
     supplier = db.get(models.Supplier, inv.supplier_id)
     address_lines = _supplier_address_lines(supplier)
     bank_accounts, logo_b64 = _load_invoice_settings(db)
@@ -421,6 +470,7 @@ def issue_statement(
     statement_id: int,
     payload: schemas.CommissionStatementIssue,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     """Vergibt Rechnungsnummer (PR{Jahr}-{lfd. Nr}) und Datum, setzt Status auf 'issued'.
 
@@ -430,6 +480,7 @@ def issue_statement(
     statement = db.get(models.CommissionStatement, statement_id)
     if not statement:
         raise HTTPException(404, "Abrechnung nicht gefunden")
+    check_supplier_access(current_user, db, statement.supplier_id)
 
     if statement.status == "issued":
         # Bereits ausgestellt -> einfach erneut zurückgeben (erneuter Druck)
@@ -470,12 +521,13 @@ def create_aufstellung_pdf(
     supplier_code: str,
     payload: schemas.AufstellungRequest,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     """Generate Provisionsabrechnung (breakdown) PDF for all currencies in the period."""
     from datetime import datetime, timezone
     from sqlalchemy.orm import joinedload
 
-    supplier = _get_supplier(db, supplier_code)
+    supplier = _get_supplier(db, supplier_code, current_user)
 
     txs = (
         db.query(models.Transaction)

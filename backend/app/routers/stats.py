@@ -7,6 +7,7 @@ from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 
 from .. import models
+from ..auth import get_current_user, get_allowed_supplier_ids
 from ..database import get_db
 from ..pdf_stats import build_supplier_stats_pdf, build_customer_turnover_pdf, build_supplier_detail_pdf
 
@@ -18,12 +19,15 @@ def supplier_summary(
     period_from: date,
     period_to: date,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     # Last-year same period
     ly_from = period_from.replace(year=period_from.year - 1)
     ly_to = period_to.replace(year=period_to.year - 1)
 
-    rows = (
+    allowed = get_allowed_supplier_ids(current_user, db)
+
+    q = (
         db.query(
             models.Supplier.id,
             models.Supplier.code,
@@ -49,7 +53,11 @@ def supplier_summary(
         )
         .outerjoin(models.Transaction, models.Transaction.supplier_id == models.Supplier.id)
         .filter(models.Supplier.is_active == True)
-        .group_by(models.Supplier.id, models.Supplier.code, models.Supplier.name)
+    )
+    if allowed is not None:
+        q = q.filter(models.Supplier.id.in_(allowed))
+    rows = (
+        q.group_by(models.Supplier.id, models.Supplier.code, models.Supplier.name)
         .order_by(models.Supplier.code)
         .all()
     )
@@ -85,11 +93,14 @@ def customer_turnover(
     period_to: date,
     sort_by: Literal["provision", "turnover"] = "provision",
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     ly_from = period_from.replace(year=period_from.year - 1)
     ly_to = period_to.replace(year=period_to.year - 1)
 
-    rows = (
+    allowed = get_allowed_supplier_ids(current_user, db)
+
+    q = (
         db.query(
             func.coalesce(models.Transaction.customer_name, "–").label("customer_name"),
             func.coalesce(func.sum(
@@ -123,7 +134,11 @@ def customer_turnover(
                 0,
             ).label("avg_rate"),
         )
-        .group_by(func.coalesce(models.Transaction.customer_name, "–"))
+    )
+    if allowed is not None:
+        q = q.filter(models.Transaction.supplier_id.in_(allowed))
+    rows = (
+        q.group_by(func.coalesce(models.Transaction.customer_name, "–"))
         .having(
             func.sum(case((models.Transaction.invoice_date.between(period_from, period_to),
                            models.Transaction.total_amount), else_=0)) > 0
@@ -167,8 +182,9 @@ def customer_turnover_pdf(
     period_to: date,
     sort_by: Literal["provision", "turnover"] = "provision",
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    data = customer_turnover(period_from, period_to, sort_by, db)
+    data = customer_turnover(period_from, period_to, sort_by, db, current_user)
     pdf_bytes = build_customer_turnover_pdf(data)
     label = "Provision" if sort_by == "provision" else "Umsatz"
     filename = f"AdrUms_{label}_{period_from}_{period_to}.pdf"
@@ -177,7 +193,11 @@ def customer_turnover_pdf(
 
 
 @router.get("/supplier-detail")
-def supplier_detail(year: int, db: Session = Depends(get_db)):
+def supplier_detail(
+    year: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     from datetime import date as date_cls
     quarters = [
         ("1.Q", date_cls(year, 1, 1),  date_cls(year, 3, 31)),
@@ -206,7 +226,11 @@ def supplier_detail(year: int, db: Session = Depends(get_db)):
         .all()
     )
 
-    suppliers = db.query(models.Supplier).filter_by(is_active=True).order_by(models.Supplier.code).all()
+    allowed = get_allowed_supplier_ids(current_user, db)
+    sup_q = db.query(models.Supplier).filter_by(is_active=True)
+    if allowed is not None:
+        sup_q = sup_q.filter(models.Supplier.id.in_(allowed))
+    suppliers = sup_q.order_by(models.Supplier.code).all()
     budgets = db.query(models.Budget).filter_by(year=year).all()
     # budget_turnover[supplier_id] = sum of amount_budget
     budget_t: dict[int, float] = {}
@@ -258,8 +282,12 @@ def supplier_detail(year: int, db: Session = Depends(get_db)):
 
 
 @router.get("/supplier-detail/pdf")
-def supplier_detail_pdf(year: int, db: Session = Depends(get_db)):
-    data = supplier_detail(year, db)
+def supplier_detail_pdf(
+    year: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    data = supplier_detail(year, db, current_user)
     pdf_bytes = build_supplier_detail_pdf(data)
     filename = f"Lieferant_Detail_{year}.pdf"
     return Response(content=pdf_bytes, media_type="application/pdf",
@@ -271,8 +299,9 @@ def supplier_summary_pdf(
     period_from: date,
     period_to: date,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    data = supplier_summary(period_from, period_to, db)
+    data = supplier_summary(period_from, period_to, db, current_user)
     pdf_bytes = build_supplier_stats_pdf(data)
     filename = f"Lieferant_Statistik_{period_from}_{period_to}.pdf"
     return Response(

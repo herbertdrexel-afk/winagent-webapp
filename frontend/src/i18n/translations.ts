@@ -302,6 +302,10 @@ const de = {
     langDe: "Deutsch",
     langEn: "English",
     noEmail: "— eintragen",
+    supplierAccess: "Lieferanten-Zugriff",
+    supplierAccessHint: "Nichts angehakt = alle Lieferanten sichtbar. Angehakte = nur diese.",
+    supplierAccessAll: "Alle",
+    supplierAccessCount: (n: number) => `${n} Lieferant(en)`,
   },
 };
 
@@ -607,6 +611,10 @@ const en: typeof de = {
     langDe: "Deutsch",
     langEn: "English",
     noEmail: "— add email",
+    supplierAccess: "Supplier access",
+    supplierAccessHint: "Nothing checked = all suppliers visible. Checked = only these.",
+    supplierAccessAll: "All",
+    supplierAccessCount: (n: number) => `${n} supplier(s)`,
   },
 };
 

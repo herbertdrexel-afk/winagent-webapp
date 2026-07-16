@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, Integer, BigInteger, SmallInteger, String, Numeric, Date, DateTime,
-    Boolean, Text, ForeignKey, CHAR, func
+    Boolean, Text, ForeignKey, CHAR, func, UniqueConstraint
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
@@ -19,6 +19,21 @@ class User(Base):
     role = Column(String(20), nullable=False, default="user")  # "admin" | "user"
     is_approved = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserSupplierAccess(Base):
+    """Pro-User-Freigabe einzelner Lieferanten.
+
+    Keine Einträge für einen User = alle Lieferanten sichtbar (rückwärtskompatibel).
+    Admins sind nie eingeschränkt."""
+    __tablename__ = "user_supplier_access"
+    __table_args__ = (UniqueConstraint("user_id", "supplier_id", name="uq_user_supplier"),)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id", ondelete="CASCADE"), nullable=False)
+
+    user = relationship("User")
+    supplier = relationship("Supplier")
 
 
 class Country(Base):

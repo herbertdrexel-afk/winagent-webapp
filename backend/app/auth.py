@@ -63,3 +63,27 @@ def require_admin(current_user: models.User = Depends(get_current_user)) -> mode
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Nur für Administratoren")
     return current_user
+
+
+def get_allowed_supplier_ids(user: models.User, db: Session) -> set[int] | None:
+    """Erlaubte supplier_ids für den User. None = keine Einschränkung.
+
+    Admins sehen immer alles; User ohne Einträge in user_supplier_access ebenfalls
+    (rückwärtskompatibel). User mit Einträgen sehen nur die zugewiesenen."""
+    if user.role == "admin":
+        return None
+    rows = (
+        db.query(models.UserSupplierAccess.supplier_id)
+        .filter(models.UserSupplierAccess.user_id == user.id)
+        .all()
+    )
+    if not rows:
+        return None
+    return {r[0] for r in rows}
+
+
+def check_supplier_access(user: models.User, db: Session, supplier_id: int) -> None:
+    """403 wenn der User diesen Lieferanten nicht sehen darf."""
+    allowed = get_allowed_supplier_ids(user, db)
+    if allowed is not None and supplier_id not in allowed:
+        raise HTTPException(status_code=403, detail="Kein Zugriff auf diesen Lieferanten")

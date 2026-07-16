@@ -130,6 +130,57 @@ def update_user(
     return user
 
 
+class SupplierAccessRequest(BaseModel):
+    codes: list[str]
+
+
+@router.get("/users/{user_id}/suppliers", response_model=list[str])
+def get_user_suppliers(
+    user_id: int,
+    _: models.User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Zugewiesene Lieferanten-Codes eines Users. Leere Liste = alle sichtbar."""
+    rows = (
+        db.query(models.Supplier.code)
+        .join(models.UserSupplierAccess,
+              models.UserSupplierAccess.supplier_id == models.Supplier.id)
+        .filter(models.UserSupplierAccess.user_id == user_id)
+        .order_by(models.Supplier.code)
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
+@router.put("/users/{user_id}/suppliers", response_model=list[str])
+def set_user_suppliers(
+    user_id: int,
+    body: SupplierAccessRequest,
+    _: models.User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Lieferanten-Freigaben eines Users komplett ersetzen. Leere Liste = alle sichtbar."""
+    user = db.get(models.User, user_id)
+    if not user:
+        raise HTTPException(404, "Benutzer nicht gefunden")
+
+    codes = sorted({c.upper().strip() for c in body.codes if c.strip()})
+    suppliers = (
+        db.query(models.Supplier).filter(models.Supplier.code.in_(codes)).all()
+        if codes else []
+    )
+    found_codes = {s.code for s in suppliers}
+    missing = [c for c in codes if c not in found_codes]
+    if missing:
+        raise HTTPException(400, f"Unbekannte Lieferanten-Codes: {', '.join(missing)}")
+
+    db.query(models.UserSupplierAccess).filter_by(user_id=user_id).delete()
+    for s in suppliers:
+        db.add(models.UserSupplierAccess(user_id=user_id, supplier_id=s.id))
+    db.commit()
+    return sorted(found_codes)
+
+
 @router.delete("/users/{user_id}", status_code=204)
 def delete_user(
     user_id: int,
