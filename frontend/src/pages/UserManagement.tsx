@@ -99,6 +99,14 @@ export default function UserManagement() {
     });
   }
 
+  function toggleAllSuppliers() {
+    setEditSupplierCodes(prev =>
+      prev.size >= allSuppliers.length
+        ? new Set()
+        : new Set(allSuppliers.map(s => s.code))
+    );
+  }
+
   async function saveEdit() {
     if (!editUser) return;
     setEditSaving(true);
@@ -333,6 +341,19 @@ export default function UserManagement() {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">{t.users.supplierAccess}</label>
                   <div className="border border-gray-200 rounded-lg max-h-44 overflow-y-auto divide-y divide-gray-100">
+                    <label
+                      className="sticky top-0 z-10 flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-gray-50 hover:bg-gray-100 cursor-pointer border-b border-gray-200">
+                      <input
+                        type="checkbox"
+                        checked={allSuppliers.length > 0 && editSupplierCodes.size >= allSuppliers.length}
+                        ref={el => { if (el) el.indeterminate = editSupplierCodes.size > 0 && editSupplierCodes.size < allSuppliers.length; }}
+                        onChange={toggleAllSuppliers}
+                        className="accent-[#2563eb]"
+                      />
+                      <span className="text-gray-600">
+                        {t.users.supplierAccessAll} ({editSupplierCodes.size}/{allSuppliers.length})
+                      </span>
+                    </label>
                     {allSuppliers.map(s => (
                       <label key={s.code}
                         className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50 cursor-pointer">
