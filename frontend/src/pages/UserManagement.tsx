@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { api, type AuthUser, type Supplier } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { useT } from "../context/LocaleContext";
@@ -242,15 +242,15 @@ export default function UserManagement() {
                   <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">{t.users.active}</span>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-2">
                     <button onClick={() => openEdit(u)} title={t.users.editTitle}
-                      className="text-blue-500 hover:bg-blue-50 border border-blue-200 p-1 rounded">
-                      <Pencil size={12} />
+                      className="flex items-center gap-1.5 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg">
+                      <Pencil size={14} /> {t.common.edit}
                     </button>
                     {u.id !== me?.id && (
                       <button onClick={() => deleteUser(u)}
-                        className="text-xs text-red-600 hover:text-red-800 border border-red-200 px-2 py-1 rounded">
-                        {t.users.delete}
+                        className="flex items-center gap-1.5 text-sm text-red-600 hover:bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg">
+                        <Trash2 size={14} /> {t.users.delete}
                       </button>
                     )}
                   </div>
