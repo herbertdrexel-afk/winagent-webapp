@@ -33,9 +33,9 @@ function ProtectedRoutes() {
             <Route path="transactions"        element={<Transactions />} />
             <Route path="commission-invoices" element={<CommissionInvoices />} />
             <Route path="stats"               element={<SupplierStats />} />
-            <Route path="reports"             element={<Reports />} />
             {user.role === "admin" && (
               <>
+                <Route path="reports" element={<Reports />} />
                 <Route path="users" element={<UserManagement />} />
                 <Route path="bank-accounts" element={<BankAccounts />} />
               </>

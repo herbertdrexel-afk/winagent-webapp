@@ -20,7 +20,7 @@ const NAV_DEFS: NavItemDef[] = [
   { to: "/customers",           tKey: "customers",  short: "K" },
   { to: "/transactions",        tKey: "invoices",   short: "R" },
   { to: "/stats",               tKey: "stats",      short: "S" },
-  { to: "/reports",             tKey: "reports",    short: "B" },
+  { to: "/reports",             tKey: "reports",    short: "B", adminOnly: true },
   { to: "/bank-accounts",       tKey: "settings",   short: "⚙", adminOnly: true },
   { to: "/users",               tKey: "users",      short: "U", adminOnly: true },
 ];
