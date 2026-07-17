@@ -139,12 +139,17 @@ export default function Transactions() {
     });
   }, []);
 
-  // Auto-load whenever supplier or date range changes
+  // Auto-load whenever supplier or date range changes.
+  // Wichtig: Erst laden, wenn die Lieferantenliste geladen ist UND der gewaehlte
+  // Lieferant darin vorkommt. Verhindert einen 403 durch einen veralteten
+  // localStorage-Lieferanten, auf den ein eingeschraenkter Benutzer keinen Zugriff hat.
   useEffect(() => {
     if (!supplierCode || !from || !to) return;
+    if (suppliers.length === 0) return;
+    if (!suppliers.some((s) => s.code === supplierCode)) return;
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supplierCode, from, to]);
+  }, [supplierCode, from, to, suppliers]);
 
   function loadData() {
     if (!supplierCode) return;
