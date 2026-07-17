@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type Supplier, type Transaction, BASE, token } from "../api";
 import { useT } from "../context/LocaleContext";
+import { formatDate, formatNum } from "../utils/format";
 import InvoiceModal from "../components/InvoiceModal";
 import PdfImportModal from "../components/PdfImportModal";
 import CommissionInvoiceModal from "../components/CommissionInvoiceModal";
@@ -292,7 +293,11 @@ export default function Transactions() {
             (inv.customer_code  ?? "").toLowerCase().includes(q);
           if (!hit) return false;
         }
-        if (searchDatum && !inv.invoice_date.includes(searchDatum)) return false;
+        if (searchDatum) {
+          const q = searchDatum.trim();
+          // sowohl ISO (2026-04) als auch T.M.Y (04.2026 / 02.04.2026) erlauben
+          if (!inv.invoice_date.includes(q) && !formatDate(inv.invoice_date).includes(q)) return false;
+        }
         return true;
       })
     : invoices;
@@ -582,22 +587,22 @@ export default function Transactions() {
                   }
                 >
                   <td className="px-4 py-2 font-mono text-xs">{inv.invoice_number}</td>
-                  <td className="px-4 py-2 text-gray-600">{inv.invoice_date}</td>
+                  <td className="px-4 py-2 text-gray-600">{formatDate(inv.invoice_date)}</td>
                   <td className="px-4 py-2 text-gray-500 text-xs">{inv.customer_ku_nr ?? inv.customer_code ?? "–"}</td>
                   <td className="px-4 py-2 font-medium">{inv.customer_name ?? "–"}</td>
                   <td className="px-4 py-2 text-center text-gray-500">{inv.positions.length}</td>
                   <td className="px-4 py-2 text-gray-600">{inv.currency ?? "–"}</td>
                   <td className="px-4 py-2 text-right font-medium">
-                    {inv.total_amount.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
+                    {formatNum(inv.total_amount)}
                   </td>
                   <td className="px-4 py-2 text-right text-gray-500">
                     {inv.provision_rate != null && inv.provision_rate > 0
-                      ? `${inv.provision_rate.toLocaleString("de-AT", { minimumFractionDigits: 2 })} %`
+                      ? `${formatNum(inv.provision_rate)} %`
                       : "–"}
                   </td>
                   <td className="px-4 py-2 text-right text-emerald-700 font-medium">
                     {inv.provision_amount > 0
-                      ? inv.provision_amount.toLocaleString("de-AT", { minimumFractionDigits: 2 })
+                      ? formatNum(inv.provision_amount)
                       : "–"}
                   </td>
                 </tr>
@@ -619,11 +624,11 @@ export default function Transactions() {
                   </td>
                   <td className="px-4 py-2 text-gray-600">{cur}</td>
                   <td className="px-4 py-2 text-right">
-                    {tot.amount.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
+                    {formatNum(tot.amount)}
                   </td>
                   <td />
                   <td className="px-4 py-2 text-right text-emerald-700">
-                    {tot.provision.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
+                    {formatNum(tot.provision)}
                   </td>
                 </tr>
               ))}

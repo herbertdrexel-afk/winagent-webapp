@@ -3,10 +3,12 @@ import { api, token, type CommissionInvoiceRecord } from "../api";
 import { useSearch } from "../context/SearchContext";
 import { useT } from "../context/LocaleContext";
 import { RotateCcw } from "lucide-react";
+import DateRangePicker from "../components/DateRangePicker";
+import { formatDate } from "../utils/format";
 
 function fmt(n: number | string | undefined) {
   if (n == null) return "–";
-  return parseFloat(n as string).toLocaleString("de-AT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return parseFloat(n as string).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 type Status = "offen" | "bezahlt" | "in_pruefung";
@@ -50,7 +52,6 @@ interface EditState {
 
 interface ColFilter {
   supplier: string;
-  period: string;
   status: string;
 }
 
@@ -67,7 +68,9 @@ export default function CommissionInvoices() {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
-  const [colFilter, setColFilter] = useState<ColFilter>({ supplier: "", period: "", status: "" });
+  const [colFilter, setColFilter] = useState<ColFilter>({ supplier: "", status: "" });
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   useEffect(() => { load(); }, []);
 
@@ -153,16 +156,17 @@ export default function CommissionInvoices() {
 
       const matchSupplier = !colFilter.supplier ||
         (r.supplier_name ?? "").toLowerCase().includes(colFilter.supplier.toLowerCase());
-      const matchPeriod = !colFilter.period ||
-        r.period_from.includes(colFilter.period) || r.period_to.includes(colFilter.period);
+      // Zeitraum-Überlappung: Rechnungsperiode [period_from, period_to] schneidet Filter [dateFrom, dateTo]
+      const matchPeriod = (!dateFrom && !dateTo) ||
+        (!dateTo || r.period_from <= dateTo) && (!dateFrom || r.period_to >= dateFrom);
       const matchStatus = !colFilter.status ||
         (r.status ?? "offen") === colFilter.status;
 
       return matchSearch && matchSupplier && matchPeriod && matchStatus;
     });
-  }, [rows, query, colFilter]);
+  }, [rows, query, colFilter, dateFrom, dateTo]);
 
-  const hasColFilter = Object.values(colFilter).some(Boolean);
+  const hasColFilter = Object.values(colFilter).some(Boolean) || !!dateFrom || !!dateTo;
   const inputCls = "w-full px-2 py-1 text-[12px] focus:outline-none bg-white border border-[#d1d5db] rounded focus:border-[#2563eb]";
 
   return (
@@ -170,10 +174,11 @@ export default function CommissionInvoices() {
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
         <h1 className="text-lg font-semibold text-gray-800 mr-1">{t.provisions.title}</h1>
+        <DateRangePicker from={dateFrom} to={dateTo} onChange={(f, tt) => { setDateFrom(f); setDateTo(tt); }} />
         <div className="flex-1" />
         {hasColFilter && (
           <button
-            onClick={() => setColFilter({ supplier: "", period: "", status: "" })}
+            onClick={() => { setColFilter({ supplier: "", status: "" }); setDateFrom(""); setDateTo(""); }}
             className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded border border-gray-300 text-gray-500 hover:bg-gray-100 transition-colors"
           >
             <RotateCcw size={12} /> {t.provisions.filterReset}
@@ -210,12 +215,7 @@ export default function CommissionInvoices() {
                     className={inputCls} />
                 </td>
                 <td className="px-2 py-1.5" />
-                <td className="px-2 py-1.5">
-                  <input value={colFilter.period}
-                    onChange={e => setColFilter(f => ({ ...f, period: e.target.value }))}
-                    placeholder={t.provisions.filterPeriod}
-                    className={inputCls} />
-                </td>
+                <td className="px-2 py-1.5" />
                 <td />
                 <td className="px-2 py-1.5">
                   <select value={colFilter.status}
@@ -248,7 +248,7 @@ export default function CommissionInvoices() {
                     <div className="text-[11px] text-gray-400 font-mono">{r.supplier_code}</div>
                   </td>
                   <td className="px-4 py-2.5 font-mono text-[12px] text-[#2563eb] font-semibold whitespace-nowrap">{r.pr_number}</td>
-                  <td className="px-4 py-2.5 text-[13px] text-gray-600 whitespace-nowrap">{r.period_from} – {r.period_to}</td>
+                  <td className="px-4 py-2.5 text-[13px] text-gray-600 whitespace-nowrap">{formatDate(r.period_from)} – {formatDate(r.period_to)}</td>
                   <td className="px-4 py-2.5 text-right font-semibold text-[13px] text-gray-800 whitespace-nowrap font-mono">
                     {fmt(r.amount)} <span className="text-gray-400 font-normal text-[11px]">{r.currency}</span>
                   </td>

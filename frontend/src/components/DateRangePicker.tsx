@@ -52,7 +52,7 @@ function CalendarMonth({ year, month, from, to, hovered, onDay, onHover }: {
   return (
     <div className="flex-1 min-w-[220px]">
       <div className="text-center text-sm font-semibold text-gray-700 mb-2">
-        {new Date(year, month).toLocaleDateString("de-AT", { month: "long", year: "numeric" })}
+        {new Date(year, month).toLocaleDateString("de-DE", { month: "long", year: "numeric" })}
       </div>
       <div className="grid grid-cols-7 gap-0.5 text-xs text-gray-400 mb-1">
         {["Mo","Di","Mi","Do","Fr","Sa","So"].map(d => <div key={d} className="text-center font-medium">{d}</div>)}
@@ -123,7 +123,7 @@ export default function DateRangePicker({ from, to, onChange }: Props) {
 
   const rightMonth = addMonths(leftMonth, 1);
   const label = from && to
-    ? `${parseDate(from).toLocaleDateString("de-AT", { day:"2-digit", month:"2-digit", year:"numeric" })} – ${parseDate(to).toLocaleDateString("de-AT", { day:"2-digit", month:"2-digit", year:"numeric" })}`
+    ? `${parseDate(from).toLocaleDateString("de-DE", { day:"2-digit", month:"2-digit", year:"numeric" })} – ${parseDate(to).toLocaleDateString("de-DE", { day:"2-digit", month:"2-digit", year:"numeric" })}`
     : "Zeitraum wählen";
 
   return (

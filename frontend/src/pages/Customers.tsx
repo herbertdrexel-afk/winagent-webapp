@@ -136,7 +136,7 @@ export default function Customers() {
         <RefreshCw size={12} className={syncing ? "animate-spin" : ""} />
         {syncing ? "Synchronisiere…" : "Jetzt synchronisieren"}
       </button>
-      {lastSync && <span className="text-xs text-gray-400">Zuletzt: {new Date(lastSync).toLocaleString("de-AT")}</span>}
+      {lastSync && <span className="text-xs text-gray-400">Zuletzt: {new Date(lastSync).toLocaleString("de-DE")}</span>}
       <span className="text-xs text-gray-300">· Automatisch stündlich</span>
       {syncResult && (
         <span className={`text-xs px-2 py-0.5 rounded-full ${syncResult.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>

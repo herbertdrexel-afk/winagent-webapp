@@ -18,15 +18,15 @@ interface StatData { period_from: string; period_to: string; rows: StatRow[] }
 
 function fmt(n: number) {
   if (n === 0) return "0";
-  return n.toLocaleString("de-AT", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return n.toLocaleString("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 function fmtPct(pct: number | null) {
   if (pct === null) return "–";
   return (pct >= 0 ? "+" : "") + pct.toFixed(1).replace(".", ",") + "%";
 }
 function fmtAxis(n: number) {
-  if (n >= 1_000_000) return (n / 1_000_000).toLocaleString("de-AT", { maximumFractionDigits: 1 }) + "M";
-  if (n >= 1_000)     return (n / 1_000).toLocaleString("de-AT", { maximumFractionDigits: 0 }) + "k";
+  if (n >= 1_000_000) return (n / 1_000_000).toLocaleString("de-DE", { maximumFractionDigits: 1 }) + "M";
+  if (n >= 1_000)     return (n / 1_000).toLocaleString("de-DE", { maximumFractionDigits: 0 }) + "k";
   return String(n);
 }
 function yearStart() { return new Date().getFullYear() + "-01-01"; }

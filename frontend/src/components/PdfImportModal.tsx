@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { api, type PdfEntry, type Transaction } from "../api";
+import { formatDate } from "../utils/format";
 
 interface Props {
   supplierCode: string;
@@ -128,15 +129,15 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
                       const noMatch = e.customer_suggestions.length === 0;
                       return (
                       <tr key={i} className={noMatch ? "bg-amber-50" : i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                        <td className="px-3 py-2 whitespace-nowrap">{e.invoice_date}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">{formatDate(e.invoice_date)}</td>
                         <td className="px-3 py-2 font-mono">{e.invoice_number}</td>
                         <td className="px-3 py-2 text-right whitespace-nowrap">
-                          {e.total_amount.toLocaleString("de-AT", { minimumFractionDigits: 2 })}
+                          {e.total_amount.toLocaleString("de-DE", { minimumFractionDigits: 2 })}
                         </td>
                         <td className="px-3 py-2">{e.currency}</td>
                         <td className="px-3 py-2 text-right">{e.provision_rate}</td>
                         <td className="px-3 py-2 text-right whitespace-nowrap">
-                          {(e.provision_amount ?? 0).toLocaleString("de-AT", { minimumFractionDigits: 2 })}
+                          {(e.provision_amount ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2 })}
                         </td>
                         <td className="px-3 py-2 text-gray-500 max-w-[180px] truncate" title={e.customer_name_raw}>
                           {e.customer_name_clean || "–"}

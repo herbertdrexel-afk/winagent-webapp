@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type CommissionStatement, type Supplier } from "../api";
+import { formatDate } from "../utils/format";
 
 function today() { return new Date().toISOString().slice(0, 10); }
 function yearStart() { return new Date().getFullYear() + "-01-01"; }
@@ -114,17 +115,17 @@ export default function Commission() {
                     {s.statement_number ?? "–"}
                   </td>
                   <td className="px-4 py-2 text-gray-600 text-xs">
-                    {s.period_from} – {s.period_to}
+                    {formatDate(s.period_from)} – {formatDate(s.period_to)}
                   </td>
-                  <td className="px-4 py-2 text-gray-600">{s.statement_date ?? "–"}</td>
+                  <td className="px-4 py-2 text-gray-600">{s.statement_date ? formatDate(s.statement_date) : "–"}</td>
                   <td className="px-4 py-2 text-right">
                     {s.total_amount
-                      ? parseFloat(s.total_amount).toLocaleString("de-AT", { minimumFractionDigits: 2 })
+                      ? parseFloat(s.total_amount).toLocaleString("de-DE", { minimumFractionDigits: 2 })
                       : "–"}
                   </td>
                   <td className="px-4 py-2 text-right font-medium text-[#2563eb]">
                     {s.total_provision
-                      ? parseFloat(s.total_provision).toLocaleString("de-AT", { minimumFractionDigits: 2 })
+                      ? parseFloat(s.total_provision).toLocaleString("de-DE", { minimumFractionDigits: 2 })
                       : "–"}
                   </td>
                   <td className="px-4 py-2 text-gray-600">{s.currency ?? "–"}</td>

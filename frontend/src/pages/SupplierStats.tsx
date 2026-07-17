@@ -7,7 +7,7 @@ import DateRangePicker from "../components/DateRangePicker";
 // ── helpers ──────────────────────────────────────────────────────────────────
 function fmt(n: number, zero = "0") {
   if (n === 0) return zero;
-  return n.toLocaleString("de-AT", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return n.toLocaleString("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 function fmtPct(pct: number | null) {
   if (pct === null) return "***%";

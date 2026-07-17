@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, token, type InvoiceSummary } from "../api";
+import { formatDate } from "../utils/format";
 
 interface Props {
   supplierCode: string;
@@ -12,7 +13,7 @@ type Mode = "invoice_and_list" | "list_only";
 type Output = "screen" | "download";
 
 function fmt(n: number) {
-  return n.toLocaleString("de-AT", { minimumFractionDigits: 2 });
+  return n.toLocaleString("de-DE", { minimumFractionDigits: 2 });
 }
 
 export default function CommissionInvoiceModal({ supplierCode, periodFrom, periodTo, onClose }: Props) {
@@ -64,7 +65,7 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
       const confirmed = confirm(
         `Provisionsrechnung erstellen und speichern?\n\n` +
         `Lieferant: ${summary.supplier_name}\n` +
-        `Zeitraum: ${summary.period_from} bis ${summary.period_to}\n` +
+        `Zeitraum: ${formatDate(summary.period_from)} bis ${formatDate(summary.period_to)}\n` +
         `PR-Nummer(n): ${prNrs}\n\n` +
         `Die Rechnung wird unter "Provisionsrechnungen" gespeichert.`
       );
@@ -117,7 +118,7 @@ export default function CommissionInvoiceModal({ supplierCode, periodFrom, perio
               <div className="bg-[#f0f5fb] rounded-xl p-4 space-y-1">
                 <p className="text-sm font-semibold text-[#2563eb]">{summary.supplier_name}</p>
                 <p className="text-xs text-gray-500">
-                  Zeitraum: {summary.period_from} bis {summary.period_to}
+                  Zeitraum: {formatDate(summary.period_from)} bis {formatDate(summary.period_to)}
                 </p>
               </div>
 
