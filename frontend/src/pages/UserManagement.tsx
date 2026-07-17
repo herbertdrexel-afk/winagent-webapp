@@ -61,6 +61,7 @@ export default function UserManagement() {
   const [editFirst, setEditFirst] = useState("");
   const [editLast, setEditLast] = useState("");
   const [editLang, setEditLang] = useState("de");
+  const [editPass, setEditPass] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
   // Supplier access
@@ -83,6 +84,7 @@ export default function UserManagement() {
     setEditFirst(u.first_name ?? "");
     setEditLast(u.last_name ?? "");
     setEditLang(u.language ?? "de");
+    setEditPass("");
     setEditSupplierCodes(new Set());
     api.auth.userSuppliers(u.id)
       .then(codes => setEditSupplierCodes(new Set(codes)))
@@ -105,6 +107,7 @@ export default function UserManagement() {
         first_name: editFirst,
         last_name: editLast,
         language: editLang,
+        ...(editPass.trim() ? { password: editPass } : {}),
       });
       await api.auth.setUserSuppliers(editUser.id, Array.from(editSupplierCodes));
       setUsers(prev => prev.map(x => x.id === updated.id ? updated : x));
@@ -316,6 +319,13 @@ export default function UserManagement() {
                   <option value="de">{t.users.langDe}</option>
                   <option value="en">{t.users.langEn}</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">{t.users.newPasswordOptional}</label>
+                <input type="password" value={editPass} onChange={e => setEditPass(e.target.value)}
+                  autoComplete="new-password"
+                  placeholder={t.users.passwordUnchanged}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
               </div>
 
               {/* Supplier access — nur für Nicht-Admins relevant */}

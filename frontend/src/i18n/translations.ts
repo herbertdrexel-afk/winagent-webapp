@@ -306,6 +306,8 @@ const de = {
     supplierAccessHint: "Nichts angehakt = alle Lieferanten sichtbar. Angehakte = nur diese.",
     supplierAccessAll: "Alle",
     supplierAccessCount: (n: number) => `${n} Lieferant(en)`,
+    newPasswordOptional: "Neues Passwort",
+    passwordUnchanged: "leer lassen = unverändert",
   },
 };
 
@@ -615,6 +617,8 @@ const en: typeof de = {
     supplierAccessHint: "Nothing checked = all suppliers visible. Checked = only these.",
     supplierAccessAll: "All",
     supplierAccessCount: (n: number) => `${n} supplier(s)`,
+    newPasswordOptional: "New password",
+    passwordUnchanged: "leave empty = unchanged",
   },
 };
 
