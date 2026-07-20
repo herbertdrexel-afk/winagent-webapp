@@ -95,83 +95,95 @@ def customer_turnover(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    from sqlalchemy import or_
+
     ly_from = period_from.replace(year=period_from.year - 1)
     ly_to = period_to.replace(year=period_to.year - 1)
 
     allowed = get_allowed_supplier_ids(current_user, db)
 
+    T = models.Transaction
+    curr_t = func.coalesce(func.sum(
+        case((T.invoice_date.between(period_from, period_to), T.total_amount), else_=0)
+    ), 0)
+    curr_p = func.coalesce(func.sum(
+        case((T.invoice_date.between(period_from, period_to),
+              T.total_amount * func.coalesce(T.provision_rate, 0) / 100), else_=0)
+    ), 0)
+    prev_t = func.coalesce(func.sum(
+        case((T.invoice_date.between(ly_from, ly_to), T.total_amount), else_=0)
+    ), 0)
+
+    # Gruppierung je Kunde über alle (erlaubten) Lieferanten hinweg.
     q = (
         db.query(
-            func.coalesce(models.Transaction.customer_name, "–").label("customer_name"),
-            func.coalesce(func.sum(
-                case((models.Transaction.invoice_date.between(period_from, period_to),
-                      models.Transaction.total_amount), else_=0)
-            ), 0).label("curr_turnover"),
-            func.coalesce(func.sum(
-                case((models.Transaction.invoice_date.between(period_from, period_to),
-                      models.Transaction.total_amount * func.coalesce(models.Transaction.provision_rate, 0) / 100),
-                     else_=0)
-            ), 0).label("curr_provision"),
-            func.coalesce(func.sum(
-                case((models.Transaction.invoice_date.between(ly_from, ly_to),
-                      models.Transaction.total_amount), else_=0)
-            ), 0).label("prev_turnover"),
-            func.coalesce(func.sum(
-                case((models.Transaction.invoice_date.between(ly_from, ly_to),
-                      models.Transaction.total_amount * func.coalesce(models.Transaction.provision_rate, 0) / 100),
-                     else_=0)
-            ), 0).label("prev_provision"),
-            # avg provision rate (weighted) for current period
-            func.coalesce(
-                func.sum(
-                    case((models.Transaction.invoice_date.between(period_from, period_to),
-                          models.Transaction.total_amount * func.coalesce(models.Transaction.provision_rate, 0) / 100),
-                         else_=0)
-                ) * 100 / func.nullif(func.sum(
-                    case((models.Transaction.invoice_date.between(period_from, period_to),
-                          models.Transaction.total_amount), else_=0)
-                ), 0),
-                0,
-            ).label("avg_rate"),
+            models.Customer.id.label("cid"),
+            models.Customer.name.label("customer_name"),
+            models.Customer.city.label("customer_city"),
+            models.Customer.country_code.label("country_code"),
+            models.Customer.zip.label("zip"),
+            curr_t.label("curr_turnover"),
+            curr_p.label("curr_provision"),
+            prev_t.label("prev_turnover"),
         )
+        .join(models.Customer, T.customer_id == models.Customer.id)
+        .filter(or_(
+            T.invoice_date.between(period_from, period_to),
+            T.invoice_date.between(ly_from, ly_to),
+        ))
     )
     if allowed is not None:
-        q = q.filter(models.Transaction.supplier_id.in_(allowed))
-    rows = (
-        q.group_by(func.coalesce(models.Transaction.customer_name, "–"))
-        .having(
-            func.sum(case((models.Transaction.invoice_date.between(period_from, period_to),
-                           models.Transaction.total_amount), else_=0)) > 0
-        )
-        .all()
-    )
+        q = q.filter(T.supplier_id.in_(allowed))
+    rows = q.group_by(
+        models.Customer.id, models.Customer.name, models.Customer.city,
+        models.Customer.country_code, models.Customer.zip,
+    ).all()
 
-    result = []
-    total_provision = sum(float(r.curr_provision or 0) for r in rows)
+    # Nur Kunden mit Aktivität in einer der beiden Perioden
+    items = []
     for r in rows:
         ct = float(r.curr_turnover or 0)
         cp = float(r.curr_provision or 0)
         pt = float(r.prev_turnover or 0)
-        share = (cp / total_provision * 100) if total_provision else 0
+        if ct == 0 and cp == 0 and pt == 0:
+            continue
+        items.append({"ct": ct, "cp": cp, "pt": pt,
+                      "name": r.customer_name, "city": r.customer_city,
+                      "cc": r.country_code, "zip": r.zip})
+
+    total_provision = sum(x["cp"] for x in items)
+    total_curr = sum(x["ct"] for x in items)
+
+    result = []
+    for x in items:
+        ct, cp, pt = x["ct"], x["cp"], x["pt"]
         result.append({
-            "customer_name": r.customer_name,
+            "customer_name": x["name"] or "–",
+            "customer_city": x["city"] or "",
+            "country_code": x["cc"] or "",
+            "zip": x["zip"] or "",
             "curr_turnover": ct,
             "curr_provision": cp,
             "prev_turnover": pt,
-            "prev_provision": float(r.prev_provision or 0),
-            "avg_rate": float(r.avg_rate or 0),
-            "share_pct": round(share, 1),
+            # DuPr % = Provision / Umsatz
+            "du_pr_pct": round(cp / ct * 100, 2) if ct else None,
+            # Anteil % = Provision / Gesamt-Provision
+            "share_pct": round(cp / total_provision * 100, 1) if total_provision else 0,
+            # Wachstum % = Umsatz / Umsatz VJ * 100
+            "growth_pct": round(ct / pt * 100, 0) if pt else None,
         })
 
     if sort_by == "provision":
-        result.sort(key=lambda x: x["curr_provision"], reverse=True)
+        result.sort(key=lambda r: (r["curr_provision"], r["curr_turnover"]), reverse=True)
     else:
-        result.sort(key=lambda x: x["curr_turnover"], reverse=True)
+        result.sort(key=lambda r: (r["curr_turnover"], r["curr_provision"]), reverse=True)
 
     return {
         "period_from": period_from.isoformat(),
         "period_to": period_to.isoformat(),
         "sort_by": sort_by,
+        "totals": {"curr_turnover": total_curr, "curr_provision": total_provision,
+                   "prev_turnover": sum(x["pt"] for x in items)},
         "rows": result,
     }
 

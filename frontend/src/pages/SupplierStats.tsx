@@ -22,7 +22,17 @@ function authHeaders(): Record<string, string> {
 
 // ── types ────────────────────────────────────────────────────────────────────
 interface SupplierRow { code: string; name: string; curr_turnover: number; curr_commission: number; prev_turnover: number; prev_commission: number; comm_diff: number; comm_pct: number | null; }
-interface CustomerRow { customer_name: string; curr_turnover: number; curr_provision: number; prev_turnover: number; avg_rate: number; share_pct: number; }
+interface CustomerRow {
+  customer_name: string; customer_city?: string; country_code?: string; zip?: string;
+  curr_turnover: number; curr_provision: number; prev_turnover: number;
+  du_pr_pct: number | null; share_pct: number; growth_pct: number | null;
+}
+
+function custLabel(r: CustomerRow): string {
+  const loc = [r.zip, r.customer_city].filter(Boolean).join(" ").trim();
+  const withCc = loc ? (r.country_code ? `${r.country_code}-${loc}` : loc) : "";
+  return withCc ? `${r.customer_name}, ${withCc}` : r.customer_name;
+}
 interface DetailQRow  { label: string; prev_turnover: number; budget_turnover: number; curr_turnover: number; prev_commission: number; budget_commission: number; curr_commission: number; }
 interface DetailSupplier { code: string; name: string; rows: DetailQRow[]; }
 
@@ -167,42 +177,78 @@ function CustomerTurnoverTab({ sortBy }: { sortBy: "provision" | "turnover" }) {
         </button>
       </div>
       <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <table className="w-full text-sm whitespace-nowrap">
-          <thead className="bg-blue-600 text-white text-xs">
-            <tr>
-              <th className="px-4 py-2 text-left font-medium">{t.stats.nameCompany}</th>
-              <th className="px-3 py-2 text-right font-medium">{t.stats.turnoverPrev}</th>
-              <th className="px-3 py-2 text-right font-medium">{t.stats.turnoverCurr}</th>
-              <th className="px-3 py-2 text-right font-medium">{t.stats.commissionLabel}</th>
-              <th className="px-3 py-2 text-right font-medium">{t.stats.duPrPct}</th>
-              <th className="px-3 py-2 text-right font-medium">{t.stats.sharePct}</th>
-              <th className="px-3 py-2 text-center font-medium">{t.stats.rank}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? <tr><td colSpan={7} className="py-8 text-center text-gray-400">{t.common.loading}</td></tr>
-            : rows.map((r, i) => (
-              <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-blue-50/40"}>
-                <td className="px-4 py-1.5 text-gray-800">{r.customer_name}</td>
-                <td className="px-3 py-1.5 text-right text-gray-500 text-xs">{fmt(r.prev_turnover)}</td>
-                <td className="px-3 py-1.5 text-right font-medium">{fmt(r.curr_turnover)}</td>
-                <td className="px-3 py-1.5 text-right font-semibold text-emerald-700">{fmt(r.curr_provision)}</td>
-                <td className="px-3 py-1.5 text-right text-xs text-gray-600">{r.avg_rate.toFixed(2).replace(".", ",")}</td>
-                <td className="px-3 py-1.5 text-right text-xs text-gray-600">{r.share_pct.toFixed(1).replace(".", ",")}%</td>
-                <td className="px-3 py-1.5 text-center text-xs text-gray-400">{i + 1}</td>
+        {sortBy === "provision" ? (
+          <table className="w-full text-sm whitespace-nowrap">
+            <thead className="bg-blue-600 text-white text-xs">
+              <tr>
+                <th className="px-4 py-2 text-left font-medium">{t.stats.nameCompany}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.stats.turnoverPrev}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.stats.turnoverCurr}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.stats.commissionLabel}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.stats.duPrPct}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.stats.sharePct}</th>
+                <th className="px-3 py-2 text-center font-medium">{t.stats.rank}</th>
               </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t-2 border-blue-600 bg-blue-50 font-semibold">
-              <td className="px-4 py-2">{t.stats.grandTotal}</td>
-              <td className="px-3 py-2 text-right text-gray-500">{fmt(rows.reduce((s,r)=>s+r.prev_turnover,0))}</td>
-              <td className="px-3 py-2 text-right">{fmt(totT)}</td>
-              <td className="px-3 py-2 text-right text-emerald-700">{fmt(totP)}</td>
-              <td colSpan={3} />
-            </tr>
-          </tfoot>
-        </table>
+            </thead>
+            <tbody>
+              {loading ? <tr><td colSpan={7} className="py-8 text-center text-gray-400">{t.common.loading}</td></tr>
+              : rows.map((r, i) => (
+                <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-blue-50/40"}>
+                  <td className="px-4 py-1.5 text-gray-800">{custLabel(r)}</td>
+                  <td className="px-3 py-1.5 text-right text-gray-500 text-xs">{fmt(r.prev_turnover)}</td>
+                  <td className="px-3 py-1.5 text-right font-medium">{fmt(r.curr_turnover)}</td>
+                  <td className="px-3 py-1.5 text-right font-semibold text-emerald-700">{fmt(r.curr_provision)}</td>
+                  <td className="px-3 py-1.5 text-right text-xs text-gray-600">{r.du_pr_pct != null ? r.du_pr_pct.toFixed(2).replace(".", ",") : "–"}</td>
+                  <td className="px-3 py-1.5 text-right text-xs text-gray-600">{r.curr_provision ? `${r.share_pct.toFixed(1).replace(".", ",")}%` : "~"}</td>
+                  <td className="px-3 py-1.5 text-center text-xs text-gray-400">{i + 1}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-blue-600 bg-blue-50 font-semibold">
+                <td className="px-4 py-2">{t.stats.grandTotal}</td>
+                <td className="px-3 py-2 text-right text-gray-500">{fmt(rows.reduce((s,r)=>s+r.prev_turnover,0))}</td>
+                <td className="px-3 py-2 text-right">{fmt(totT)}</td>
+                <td className="px-3 py-2 text-right text-emerald-700">{fmt(totP)}</td>
+                <td colSpan={3} />
+              </tr>
+            </tfoot>
+          </table>
+        ) : (
+          <table className="w-full text-sm whitespace-nowrap">
+            <thead className="bg-blue-600 text-white text-xs">
+              <tr>
+                <th className="px-4 py-2 text-left font-medium">{t.stats.nameCompany}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.stats.turnoverPrev}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.stats.turnoverCurr}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.stats.growthPct}</th>
+                <th className="px-3 py-2 text-center font-medium">{t.stats.rank}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? <tr><td colSpan={5} className="py-8 text-center text-gray-400">{t.common.loading}</td></tr>
+              : rows.map((r, i) => (
+                <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-blue-50/40"}>
+                  <td className="px-4 py-1.5 text-gray-800">{custLabel(r)}</td>
+                  <td className="px-3 py-1.5 text-right text-gray-500 text-xs">{fmt(r.prev_turnover)}</td>
+                  <td className="px-3 py-1.5 text-right font-medium">{fmt(r.curr_turnover)}</td>
+                  <td className="px-3 py-1.5 text-right text-xs text-gray-600">
+                    {r.growth_pct == null ? "~" : r.growth_pct > 9999 ? "*****" : `${r.growth_pct.toFixed(0)}%`}
+                  </td>
+                  <td className="px-3 py-1.5 text-center text-xs text-gray-400">{i + 1}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-blue-600 bg-blue-50 font-semibold">
+                <td className="px-4 py-2">{t.stats.grandTotal}</td>
+                <td className="px-3 py-2 text-right text-gray-500">{fmt(rows.reduce((s,r)=>s+r.prev_turnover,0))}</td>
+                <td className="px-3 py-2 text-right">{fmt(totT)}</td>
+                <td colSpan={2} />
+              </tr>
+            </tfoot>
+          </table>
+        )}
       </div>
     </div>
   );

@@ -21,14 +21,41 @@ def _fmt_pct(pct) -> str:
     return f"{pct:+.1f}%".replace(".", ",")
 
 
+def _fmt_num2(n) -> str:
+    """Zahl mit 2 Nachkommastellen im dt. Format, z. B. 3,35."""
+    if n is None:
+        return "*,**"
+    return f"{n:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _xml(s: str) -> str:
+    """XML-escapen für ReportLab-Paragraphen (&, <, >)."""
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _cust_label(r: dict) -> str:
+    """Name / Firma inkl. Ort (mit Ländercode), wie im Alt-Report (XML-escaped)."""
+    name = (r.get("customer_name") or "–").strip()
+    cc = (r.get("country_code") or "").strip()
+    loc = " ".join(x for x in [(r.get("zip") or "").strip(), (r.get("customer_city") or "").strip()] if x).strip()
+    label = f"{name}, {cc}-{loc}" if (loc and cc) else (f"{name}, {loc}" if loc else name)
+    return _xml(label)
+
+
 def build_customer_turnover_pdf(data: dict) -> bytes:
-    """AdrUms report: customer list sorted by provision or turnover."""
+    """AdrUms-Report: Kundenliste sortiert nach Provision oder Umsatz.
+
+    Zwei Layouts:
+      - nach Provision: Name | Umsatz VJ | Umsatz | Provision | DuPr % | Anteil % | P.
+      - nach Umsatz:    Name | Umsatz VJ | Umsatz | Wachstum % | Pos.
+    """
     rows = data["rows"]
     sort_by = data.get("sort_by", "provision")
+    is_prov = sort_by == "provision"
     period_from = data["period_from"]
     period_to = data["period_to"]
     period_label = f"{period_from[5:7]}.{period_from[2:4]} - {period_to[5:7]}.{period_to[2:4]}"
-    sort_label = "nach Provision" if sort_by == "provision" else "nach Umsatz"
+    sort_label = "nach Provision" if is_prov else "nach Umsatz"
     today_str = date.today().strftime("%d.%m.%y")
 
     buf = BytesIO()
@@ -38,15 +65,15 @@ def build_customer_turnover_pdf(data: dict) -> bytes:
     styles = getSampleStyleSheet()
     n = styles["Normal"]; n.fontName = "Helvetica"; n.fontSize = 8
     bold = ParagraphStyle("b", parent=n, fontName="Helvetica-Bold")
-    right = ParagraphStyle("r", parent=n, alignment=TA_RIGHT)
     rb = ParagraphStyle("rb", parent=bold, alignment=TA_RIGHT)
     sm = ParagraphStyle("sm", parent=n, fontSize=7)
     smr = ParagraphStyle("smr", parent=sm, alignment=TA_RIGHT)
+    smc = ParagraphStyle("smc", parent=sm, alignment=TA_CENTER)
+    cb = ParagraphStyle("cb", parent=bold, alignment=TA_CENTER)
 
     story = []
-    # Header
     hd = [[
-        Paragraph(f"<b>Umsatzliste {period_label} {sort_label}</b>",
+        Paragraph(f"<b>Umsatzliste {period_label} {sort_label}</b> &nbsp; <font size=8 color='#666666'>AdrUms</font>",
                   ParagraphStyle("t", parent=n, fontName="Helvetica-Bold", fontSize=12)),
         Paragraph(today_str, ParagraphStyle("d", parent=n, fontSize=9, alignment=TA_RIGHT)),
     ]]
@@ -56,53 +83,74 @@ def build_customer_turnover_pdf(data: dict) -> bytes:
     story.append(Spacer(1, 0.3*cm))
 
     H_FILL = colors.HexColor("#2563eb")
-    COL_W = [6*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.2*cm, 1.8*cm, 1.8*cm, 1.0*cm]
-
-    total_prov = sum(r["curr_provision"] for r in rows)
-
-    thead = [[
-        Paragraph("<b>Name / Firma</b>", bold),
-        Paragraph("<b>Umsatz VJ</b>", rb),
-        Paragraph("<b>Budget</b>", rb),
-        Paragraph("<b>Umsatz</b>", rb),
-        Paragraph("<b>Budget-Prov</b>", rb),
-        Paragraph("<b>Provision</b>", rb),
-        Paragraph("<b>DuPr %</b>", rb),
-        Paragraph("<b>%</b>", rb),
-        Paragraph("<b>P.</b>", ParagraphStyle("c", parent=bold, alignment=TA_CENTER)),
-    ]]
-    table_data = thead[:]
-
-    for i, r in enumerate(rows, 1):
-        ct = r["curr_turnover"]; cp = r["curr_provision"]
-        pt = r["prev_turnover"]; rate = r["avg_rate"]
-        share = r["share_pct"]
-        table_data.append([
-            Paragraph(r["customer_name"], sm),
-            Paragraph(_fmt(pt), smr),
-            Paragraph("", smr),
-            Paragraph(_fmt(ct), smr),
-            Paragraph("", smr),
-            Paragraph(_fmt(cp), smr),
-            Paragraph(f"{rate:.2f}".replace(".", ","), smr),
-            Paragraph(f"{share:.1f}%".replace(".", ","), smr),
-            Paragraph(str(i), ParagraphStyle("c", parent=sm, alignment=TA_CENTER)),
-        ])
-
-    # Totals
     tot_t = sum(r["curr_turnover"] for r in rows)
     tot_p = sum(r["curr_provision"] for r in rows)
-    table_data.append([
-        Paragraph("<b>Gesamtsumme: EUR</b>", bold),
-        Paragraph("", rb),
-        Paragraph("", rb),
-        Paragraph(_fmt(tot_t), rb),
-        Paragraph("", rb),
-        Paragraph(_fmt(tot_p), rb),
-        Paragraph("", rb),
-        Paragraph("", rb),
-        Paragraph("", rb),
-    ])
+    tot_vj = sum(r["prev_turnover"] for r in rows)
+
+    if is_prov:
+        COL_W = [10.0*cm, 3.2*cm, 3.2*cm, 3.2*cm, 2.2*cm, 2.2*cm, 1.3*cm]
+        thead = [[
+            Paragraph("<b>Name / Firma</b>", bold),
+            Paragraph("<b>Umsatz VJ</b>", rb),
+            Paragraph("<b>Umsatz</b>", rb),
+            Paragraph("<b>Provision</b>", rb),
+            Paragraph("<b>DuPr %</b>", rb),
+            Paragraph("<b>Anteil %</b>", rb),
+            Paragraph("<b>P.</b>", cb),
+        ]]
+        table_data = thead[:]
+        for i, r in enumerate(rows, 1):
+            du = r.get("du_pr_pct")
+            share = r.get("share_pct") or 0
+            table_data.append([
+                Paragraph(_cust_label(r), sm),
+                Paragraph(_fmt(r["prev_turnover"]), smr),
+                Paragraph(_fmt(r["curr_turnover"]), smr),
+                Paragraph(_fmt(r["curr_provision"]), smr),
+                Paragraph(_fmt_num2(du) if du is not None else "*,**", smr),
+                Paragraph(f"{share:.1f}%".replace(".", ",") if r["curr_provision"] else "~ %", smr),
+                Paragraph(str(i), smc),
+            ])
+        table_data.append([
+            Paragraph("<b>Gesamtsumme: EUR</b>", bold),
+            Paragraph(_fmt(tot_vj), rb),
+            Paragraph(_fmt(tot_t), rb),
+            Paragraph(_fmt(tot_p), rb),
+            Paragraph("", rb), Paragraph("", rb), Paragraph("", rb),
+        ])
+    else:
+        COL_W = [12.0*cm, 3.6*cm, 3.6*cm, 2.6*cm, 1.4*cm]
+        thead = [[
+            Paragraph("<b>Name / Firma</b>", bold),
+            Paragraph("<b>Umsatz VJ</b>", rb),
+            Paragraph("<b>Umsatz</b>", rb),
+            Paragraph("<b>Wachstum %</b>", rb),
+            Paragraph("<b>Pos.</b>", cb),
+        ]]
+        table_data = thead[:]
+        for i, r in enumerate(rows, 1):
+            g = r.get("growth_pct")
+            if g is None:
+                g_str = "~ %"
+            elif g > 9999:
+                g_str = "*****"
+            else:
+                g_str = f"{g:.0f}%"
+            table_data.append([
+                Paragraph(_cust_label(r), sm),
+                Paragraph(_fmt(r["prev_turnover"]), smr),
+                Paragraph(_fmt(r["curr_turnover"]), smr),
+                Paragraph(g_str, smr),
+                Paragraph(str(i), smc),
+            ])
+        g_tot = (tot_t / tot_vj * 100) if tot_vj else None
+        table_data.append([
+            Paragraph("<b>Gesamtsumme: EUR</b>", bold),
+            Paragraph(_fmt(tot_vj), rb),
+            Paragraph(_fmt(tot_t), rb),
+            Paragraph(f"{g_tot:.0f}%" if g_tot is not None else "~ %", rb),
+            Paragraph("", rb),
+        ])
 
     t = Table(table_data, colWidths=COL_W, repeatRows=1)
     n_rows = len(rows)

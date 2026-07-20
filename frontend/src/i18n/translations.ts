@@ -186,6 +186,7 @@ const de = {
     rank: "P.",
     duPrPct: "DuPr %",
     sharePct: "Anteil %",
+    growthPct: "Wachstum %",
   },
   reports: {
     title: "Berichte",
@@ -497,6 +498,7 @@ const en: typeof de = {
     rank: "R.",
     duPrPct: "Avg. %",
     sharePct: "Share %",
+    growthPct: "Growth %",
   },
   reports: {
     title: "Reports",
