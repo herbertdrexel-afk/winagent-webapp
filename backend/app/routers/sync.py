@@ -211,6 +211,23 @@ async def import_dbf(
             .first()
         )
 
+        # Netto-Provision = PROVISION - PROV2..PROV6 (Sub-Vertreter-Anteile).
+        # Die Anteile werden zusaetzlich in provision_splits abgelegt.
+        def _n(key: str) -> float:
+            try:
+                return float(r.get(key) or 0)
+            except (TypeError, ValueError):
+                return 0.0
+
+        gross_rate = _n("PROVISION")
+        splits = []
+        for i in range(2, 7):
+            sub_rate = _n(f"PROV{i}")
+            if sub_rate:
+                rep = (r.get(f"REP{i}") or "").strip()
+                splits.append({"rate": round(sub_rate, 2), "rep_code": rep or None})
+        net_rate = round(gross_rate - sum(s["rate"] for s in splits), 2)
+
         fields = dict(
             supplier_id=supplier.id,
             customer_id=customer.id if customer else None,
@@ -222,7 +239,8 @@ async def import_dbf(
             quantity=r.get("MENGE"),
             unit=(r.get("ME_MENGE") or "").strip() or None,
             discount=r.get("RABATT"),
-            provision_rate=r.get("PROVISION"),
+            provision_rate=net_rate,
+            provision_splits=splits or None,
             price=r.get("PREIS"),
             currency=(r.get("WAEHRUNG") or "").strip() or None,
             total_amount=r.get("TOTAL_S") or 0,
