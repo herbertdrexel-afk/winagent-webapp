@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WinAgent – Benutzerhandbuch</title>
+<style>
+  :root {
+    --bg: #eef1f6;
+    --surface: #ffffff;
+    --surface-2: #f7f8fa;
+    --ink: #1a2230;
+    --ink-soft: #3d4657;
+    --muted: #6b7280;
+    --faint: #9aa3b2;
+    --border: #e2e5eb;
+    --border-strong: #d1d5db;
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --primary-soft: #dbeafe;
+    --tip-bg: #eff5ff; --tip-bd: #bcd3f7; --tip-ink: #1e40af;
+    --warn-bg: #fff8ec; --warn-bd: #f4dca6; --warn-ink: #92600a;
+    --imp-bg: #fef2f2; --imp-bd: #f6c9c9; --imp-ink: #b23434;
+    --ok-bg: #eefaf2; --ok-bd: #b7e6c9; --ok-ink: #1f7a45;
+    --radius: 12px;
+    --maxw: 46rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e131a; --surface: #161c26; --surface-2: #121821;
+      --ink: #e7eaf0; --ink-soft: #c2c9d6; --muted: #9aa3b2; --faint: #6b7482;
+      --border: #262e3a; --border-strong: #333d4c;
+      --primary: #5b8def; --primary-dark: #7aa5f5; --primary-soft: #1c2942;
+      --tip-bg: #13233f; --tip-bd: #2a4670; --tip-ink: #a9c6f5;
+      --warn-bg: #2e2410; --warn-bd: #5a4718; --warn-ink: #e9c877;
+      --imp-bg: #341a1a; --imp-bd: #5e2e2e; --imp-ink: #f0a9a9;
+      --ok-bg: #12291c; --ok-bd: #2a4d38; --ok-ink: #8ad5a6;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e131a; --surface: #161c26; --surface-2: #121821;
+    --ink: #e7eaf0; --ink-soft: #c2c9d6; --muted: #9aa3b2; --faint: #6b7482;
+    --border: #262e3a; --border-strong: #333d4c;
+    --primary: #5b8def; --primary-dark: #7aa5f5; --primary-soft: #1c2942;
+    --tip-bg: #13233f; --tip-bd: #2a4670; --tip-ink: #a9c6f5;
+    --warn-bg: #2e2410; --warn-bd: #5a4718; --warn-ink: #e9c877;
+    --imp-bg: #341a1a; --imp-bd: #5e2e2e; --imp-ink: #f0a9a9;
+    --ok-bg: #12291c; --ok-bd: #2a4d38; --ok-ink: #8ad5a6;
+  }
+  :root[data-theme="light"] {
+    --bg: #eef1f6; --surface: #ffffff; --surface-2: #f7f8fa;
+    --ink: #1a2230; --ink-soft: #3d4657; --muted: #6b7280; --faint: #9aa3b2;
+    --border: #e2e5eb; --border-strong: #d1d5db;
+    --primary: #2563eb; --primary-dark: #1d4ed8; --primary-soft: #dbeafe;
+    --tip-bg: #eff5ff; --tip-bd: #bcd3f7; --tip-ink: #1e40af;
+    --warn-bg: #fff8ec; --warn-bd: #f4dca6; --warn-ink: #92600a;
+    --imp-bg: #fef2f2; --imp-bd: #f6c9c9; --imp-ink: #b23434;
+    --ok-bg: #eefaf2; --ok-bd: #b7e6c9; --ok-ink: #1f7a45;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.62; font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: ui-monospace, "Cascadia Code", "SF Mono", Consolas, "Liberation Mono", monospace; }
+
+  /* ── Layout ── */
+  .wrap { max-width: 76rem; margin: 0 auto; padding: 0 clamp(1rem, 3vw, 2rem); }
+  .layout { display: grid; grid-template-columns: 16rem minmax(0,1fr); gap: clamp(1.5rem,4vw,3.5rem); align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: #fff; padding: clamp(2rem,6vw,3.6rem) 0 clamp(2.4rem,6vw,3.2rem);
+    border-bottom: 1px solid var(--border);
+  }
+  .hero .wrap { display: flex; flex-direction: column; gap: 1rem; }
+  .brandline { display: flex; align-items: center; gap: .7rem; }
+  .logo-w {
+    width: 38px; height: 38px; border-radius: 9px; background: rgba(255,255,255,.16);
+    display: grid; place-items: center; font-weight: 800; font-size: 19px; color:#fff;
+    border: 1px solid rgba(255,255,255,.28);
+  }
+  .brandline b { font-size: 1.05rem; letter-spacing: .01em; }
+  .hero h1 {
+    margin: .3rem 0 0; font-size: clamp(1.9rem, 5vw, 3rem); line-height: 1.08;
+    font-weight: 800; letter-spacing: -.02em; text-wrap: balance;
+  }
+  .hero p { margin: 0; max-width: 40rem; color: rgba(255,255,255,.9); font-size: 1.06rem; }
+  .hero .meta { margin-top: .6rem; font-size: .82rem; color: rgba(255,255,255,.75); }
+
+  /* ── TOC ── */
+  nav.toc {
+    position: sticky; top: 1.2rem; align-self: start;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1rem 1rem 1.1rem; font-size: .9rem; max-height: calc(100vh - 2.4rem); overflow-y: auto;
+  }
+  nav.toc .toc-h { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--faint); margin: 0 0 .6rem .2rem; font-weight: 700; }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+  nav.toc li { counter-increment: toc; }
+  nav.toc a {
+    display: flex; gap: .55rem; padding: .32rem .4rem; border-radius: 7px;
+    color: var(--ink-soft); text-decoration: none; transition: background .12s, color .12s;
+  }
+  nav.toc a::before { content: counter(toc); color: var(--faint); font-variant-numeric: tabular-nums; font-weight: 600; min-width: 1.1rem; }
+  nav.toc a:hover { background: var(--surface-2); color: var(--primary); }
+  @media (max-width: 900px) { nav.toc { position: static; max-height: none; margin-top: -1.4rem; } }
+
+  /* ── Content ── */
+  main { padding-bottom: 4rem; min-width: 0; }
+  section {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: clamp(1.3rem, 3vw, 2rem); margin-top: 1.4rem; scroll-margin-top: 1rem;
+  }
+  section:first-of-type { margin-top: clamp(1.5rem,4vw,2.2rem); }
+  .content { max-width: var(--maxw); }
+  h2 {
+    font-size: clamp(1.3rem,3vw,1.6rem); font-weight: 750; letter-spacing: -.01em; margin: 0 0 .2rem;
+    display: flex; align-items: baseline; gap: .7rem; text-wrap: balance;
+  }
+  h2 .num {
+    font-size: .82rem; font-weight: 700; color: var(--primary); background: var(--primary-soft);
+    padding: .12rem .5rem; border-radius: 999px; letter-spacing: .02em; flex: none; transform: translateY(-2px);
+  }
+  h3 { font-size: 1.06rem; font-weight: 700; margin: 1.6rem 0 .4rem; letter-spacing: -.005em; }
+  section > .content > p:first-of-type.lead { color: var(--ink-soft); font-size: 1.02rem; margin-top: .5rem; }
+  p { margin: .55rem 0; }
+  ul, ol { margin: .5rem 0; padding-left: 1.3rem; }
+  li { margin: .28rem 0; }
+  a { color: var(--primary); }
+  strong { font-weight: 680; }
+  code {
+    font-family: ui-monospace, Consolas, monospace; font-size: .86em;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; padding: .05em .38em;
+    color: var(--ink);
+  }
+  hr.soft { border: 0; border-top: 1px solid var(--border); margin: 1.6rem 0; }
+
+  /* Step list */
+  ol.steps { counter-reset: step; list-style: none; padding: 0; margin: .8rem 0; }
+  ol.steps > li {
+    counter-increment: step; position: relative; padding: .1rem 0 .1rem 2.4rem; margin: .5rem 0;
+  }
+  ol.steps > li::before {
+    content: counter(step); position: absolute; left: 0; top: .05rem;
+    width: 1.65rem; height: 1.65rem; border-radius: 50%; background: var(--primary); color: #fff;
+    font-size: .82rem; font-weight: 700; display: grid; place-items: center;
+  }
+
+  /* Callouts */
+  .box { border: 1px solid; border-radius: 10px; padding: .85rem 1rem; margin: 1rem 0; font-size: .95rem; }
+  .box .lbl { font-weight: 700; font-size: .74rem; text-transform: uppercase; letter-spacing: .07em; display: block; margin-bottom: .2rem; }
+  .box p { margin: .2rem 0; }
+  .tip { background: var(--tip-bg); border-color: var(--tip-bd); }
+  .tip .lbl { color: var(--tip-ink); }
+  .warn { background: var(--warn-bg); border-color: var(--warn-bd); }
+  .warn .lbl { color: var(--warn-ink); }
+  .important { background: var(--imp-bg); border-color: var(--imp-bd); }
+  .important .lbl { color: var(--imp-ink); }
+  .ok { background: var(--ok-bg); border-color: var(--ok-bd); }
+  .ok .lbl { color: var(--ok-ink); }
+
+  /* Tables */
+  .tablewrap { overflow-x: auto; margin: 1rem 0; border: 1px solid var(--border); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; min-width: 32rem; }
+  th, td { text-align: left; padding: .55rem .8rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  thead th { background: var(--surface-2); font-weight: 700; font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.mono, th.mono { font-family: ui-monospace, Consolas, monospace; font-size: .85rem; white-space: nowrap; }
+
+  /* Nav legend badges */
+  .navlegend { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem,1fr)); gap: .5rem; margin: 1rem 0; }
+  .navitem { display: flex; align-items: center; gap: .6rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: .5rem .7rem; }
+  .badge {
+    width: 30px; height: 30px; border-radius: 7px; background: var(--primary); color:#fff;
+    display: grid; place-items: center; font-weight: 800; font-size: 13px; flex: none;
+  }
+  .navitem .t { font-weight: 650; font-size: .92rem; }
+  .navitem .d { color: var(--muted); font-size: .8rem; }
+  .adminflag { font-size: .66rem; font-weight: 700; color: var(--imp-ink); background: var(--imp-bg); border:1px solid var(--imp-bd); padding: .05rem .35rem; border-radius: 999px; margin-left:.3rem; letter-spacing:.03em; vertical-align: middle;}
+
+  .pill { display:inline-block; font-size:.74rem; font-weight:700; padding:.1rem .5rem; border-radius:999px; letter-spacing:.02em; }
+  .pill.open { background: var(--warn-bg); color: var(--warn-ink); border:1px solid var(--warn-bd); }
+  .pill.paid { background: var(--ok-bg); color: var(--ok-ink); border:1px solid var(--ok-bd); }
+  .pill.check { background: var(--tip-bg); color: var(--tip-ink); border:1px solid var(--tip-bd); }
+
+  kbd {
+    font-family: ui-monospace, Consolas, monospace; font-size: .8em; background: var(--surface-2);
+    border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 5px; padding: .06em .4em; color: var(--ink);
+  }
+
+  footer.doc { text-align: center; color: var(--faint); font-size: .82rem; padding: 2rem 0 3rem; }
+
+  @media print {
+    body { background:#fff; font-size: 11pt; }
+    .hero { background:#1d4ed8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    nav.toc { display:none; }
+    .layout { grid-template-columns: 1fr; }
+    section { break-inside: avoid; border-color:#ccc; }
+  }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brandline">
+      <span class="logo-w">W</span>
+      <b>WinAgent</b>
+    </div>
+    <h1>Benutzerhandbuch</h1>
+    <p>Das Provisions- und Lieferantenverwaltungssystem – von der Anmeldung bis zur fertigen Provisionsrechnung. Schritt für Schritt erklärt.</p>
+    <div class="meta">Stand: Juli 2026 · Für Anwender und Administratoren</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="layout">
+
+    <nav class="toc" aria-label="Inhaltsverzeichnis">
+      <p class="toc-h">Inhalt</p>
+      <ol>
+        <li><a href="#start">Erste Schritte &amp; Anmeldung</a></li>
+        <li><a href="#navigation">Aufbau &amp; Navigation</a></li>
+        <li><a href="#dashboard">Dashboard</a></li>
+        <li><a href="#rechnungen">Rechnungen</a></li>
+        <li><a href="#import">Daten importieren</a></li>
+        <li><a href="#provrechnung">Provisionsrechnung erstellen</a></li>
+        <li><a href="#provisionen">Provisionsrechnungen verwalten</a></li>
+        <li><a href="#statistik">Statistik &amp; Auswertungen</a></li>
+        <li><a href="#stammdaten">Lieferanten &amp; Kunden</a></li>
+        <li><a href="#berichte">Berichte (Admin)</a></li>
+        <li><a href="#benutzer">Benutzer &amp; Zugriffsrechte (Admin)</a></li>
+        <li><a href="#konzepte">Wichtige Konzepte</a></li>
+        <li><a href="#faq">Tipps &amp; häufige Fragen</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <!-- 1 -->
+      <section id="start">
+        <div class="content">
+          <h2><span class="num">1</span> Erste Schritte &amp; Anmeldung</h2>
+          <p class="lead">WinAgent läuft komplett im Browser – es muss nichts installiert werden. Sie öffnen einfach die Adresse der Anwendung und melden sich an.</p>
+
+          <h3>Anmelden</h3>
+          <ol class="steps">
+            <li>Öffnen Sie WinAgent im Browser (Chrome, Edge, Safari …).</li>
+            <li>Geben Sie <strong>Benutzername</strong> und <strong>Passwort</strong> ein.</li>
+            <li>Klicken Sie auf <strong>Anmelden</strong>.</li>
+          </ol>
+
+          <h3>Neues Konto anlegen</h3>
+          <p>Über <strong>Registrieren</strong> können Sie sich selbst ein Konto anlegen. Danach muss ein <strong>Administrator das Konto freigeben</strong>, bevor Sie sich anmelden können. Alternativ legt ein Administrator Ihr Konto direkt an (siehe Kapitel 11).</p>
+
+          <h3>Ihr Profil &amp; die Sprache umstellen</h3>
+          <p>Oben rechts sehen Sie Ihr <strong>Namenskürzel</strong> in einem blauen Kreis. Ein Klick darauf öffnet Ihr Profil:</p>
+          <ul>
+            <li><strong>Vorname</strong> und <strong>Name</strong> hinterlegen</li>
+            <li><strong>Sprache</strong> wählen: <strong>Deutsch</strong> oder <strong>English</strong></li>
+          </ul>
+          <div class="box tip"><span class="lbl">Tipp</span>
+            <p>Die Sprachumstellung wirkt <strong>sofort</strong> auf das ganze Programm und wird bei Ihrem Benutzer gespeichert – beim nächsten Login ist sie wieder aktiv.</p>
+          </div>
+          <p>Über das <strong>Abmelden</strong>-Symbol (ganz rechts bzw. unten in der Seitenleiste) verlassen Sie das Programm sicher.</p>
+        </div>
+      </section>
+
+      <!-- 2 -->
+      <section id="navigation">
+        <div class="content">
+          <h2><span class="num">2</span> Aufbau &amp; Navigation</h2>
+          <p class="lead">Links (bzw. am unteren Rand auf dem Handy) finden Sie die Hauptnavigation. Jeder Bereich hat ein farbiges Kürzel-Symbol.</p>
+
+          <div class="navlegend">
+            <div class="navitem"><span class="badge">D</span><div><div class="t">Dashboard</div><div class="d">Kennzahlen-Überblick</div></div></div>
+            <div class="navitem"><span class="badge">%</span><div><div class="t">Provisionen</div><div class="d">Provisionsrechnungen</div></div></div>
+            <div class="navitem"><span class="badge">L</span><div><div class="t">Lieferanten</div><div class="d">Stammdaten</div></div></div>
+            <div class="navitem"><span class="badge">K</span><div><div class="t">Kunden</div><div class="d">Adressenstamm</div></div></div>
+            <div class="navitem"><span class="badge">R</span><div><div class="t">Rechnungen</div><div class="d">Umsätze / Transaktionen</div></div></div>
+            <div class="navitem"><span class="badge">S</span><div><div class="t">Statistik</div><div class="d">Auswertungen</div></div></div>
+            <div class="navitem"><span class="badge">B</span><div><div class="t">Berichte <span class="adminflag">Admin</span></div><div class="d">Automatische E-Mails</div></div></div>
+            <div class="navitem"><span class="badge">⚙</span><div><div class="t">Einstellungen <span class="adminflag">Admin</span></div><div class="d">Bankdaten u. a.</div></div></div>
+            <div class="navitem"><span class="badge">U</span><div><div class="t">Benutzer <span class="adminflag">Admin</span></div><div class="d">Konten &amp; Rechte</div></div></div>
+          </div>
+
+          <div class="box tip"><span class="lbl">Tipp</span>
+            <p>Am oberen Rand gibt es eine <strong>Suchleiste</strong>, die den gerade geöffneten Bereich durchsucht. Auf dem Desktop können Sie mehrere Bereiche als <strong>Tabs</strong> nebeneinander offen halten.</p>
+          </div>
+          <p>Mit <span class="adminflag">Admin</span> markierte Bereiche sehen nur Administratoren. Normale Benutzer sehen diese Menüpunkte gar nicht.</p>
+        </div>
+      </section>
+
+      <!-- 3 -->
+      <section id="dashboard">
+        <div class="content">
+          <h2><span class="num">3</span> Dashboard</h2>
+          <p class="lead">Der Startbildschirm zeigt eine <strong>Lieferanten-Statistik</strong> auf einen Blick – Umsatz und Provision im Vergleich zum Vorjahr.</p>
+          <p>Pro Lieferant sehen Sie:</p>
+          <ul>
+            <li><strong>Umsatz Aktuell</strong> und <strong>Umsatz Vorjahr</strong></li>
+            <li><strong>Provision Aktuell</strong> und <strong>Provision Vorjahr</strong></li>
+            <li><strong>Differenz</strong> und prozentuale <strong>Änderung</strong></li>
+          </ul>
+          <p>Über <strong>Details →</strong> gelangen Sie direkt in die ausführliche Statistik (Kapitel 8).</p>
+        </div>
+      </section>
+
+      <!-- 4 -->
+      <section id="rechnungen">
+        <div class="content">
+          <h2><span class="num">4</span> Rechnungen</h2>
+          <p class="lead">Hier liegen alle erfassten <strong>Umsätze</strong> (Kundenrechnungen der Lieferanten). Das ist der meistgenutzte Bereich.</p>
+
+          <h3>Lieferant &amp; Zeitraum wählen</h3>
+          <p>Ganz oben wählen Sie den <strong>Lieferanten</strong>. Darunter stellen Sie den <strong>Zeitraum</strong> über Schnellauswahl-Knöpfe ein:</p>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Knopf</th><th>Bedeutung</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Diese Woche</strong></td><td>Montag bis Sonntag der aktuellen Woche</td></tr>
+                <tr><td><strong>Dieser Monat</strong> / <strong>Letzter Monat</strong></td><td>Aktueller bzw. voriger Kalendermonat</td></tr>
+                <tr><td><strong>Q1 · Q2 · Q3 · Q4</strong></td><td>Quartale des gewählten Jahres</td></tr>
+                <tr><td><strong>Jahr</strong> + Jahres-Auswahl</td><td>Ganzes Kalenderjahr</td></tr>
+                <tr><td><strong>Von / Bis</strong></td><td>Eigener Zeitraum – frei eingebbar</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="box tip"><span class="lbl">Tipp</span>
+            <p>Ihre letzte Auswahl (Lieferant, Zeitraum, Jahr) wird gemerkt und beim nächsten Öffnen wiederhergestellt. Die Liste lädt automatisch – kein extra „Laden"-Klick nötig.</p>
+          </div>
+
+          <h3>Suchen</h3>
+          <p>Rechts neben dem Zeitraum filtern Sie die angezeigte Liste zusätzlich:</p>
+          <ul>
+            <li><strong>Rg-Nr</strong> – nach Rechnungsnummer</li>
+            <li><strong>Kunde</strong> – nach Kundenname oder Kundennummer</li>
+            <li><strong>Datum</strong> – z. B. <code>03.2026</code> oder <code>02.04.2026</code></li>
+          </ul>
+          <p>Mit <strong>Filter zurücksetzen</strong> löschen Sie alle Suchfelder wieder.</p>
+
+          <h3>Die Tabelle</h3>
+          <p>Spalten: <strong>Rg-Nr · Datum · Kd-Nr · Kunde · Pos. · Währung · Betrag · Prov. % · Provision</strong>. Ganz unten steht die <strong>Summe je Währung</strong>. Ein <strong>Klick auf eine Zeile</strong> öffnet die Rechnung zum Bearbeiten.</p>
+
+          <h3>Neue Rechnung erfassen</h3>
+          <ol class="steps">
+            <li>Lieferant auswählen.</li>
+            <li>Oben rechts auf <strong>+ Neu</strong> klicken.</li>
+            <li>Kunde, Datum, Betrag, Provisionssatz usw. eintragen und <strong>Speichern</strong>.</li>
+          </ol>
+          <div class="box tip"><span class="lbl">Tipp</span>
+            <p>Statt einzeln zu erfassen, können Sie ganze Dateien importieren – siehe Kapitel 5.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5 -->
+      <section id="import">
+        <div class="content">
+          <h2><span class="num">5</span> Daten importieren</h2>
+          <p class="lead">Im Bereich <strong>Rechnungen</strong> stehen oben rechts mehrere Import-Knöpfe zur Verfügung. Bereits vorhandene Rechnungen werden dabei aktualisiert statt doppelt angelegt.</p>
+
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Knopf</th><th>Wofür</th></tr></thead>
+              <tbody>
+                <tr><td>🔄 <strong>DBF</strong></td><td>Import der <code>*_INV.DBF</code>-Exportdateien aus dem alten System (je Lieferant/Jahr).</td></tr>
+                <tr><td>📊 <strong>CSV/Excel</strong></td><td>Import einer Provisionsabrechnung als CSV- oder Excel-Datei.</td></tr>
+                <tr><td>📨 <strong>E-Rechnung</strong></td><td>Import einer XRechnung (XML im UBL- oder CII-Format).</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>So importieren Sie</h3>
+          <ol class="steps">
+            <li>Passenden Lieferanten wählen (bei DBF/CSV).</li>
+            <li>Auf den Import-Knopf klicken und die Datei auswählen.</li>
+            <li>Bei CSV/Excel: die erkannten Zeilen und die vorgeschlagene Kundenzuordnung prüfen und bestätigen.</li>
+            <li>Nach dem Import erscheint eine Erfolgsmeldung mit der Anzahl importierter Zeilen.</li>
+          </ol>
+
+          <div class="box important"><span class="lbl">Wichtig – Provisionsberechnung</span>
+            <p>Beim DBF-Import wird die <strong>Netto-Provision</strong> gespeichert, also der Anteil des Hauptvertreters:</p>
+            <p class="mono">Provision = PROVISION − PROV2 − PROV3 − PROV4 − PROV5 − PROV6</p>
+            <p>Die Anteile der Unter-Vertreter (PROV2–PROV6) werden separat mitgespeichert. Details in Kapitel 12.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6 -->
+      <section id="provrechnung">
+        <div class="content">
+          <h2><span class="num">6</span> Provisionsrechnung erstellen</h2>
+          <p class="lead">Aus den erfassten Umsätzen erzeugen Sie mit wenigen Klicks die Provisionsrechnung (PR) für einen Lieferanten und Zeitraum.</p>
+
+          <ol class="steps">
+            <li>In <strong>Rechnungen</strong> Lieferant und Zeitraum wählen.</li>
+            <li>Oben rechts auf 🧾 <strong>Prov.-Rechn.</strong> klicken.</li>
+            <li>Das Fenster zeigt die Provisionssummen je Währung und die nächste freie <strong>PR-Nummer</strong>.</li>
+            <li>Wählen, ob nur die Rechnung oder Rechnung + Aufstellung erzeugt werden soll, und ob am Bildschirm angezeigt oder als PDF heruntergeladen.</li>
+            <li>Bestätigen – die Rechnung wird als PDF erzeugt und unter <strong>Provisionen</strong> gespeichert.</li>
+          </ol>
+
+          <div class="box tip"><span class="lbl">Gut zu wissen</span>
+            <p>Die <strong>Rechnungsnummer</strong> hat das Format <code>PR{Jahr}-{laufende Nummer}</code> (z. B. <code>PR26-0185</code>) und wird automatisch fortlaufend vergeben. Der Zähler merkt sich immer die zuletzt verwendete Nummer.</p>
+          </div>
+          <p>Zusätzlich können Sie eine <strong>Aufstellung</strong> (detaillierte Provisionsabrechnung als PDF) und einen <strong>UBW-Export</strong> (DBF für die Weiterverarbeitung) erzeugen.</p>
+        </div>
+      </section>
+
+      <!-- 7 -->
+      <section id="provisionen">
+        <div class="content">
+          <h2><span class="num">7</span> Provisionsrechnungen verwalten</h2>
+          <p class="lead">Der Bereich <strong>Provisionen</strong> listet alle erstellten Provisionsrechnungen.</p>
+          <p>Spalten: <strong>Lieferant · PR-Nr. · Zeitraum · Betrag · Status · Aktionen</strong>. Sie können nach Lieferant, Status und Zeitraum filtern.</p>
+
+          <h3>Status</h3>
+          <p>
+            <span class="pill open">Offen</span>
+            <span class="pill paid">Bezahlt</span>
+            <span class="pill check">In Prüfung</span>
+          </p>
+          <p>Den Status ändern Sie direkt in der Zeile. Über die <strong>Aktionen</strong> können Sie die Rechnung als <strong>PDF</strong> erneut drucken, <strong>bearbeiten</strong> oder <strong>löschen</strong>.</p>
+        </div>
+      </section>
+
+      <!-- 8 -->
+      <section id="statistik">
+        <div class="content">
+          <h2><span class="num">8</span> Statistik &amp; Auswertungen</h2>
+          <p class="lead">Umfangreiche Auswertungen über alle Lieferanten und Kunden – jeweils mit PDF-Export.</p>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Register</th><th>Inhalt</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Lieferant Statistik</strong></td><td>Umsatz &amp; Provision je Lieferant, Vergleich zum Vorjahr, mit Differenz und %-Änderung.</td></tr>
+                <tr><td><strong>Kunden-Detail</strong></td><td>Umsätze/Provisionen je Kunde (AdrUms) – wahlweise nach Provision oder Umsatz sortiert.</td></tr>
+                <tr><td><strong>Lieferant Detail (Quartale)</strong></td><td>Quartals- und Halbjahreswerte je Lieferant inkl. Budgetvergleich.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Oben wählen Sie den <strong>Zeitraum</strong> bzw. das <strong>Jahr</strong>. Über die Export-Knöpfe erzeugen Sie <strong>PDF</strong>, <strong>Aufstellung</strong> oder <strong>UBW-Export</strong>.</p>
+        </div>
+      </section>
+
+      <!-- 9 -->
+      <section id="stammdaten">
+        <div class="content">
+          <h2><span class="num">9</span> Lieferanten &amp; Kunden</h2>
+
+          <h3>Lieferanten <span class="badge" style="width:22px;height:22px;font-size:11px;vertical-align:middle;">L</span></h3>
+          <p>Liste aller Lieferanten mit Code, Name, Währung, Vertreter, Kontakt und Provisions-Splits. Über <strong>+ Neuer Lieferant</strong> legen Sie einen neuen an; per Klick bearbeiten Sie einen bestehenden (Adresse, Kontakt, Rechnungssprache usw.).</p>
+
+          <h3>Kunden <span class="badge" style="width:22px;height:22px;font-size:11px;vertical-align:middle;">K</span></h3>
+          <p>Der Adressenstamm mit Code, Name, Land, Stadt und Telefon. Über <strong>Reybex-Sync</strong> werden die Kundendaten automatisch abgeglichen; der Zeitpunkt des letzten Abgleichs wird angezeigt.</p>
+        </div>
+      </section>
+
+      <!-- 10 -->
+      <section id="berichte">
+        <div class="content">
+          <h2><span class="num">10</span> Berichte <span class="adminflag" style="font-size:.7rem;">nur Admin</span></h2>
+          <p class="lead">Automatisch per E-Mail versendete Berichte – z. B. jede Woche eine Umsatz-/Provisionsübersicht an ausgewählte Empfänger.</p>
+          <ol class="steps">
+            <li>Auf <strong>+ Neuer Bericht</strong> klicken.</li>
+            <li><strong>Name</strong>, <strong>Wochentag</strong> und <strong>Uhrzeit</strong> des Versands festlegen.</li>
+            <li><strong>Berichtszeitraum</strong> wählen (z. B. Letzte Woche, Letzter Monat, Quartal).</li>
+            <li><strong>Berichtsarten</strong> und <strong>Lieferanten</strong> auswählen (leer = alle).</li>
+            <li><strong>Empfänger</strong> aus der Benutzerliste anhaken und speichern.</li>
+          </ol>
+          <p>Mit <strong>Jetzt senden</strong> lösen Sie einen Bericht sofort aus. Zeitpläne lassen sich <strong>aktivieren/deaktivieren</strong>, bearbeiten und löschen.</p>
+          <div class="box warn"><span class="lbl">Voraussetzung</span>
+            <p>Empfänger brauchen eine hinterlegte <strong>E-Mail-Adresse</strong> (siehe Benutzerverwaltung). Fehlt sie, weist WinAgent darauf hin.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 11 -->
+      <section id="benutzer">
+        <div class="content">
+          <h2><span class="num">11</span> Benutzer &amp; Zugriffsrechte <span class="adminflag" style="font-size:.7rem;">nur Admin</span></h2>
+          <p class="lead">Administratoren verwalten hier alle Konten, Rollen und – besonders wichtig – wer welche Lieferanten sehen darf.</p>
+
+          <h3>Konten freigeben &amp; anlegen</h3>
+          <ul>
+            <li>Neu registrierte Benutzer erscheinen oben als <strong>ausstehend</strong> – mit <strong>Freigeben</strong> aktivieren oder mit <strong>Ablehnen</strong> entfernen.</li>
+            <li>Unten legen Sie über <strong>Neuer Benutzer</strong> direkt ein Konto mit Benutzername, Passwort und Rolle an.</li>
+          </ul>
+
+          <h3>Rollen</h3>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Rolle</th><th>Rechte</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Administrator</strong></td><td>Sieht und verwaltet alles: Benutzer, Berichte, Einstellungen und <strong>alle</strong> Lieferanten.</td></tr>
+                <tr><td><strong>Benutzer</strong></td><td>Sieht Dashboard, Rechnungen, Statistik usw. – aber nur die <strong>freigegebenen Lieferanten</strong>. Kein Zugriff auf Benutzer/Berichte/Einstellungen.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Benutzer bearbeiten</h3>
+          <p>Über <strong>✏ Bearbeiten</strong> öffnen Sie das Bearbeiten-Fenster mit:</p>
+          <ul>
+            <li><strong>Vorname</strong> / <strong>Name</strong></li>
+            <li><strong>Sprache</strong> (Deutsch / English)</li>
+            <li><strong>Neues Passwort</strong> – leer lassen = unverändert</li>
+            <li><strong>Lieferanten-Zugriff</strong> (nur bei Rolle „Benutzer")</li>
+          </ul>
+
+          <h3>Lieferanten-Zugriff festlegen</h3>
+          <div class="box important"><span class="lbl">So funktioniert die Einschränkung</span>
+            <p>Im Bearbeiten-Fenster eines <strong>Benutzers</strong> gibt es eine Liste aller Lieferanten mit Kästchen und einer <strong>„Alle"</strong>-Zeile zum An-/Abwählen:</p>
+            <p>• <strong>Nichts angehakt</strong> = der Benutzer sieht <strong>alle</strong> Lieferanten.<br>
+               • <strong>Angehakt</strong> = der Benutzer sieht <strong>nur</strong> diese Lieferanten – überall (Rechnungen, Statistik, Provisionen).</p>
+            <p>Bei <strong>Administratoren</strong> gibt es diese Einstellung nicht – sie sehen grundsätzlich alles.</p>
+          </div>
+          <p>Die Einschränkung wird serverseitig durchgesetzt: Ein Benutzer kann fremde Lieferanten auch nicht über Umwege abrufen.</p>
+        </div>
+      </section>
+
+      <!-- 12 -->
+      <section id="konzepte">
+        <div class="content">
+          <h2><span class="num">12</span> Wichtige Konzepte</h2>
+
+          <h3>Provisionsberechnung (netto)</h3>
+          <p>Der in einer Rechnung gespeicherte Provisionssatz ist immer der <strong>Netto-Satz</strong> des Hauptvertreters – die Anteile der Unter-Vertreter sind bereits abgezogen:</p>
+          <div class="box ok"><span class="lbl">Formel</span>
+            <p class="mono">Netto-Provision = PROVISION − PROV2 − PROV3 − PROV4 − PROV5 − PROV6</p>
+            <p>Beispiel: Gesamtprovision 6 %, ein Unter-Vertreter erhält 3 % → gespeichert werden <strong>3 %</strong>.</p>
+          </div>
+          <p>Dadurch stimmen die berechneten Provisionsbeträge exakt mit den tatsächlich abgerechneten Provisionsrechnungen überein.</p>
+
+          <h3>Datums- und Zahlenformat</h3>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Format</th><th>Darstellung</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Datum</strong></td><td class="mono">T.M.J&nbsp;&nbsp;→&nbsp;&nbsp;02.04.2026</td></tr>
+                <tr><td><strong>Zahlen / Beträge</strong></td><td class="mono">28.222,20 &nbsp;(Punkt = Tausender, Komma = Dezimal)</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Mehrere Währungen</h3>
+          <p>Umsätze werden in ihrer Originalwährung (EUR, USD, CHF …) geführt. Summen und Provisionsrechnungen werden <strong>je Währung getrennt</strong> ausgewiesen.</p>
+        </div>
+      </section>
+
+      <!-- 13 -->
+      <section id="faq">
+        <div class="content">
+          <h2><span class="num">13</span> Tipps &amp; häufige Fragen</h2>
+
+          <h3>Nach einer Änderung sehe ich die neuen Daten nicht</h3>
+          <p>Laden Sie die Seite neu: <kbd>Strg</kbd> + <kbd>F5</kbd> (Mac: <kbd>Cmd</kbd> + <kbd>R</kbd>). So holt der Browser die aktuelle Version.</p>
+
+          <h3>Beim Öffnen der Rechnungen erscheint ein Fehler „403"</h3>
+          <p>Das bedeutet fehlende Berechtigung für den gewählten Lieferanten. Ein Administrator kann den Lieferanten-Zugriff Ihres Kontos anpassen (Kapitel 11).</p>
+
+          <h3>Ich finde „Berichte" oder „Benutzer" nicht</h3>
+          <p>Diese Bereiche sind nur für Administratoren sichtbar. Als normaler Benutzer werden sie ausgeblendet.</p>
+
+          <h3>Wie ändere ich mein Passwort?</h3>
+          <p>Ein Administrator setzt es im Bearbeiten-Fenster Ihres Kontos neu (Feld „Neues Passwort").</p>
+
+          <h3>Kann ich das Handbuch drucken?</h3>
+          <p>Ja – über die Druckfunktion des Browsers (<kbd>Strg</kbd> + <kbd>P</kbd>). Das Layout ist für den Druck optimiert.</p>
+
+          <div class="box tip"><span class="lbl">Kurz-Spickzettel</span>
+            <p><strong>Rechnungen:</strong> Lieferant → Zeitraum → (Suche) → Zeile anklicken zum Bearbeiten.<br>
+            <strong>Provisionsrechnung:</strong> Rechnungen → 🧾 Prov.-Rechn. → bestätigen.<br>
+            <strong>Import:</strong> Rechnungen → 🔄 DBF / 📊 CSV/Excel / 📨 E-Rechnung.<br>
+            <strong>Rechte:</strong> Benutzer → ✏ Bearbeiten → Lieferanten-Zugriff.</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<footer class="doc">
+  WinAgent · Benutzerhandbuch · Provisions- und Lieferantenverwaltung
+</footer>
+</body>
+</html>
