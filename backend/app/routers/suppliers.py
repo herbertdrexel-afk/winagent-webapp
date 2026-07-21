@@ -194,13 +194,14 @@ def _parse_csv_content(content: bytes) -> list[dict]:
     reader = csv.DictReader(StringIO(text), delimiter=delimiter)
     entries = []
     for row in reader:
-        waehrung = (row.get('Währung') or row.get('Waehrung') or '').strip()
-        kunde    = (row.get('Kunde') or '').strip()
-        datum    = (row.get('Datum') or '').strip()
-        re_nr    = str(row.get('Rechnungsnummer') or '').strip()
-        basis    = _parse_num_de(row.get('Provisionsbasis') or 0)
-        rate     = _parse_num_de(row.get('Provision %') or row.get('Provision%') or 0)
-        prov     = _parse_num_de(row.get('Provision') or 0)
+        waehrung = (row.get('Währung') or row.get('Waehrung') or row.get('Currency') or '').strip()
+        kunde    = (row.get('Kunde') or row.get('Customer') or '').strip()
+        datum    = (row.get('Datum') or row.get('Date') or '').strip()
+        re_nr    = str(row.get('Rechnungsnummer') or row.get('Invoice Number') or row.get('Invoice') or '').strip()
+        basis    = _parse_num_de(row.get('Provisionsbasis') or row.get('Commission Basis') or row.get('Basis') or 0)
+        rate     = _parse_num_de(row.get('Provision %') or row.get('Provision%')
+                                 or row.get('Commission %') or row.get('Commission%') or 0)
+        prov     = _parse_num_de(row.get('Provision') or row.get('Commission') or 0)
         if not waehrung or not kunde or not datum:
             continue
         entries.append({
@@ -239,13 +240,14 @@ def _parse_excel_content(content: bytes) -> list[dict]:
     i_knd = _idx('kunde', 'customer')
     i_dat = _idx('datum', 'date')
     i_rnr = _idx('rechnungsnummer', 'invoice')
-    i_bas = _idx('provisionsbasis', 'basis')
-    i_rat = _idx('provision %', 'provision%', '% provision')
-    # 'provision' (Betrag) darf nicht mit 'provisionsbasis'/'provision %' kollidieren
-    i_prv = next((k for k, h in enumerate(headers) if h == 'provision'), None)
+    i_bas = _idx('provisionsbasis', 'commission basis', 'basis')
+    i_rat = _idx('provision %', 'provision%', '% provision',
+                 'commission %', 'commission%', '% commission')
+    # 'provision'/'commission' (Betrag) darf nicht mit Basis-/%-Spalte kollidieren
+    i_prv = next((k for k, h in enumerate(headers) if h in ('provision', 'commission')), None)
     if i_prv is None:
         i_prv = next((k for k, h in enumerate(headers)
-                      if 'provision' in h and k not in (i_bas, i_rat)), None)
+                      if ('provision' in h or 'commission' in h) and k not in (i_bas, i_rat)), None)
 
     def cell(row: tuple, idx: int | None):
         return row[idx] if idx is not None and idx < len(row) else None
