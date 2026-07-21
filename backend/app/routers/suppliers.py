@@ -241,7 +241,11 @@ def _parse_excel_content(content: bytes) -> list[dict]:
     i_rnr = _idx('rechnungsnummer', 'invoice')
     i_bas = _idx('provisionsbasis', 'basis')
     i_rat = _idx('provision %', 'provision%', '% provision')
-    i_prv = _idx('provision')
+    # 'provision' (Betrag) darf nicht mit 'provisionsbasis'/'provision %' kollidieren
+    i_prv = next((k for k, h in enumerate(headers) if h == 'provision'), None)
+    if i_prv is None:
+        i_prv = next((k for k, h in enumerate(headers)
+                      if 'provision' in h and k not in (i_bas, i_rat)), None)
 
     def cell(row: tuple, idx: int | None):
         return row[idx] if idx is not None and idx < len(row) else None
