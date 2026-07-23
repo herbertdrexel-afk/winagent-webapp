@@ -88,10 +88,28 @@ async def _report_scheduler():
             logger.warning("Report scheduler outer error: %s", e)
 
 
+async def _feed_poller():
+    """Ruft konfigurierte Reybex-Abhol-Feeds täglich ab und importiert sie."""
+    while True:
+        await asyncio.sleep(24 * 3600)
+        try:
+            from .routers.ingest import pull_all_feeds
+            db = SessionLocal()
+            try:
+                result = pull_all_feeds(db, source="reybex-feed-cron")
+                if result:
+                    logger.info("Feed-Poller: %s", result)
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning("Feed-Poller Fehler: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     asyncio.create_task(_scheduled_sync())
     asyncio.create_task(_report_scheduler())
+    asyncio.create_task(_feed_poller())
     yield
 
 # Create any missing tables without touching existing ones

@@ -11,7 +11,10 @@ Zwei Wege:
 Token: Header X-Ingest-Token, Authorization: Bearer, HTTP-Basic (Passwort=Token) oder ?token=.
 """
 import os
+import re
 import base64
+import httpx
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request, Query
 from sqlalchemy.orm import Session
 
@@ -22,6 +25,8 @@ from .sync import import_dbf_bytes, import_einvoice_bytes
 from .suppliers import (
     parse_import_content, import_records_for_supplier, _looks_like_xrechnung,
 )
+
+FEEDS_KEY = "reybex_feeds"
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 
@@ -158,6 +163,102 @@ async def ingest_file(
     return {"id": row.id, "filename": row.filename, "type": row.file_type,
             "status": row.status, "imported": row.imported, "skipped": row.skipped,
             "detail": row.detail}
+
+
+# ── Reybex-Abhol-Feeds (Pull): pro Lieferant eine dataExportFeed-URL ──────────
+
+def _load_feeds(db: Session) -> dict:
+    row = db.get(models.AppSetting, FEEDS_KEY)
+    return dict(row.value) if row and isinstance(row.value, dict) else {}
+
+
+def _save_feeds(db: Session, feeds: dict) -> None:
+    row = db.get(models.AppSetting, FEEDS_KEY)
+    if row:
+        row.value = feeds
+    else:
+        db.add(models.AppSetting(key=FEEDS_KEY, value=feeds))
+    db.commit()
+
+
+def _mask_url(u: str) -> str:
+    return re.sub(r'(feedToken=)([^&]+)',
+                  lambda m: m.group(1) + m.group(2)[:4] + '…' + m.group(2)[-2:], u or "")
+
+
+def pull_feed(supplier, url: str, db: Session, source: str = "reybex-feed") -> dict:
+    """Ruft eine Feed-URL ab und importiert die Zeilen für den Lieferanten."""
+    name = f"feed:{supplier.code}"
+    try:
+        with httpx.Client(timeout=45, follow_redirects=True) as client:
+            r = client.get(url)
+        r.raise_for_status()
+    except Exception as e:
+        _log(db, name, source, "csv", "error", detail=f"Abruf fehlgeschlagen: {e}")
+        return {"status": "error", "detail": str(e)}
+
+    content = r.content
+    ct = (r.headers.get("content-type") or "").lower()
+    ext = "json" if "json" in ct else "xml" if "xml" in ct else "csv"
+    try:
+        records = parse_import_content(content, ext)
+    except Exception as e:
+        _log(db, name, source, ext, "error", detail=f"Parsen fehlgeschlagen: {e}")
+        return {"status": "error", "detail": str(e)}
+    if not records:
+        _log(db, name, source, ext, "error", detail="Keine gültigen Zeilen im Feed.")
+        return {"status": "error", "detail": "leer"}
+
+    res = import_records_for_supplier(records, supplier, db)
+    detail = f"{res['unmatched']} Kunden nicht zugeordnet" if res["unmatched"] else None
+    _log(db, name, source, ext, "ok", res["imported"], res["skipped"], detail)
+    return {"status": "ok", **res}
+
+
+def pull_all_feeds(db: Session, source: str = "reybex-feed") -> dict:
+    feeds = _load_feeds(db)
+    out = {}
+    for code, url in feeds.items():
+        supplier = db.query(models.Supplier).filter(models.Supplier.code == code.upper()).first()
+        if supplier:
+            out[code] = pull_feed(supplier, url, db, source)
+    return out
+
+
+class FeedsBody(BaseModel):
+    feeds: dict[str, str]
+
+
+@router.get("/feeds")
+def list_feeds(_: models.User = Depends(require_admin), db: Session = Depends(get_db)):
+    return {code: {"url": _mask_url(u)} for code, u in _load_feeds(db).items()}
+
+
+@router.put("/feeds")
+def set_feeds(body: FeedsBody, _: models.User = Depends(require_admin), db: Session = Depends(get_db)):
+    codes = {c.upper() for c in body.feeds}
+    found = {s.code for s in db.query(models.Supplier).filter(models.Supplier.code.in_(codes)).all()}
+    missing = codes - found
+    if missing:
+        raise HTTPException(400, f"Unbekannte Lieferanten: {', '.join(sorted(missing))}")
+    _save_feeds(db, {c.upper(): u.strip() for c, u in body.feeds.items() if u.strip()})
+    return {"ok": True, "count": len(body.feeds)}
+
+
+@router.post("/feeds/{supplier_code}/pull")
+def pull_feed_now(supplier_code: str, _: models.User = Depends(require_admin), db: Session = Depends(get_db)):
+    supplier = db.query(models.Supplier).filter(models.Supplier.code == supplier_code.upper()).first()
+    if not supplier:
+        raise HTTPException(404, f"Lieferant '{supplier_code}' nicht gefunden.")
+    url = _load_feeds(db).get(supplier_code.upper())
+    if not url:
+        raise HTTPException(404, f"Kein Feed für '{supplier_code}' konfiguriert.")
+    return pull_feed(supplier, url, db, source="reybex-feed-manual")
+
+
+@router.post("/feeds/pull-all")
+def pull_feeds_now(_: models.User = Depends(require_admin), db: Session = Depends(get_db)):
+    return pull_all_feeds(db, source="reybex-feed-manual")
 
 
 @router.get("/log")
