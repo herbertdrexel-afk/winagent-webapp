@@ -310,7 +310,35 @@ export const api = {
       fetch(`${BASE}/mandants/${id}`, { method: "DELETE", headers: authHeaders() })
         .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   },
+  ingest: {
+    feeds: () => get<Record<string, { url: string }>>("/ingest/feeds"),
+    setFeeds: (feeds: Record<string, string>) =>
+      fetch(`${BASE}/ingest/feeds`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ feeds }),
+      }).then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json(); }),
+    pull: (code: string) =>
+      fetch(`${BASE}/ingest/feeds/${code}/pull`, { method: "POST", headers: authHeaders() })
+        .then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json() as Promise<IngestPullResult>; }),
+    pullAll: () =>
+      fetch(`${BASE}/ingest/feeds/pull-all`, { method: "POST", headers: authHeaders() })
+        .then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json() as Promise<Record<string, IngestPullResult>>; }),
+    log: () => get<IngestLogEntry[]>("/ingest/log"),
+  },
 };
+
+export interface IngestPullResult {
+  status: string;
+  new?: number; updated?: number; unchanged?: number;
+  skipped?: number; unmatched?: number; imported?: number; detail?: string;
+}
+
+export interface IngestLogEntry {
+  id: number; filename: string; source: string; file_type: string;
+  status: string; imported: number; skipped: number;
+  detail: string | null; created_at: string | null;
+}
 
 export interface InvoiceSummary {
   supplier_code: string;

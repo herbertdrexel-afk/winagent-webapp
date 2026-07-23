@@ -21,6 +21,7 @@ const NAV_DEFS: NavItemDef[] = [
   { to: "/transactions",        tKey: "invoices",   short: "R" },
   { to: "/stats",               tKey: "stats",      short: "S" },
   { to: "/reports",             tKey: "reports",    short: "B", adminOnly: true },
+  { to: "/reybex-feeds",        tKey: "feeds",      short: "⇊", adminOnly: true },
   { to: "/bank-accounts",       tKey: "settings",   short: "⚙", adminOnly: true },
   { to: "/users",               tKey: "users",      short: "U", adminOnly: true },
 ];

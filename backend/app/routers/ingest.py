@@ -109,7 +109,9 @@ async def ingest_for_supplier(
                 row = _log(db, fname, source, ext, "error", detail="Keine gültigen Zeilen erkannt.")
             else:
                 res = import_records_for_supplier(records, supplier, db)
-                detail = f"{res['unmatched']} Kunden nicht zugeordnet" if res["unmatched"] else None
+                detail = f"{res['new']} neu, {res['updated']} aktualisiert, {res['unchanged']} unverändert"
+                if res["unmatched"]:
+                    detail += f", {res['unmatched']} ohne Kunde"
                 row = _log(db, fname, source, ext, "ok",
                            res["imported"], res["skipped"], detail)
         else:
@@ -210,7 +212,9 @@ def pull_feed(supplier, url: str, db: Session, source: str = "reybex-feed") -> d
         return {"status": "error", "detail": "leer"}
 
     res = import_records_for_supplier(records, supplier, db)
-    detail = f"{res['unmatched']} Kunden nicht zugeordnet" if res["unmatched"] else None
+    detail = f"{res['new']} neu, {res['updated']} aktualisiert, {res['unchanged']} unverändert"
+    if res["unmatched"]:
+        detail += f", {res['unmatched']} ohne Kunde"
     _log(db, name, source, ext, "ok", res["imported"], res["skipped"], detail)
     return {"status": "ok", **res}
 
@@ -236,13 +240,21 @@ def list_feeds(_: models.User = Depends(require_admin), db: Session = Depends(ge
 
 @router.put("/feeds")
 def set_feeds(body: FeedsBody, _: models.User = Depends(require_admin), db: Session = Depends(get_db)):
-    codes = {c.upper() for c in body.feeds}
+    incoming = {c.upper(): u.strip() for c, u in body.feeds.items()}
+    codes = set(incoming)
     found = {s.code for s in db.query(models.Supplier).filter(models.Supplier.code.in_(codes)).all()}
     missing = codes - found
     if missing:
         raise HTTPException(400, f"Unbekannte Lieferanten: {', '.join(sorted(missing))}")
-    _save_feeds(db, {c.upper(): u.strip() for c, u in body.feeds.items() if u.strip()})
-    return {"ok": True, "count": len(body.feeds)}
+    # Merge: gesetzte URLs übernehmen, leere entfernen, übrige behalten
+    feeds = _load_feeds(db)
+    for code, url in incoming.items():
+        if url:
+            feeds[code] = url
+        else:
+            feeds.pop(code, None)
+    _save_feeds(db, feeds)
+    return {"ok": True, "count": len(feeds)}
 
 
 @router.post("/feeds/{supplier_code}/pull")

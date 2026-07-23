@@ -449,7 +449,7 @@ def import_records_for_supplier(records: list[dict], supplier, db: Session) -> d
         if c.name:
             by_name.setdefault(c.name.strip().lower(), c)
 
-    imported = skipped = unmatched = 0
+    new = updated = unchanged = skipped = unmatched = 0
     for e in records:
         cur = (e.get('currency') or '').strip()
         iso = (e.get('invoice_date') or '').strip()
@@ -471,34 +471,50 @@ def import_records_for_supplier(records: list[dict], supplier, db: Session) -> d
             unmatched += 1
 
         inv_nr = (e.get('invoice_number') or '').strip()[:10]
+        new_total = round(float(e.get('total_amount') or 0), 2)
+        new_rate = round(float(e.get('provision_rate') or 0), 4)
+
+        # Bestehende Rechnung über (Lieferant + Rechnungsnummer) finden
         existing = None
         if inv_nr:
             existing = (
                 db.query(models.Transaction)
-                .filter_by(supplier_id=supplier.id, invoice_number=inv_nr, invoice_date=d)
+                .filter_by(supplier_id=supplier.id, invoice_number=inv_nr)
                 .first()
             )
+
+        # Schon vorhanden UND unverändert (Betrag + Provisionssatz gleich) → überspringen
+        if existing is not None and \
+           round(float(existing.total_amount or 0), 2) == new_total and \
+           round(float(existing.provision_rate or 0), 4) == new_rate:
+            unchanged += 1
+            continue
+
         fields = dict(
             supplier_id=supplier.id,
             customer_id=cust.id if cust else None,
             year=d.year,
             invoice_number=inv_nr,
             invoice_date=d,
-            provision_rate=e.get('provision_rate') or 0,
+            provision_rate=new_rate,
             currency=cur,
-            total_amount=e.get('total_amount') or 0,
+            total_amount=new_total,
             exchange_rate=1,
             notes=None if cust else (f"Kunde nicht zugeordnet: {name}"[:200] or None),
         )
-        if existing:
+        if existing is not None:
+            # Betrag/Provision hat sich geändert → bestehende Rechnung überschreiben
             for k, v in fields.items():
                 setattr(existing, k, v)
+            updated += 1
         else:
             db.add(models.Transaction(**fields))
-        imported += 1
+            new += 1
 
     db.commit()
-    return {"imported": imported, "skipped": skipped, "unmatched": unmatched}
+    return {"new": new, "updated": updated, "unchanged": unchanged,
+            "skipped": skipped, "unmatched": unmatched,
+            "imported": new + updated}
 
 
 @router.post("/{code}/transactions/parse-csv")
