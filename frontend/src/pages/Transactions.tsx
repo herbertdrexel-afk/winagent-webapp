@@ -17,7 +17,13 @@ const LS_PERIOD   = "winagent_tx_period";
 
 type PeriodKey = "this_week" | "this_month" | "last_month" | "q1" | "q2" | "q3" | "q4" | "year" | null;
 
-function isoDate(d: Date) { return d.toISOString().slice(0, 10); }
+function isoDate(d: Date) {
+  // Lokale Datumsteile verwenden – toISOString() würde bei UTC+x einen Tag zurückspringen
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 function computePeriod(key: PeriodKey, year: number): { from: string; to: string } {
   const now = new Date();
