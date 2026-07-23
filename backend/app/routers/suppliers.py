@@ -202,6 +202,7 @@ def _parse_csv_content(content: bytes) -> list[dict]:
         rate     = _parse_num_de(row.get('Provision %') or row.get('Provision%')
                                  or row.get('Commission %') or row.get('Commission%') or 0)
         prov     = _parse_num_de(row.get('Provision') or row.get('Commission') or 0)
+        lief     = (row.get('Lieferant') or row.get('Supplier') or '').strip()
         if not waehrung or not kunde or not datum:
             continue
         entries.append({
@@ -215,6 +216,7 @@ def _parse_csv_content(content: bytes) -> list[dict]:
             'provision_rate':      rate,
             'provision_amount':    prov,
             'currency':            waehrung,
+            'supplier_code':       lief.upper() or None,
         })
     return entries
 
@@ -236,6 +238,7 @@ def _parse_excel_content(content: bytes) -> list[dict]:
                     return i
         return None
 
+    i_sup = _idx('lieferant', 'supplier')
     i_cur = _idx('währung', 'waehrung', 'currency')
     i_knd = _idx('kunde', 'customer')
     i_dat = _idx('datum', 'date')
@@ -281,6 +284,7 @@ def _parse_excel_content(content: bytes) -> list[dict]:
             'provision_rate':      round(rate, 4),
             'provision_amount':    round(prov, 2),
             'currency':            waehrung,
+            'supplier_code':       (str(cell(row, i_sup) or '').strip().upper() or None),
         })
     return entries
 
@@ -322,6 +326,12 @@ def _to_num(v) -> float:
         return 0.0
     if ',' in s:                       # deutsches Format 1.234,56
         return _parse_num_de(s)
+    if '.' in s:
+        # kein Komma: im dt. Umfeld ist '.' Tausendertrenner (3.904 → 3904),
+        # außer es sieht nach Dezimalzahl mit 1–2 Nachkommastellen aus (3.90 → 3.9)
+        frac = s.rpartition('.')[2]
+        if frac.isdigit() and len(frac) == 3:
+            return _parse_num_de(s)
     try:
         return float(s)                # 1234.56 oder 1234
     except ValueError:
@@ -367,6 +377,7 @@ def _normalize_row(raw: dict) -> dict | None:
             'provisionssatz', 'provisionsprozent', 'provsatz', 'satz', 'rate', 'commissionrate')), 4),
         'provision_amount':    round(_to_num(pick('provision', 'commission', 'provisionsbetrag')), 2),
         'currency':            cur,
+        'supplier_code':       (str(pick('lieferant', 'supplier') or '').strip().upper() or None),
     }
 
 
@@ -441,13 +452,15 @@ def parse_import_content(content: bytes, ext: str) -> list[dict]:
 
 
 def import_records_for_supplier(records: list[dict], supplier, db: Session) -> dict:
-    """Erzeugt/aktualisiert Transaktionen für einen Lieferanten aus Standard-Einträgen.
+    """Erzeugt/aktualisiert Transaktionen aus Standard-Einträgen.
+    Der Lieferant kommt aus der 'Lieferant'-Spalte je Zeile, sonst aus `supplier`.
     Kundenzuordnung über Name (exakt, sonst erster Namensteil). provision_rate = netto."""
     customers = db.query(models.Customer).all()
     by_name = {}
     for c in customers:
         if c.name:
             by_name.setdefault(c.name.strip().lower(), c)
+    suppliers_by_code = {s.code.upper(): s for s in db.query(models.Supplier).all()}
 
     new = updated = unchanged = skipped = unmatched = 0
     for e in records:
@@ -461,6 +474,15 @@ def import_records_for_supplier(records: list[dict], supplier, db: Session) -> d
         except ValueError:
             skipped += 1
             continue
+
+        # Lieferant je Zeile (Spalte 'Lieferant') hat Vorrang, sonst Standard
+        sup = supplier
+        row_code = (e.get('supplier_code') or '').strip().upper()
+        if row_code:
+            sup = suppliers_by_code.get(row_code)
+            if sup is None:
+                skipped += 1
+                continue
 
         name = (e.get('customer_name_clean') or '').strip()
         cust = by_name.get(name.lower())
@@ -479,7 +501,7 @@ def import_records_for_supplier(records: list[dict], supplier, db: Session) -> d
         if inv_nr:
             existing = (
                 db.query(models.Transaction)
-                .filter_by(supplier_id=supplier.id, invoice_number=inv_nr)
+                .filter_by(supplier_id=sup.id, invoice_number=inv_nr)
                 .first()
             )
 
@@ -491,7 +513,7 @@ def import_records_for_supplier(records: list[dict], supplier, db: Session) -> d
             continue
 
         fields = dict(
-            supplier_id=supplier.id,
+            supplier_id=sup.id,
             customer_id=cust.id if cust else None,
             year=d.year,
             invoice_number=inv_nr,
