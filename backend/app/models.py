@@ -268,6 +268,20 @@ class AppSetting(Base):
     value = Column(JSONB, nullable=False)
 
 
+class IngestLog(Base):
+    """Protokoll der per HTTP-Ingest empfangenen/importierten Dateien."""
+    __tablename__ = "ingest_log"
+    id = Column(Integer, primary_key=True)
+    filename = Column(String(200))
+    source = Column(String(60))          # z. B. "reybex", "http"
+    file_type = Column(String(10))       # dbf | xml | csv | xlsx
+    status = Column(String(12), nullable=False, default="ok")  # ok | error | staged
+    imported = Column(Integer, default=0)
+    skipped = Column(Integer, default=0)
+    detail = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class ReportSchedule(Base):
     __tablename__ = "report_schedules"
     id = Column(Integer, primary_key=True)

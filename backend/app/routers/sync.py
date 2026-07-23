@@ -155,8 +155,14 @@ async def import_dbf(
     """Import transactions from an *_INV.DBF file."""
     if not file.filename or not file.filename.upper().endswith(".DBF"):
         raise HTTPException(400, "Bitte eine .DBF Datei hochladen")
-
     data = await file.read()
+    result = import_dbf_bytes(data, db)
+    result["filename"] = file.filename
+    return result
+
+
+def import_dbf_bytes(data: bytes, db: Session) -> dict:
+    """Import transactions from *_INV.DBF bytes. Netto-Provision, Lieferant via F_CODE."""
     try:
         rows = read_dbf(data)
     except Exception as e:
@@ -261,7 +267,6 @@ async def import_dbf(
         "imported": imported,
         "skipped": skipped,
         "errors": errors[:20],
-        "filename": file.filename,
     }
 
 
@@ -274,6 +279,14 @@ async def import_einvoice(
 ):
     """Import a single XRechnung XML (UBL or CII) as a transaction."""
     data = await file.read()
+    return import_einvoice_bytes(data, db, supplier_code, provision_rate)
+
+
+def import_einvoice_bytes(
+    data: bytes, db: Session,
+    supplier_code: str | None = None, provision_rate: float | None = None,
+) -> dict:
+    """Import a single XRechnung XML (UBL or CII) from bytes as transaction(s)."""
     try:
         inv = parse_einvoice(data)
     except Exception as e:

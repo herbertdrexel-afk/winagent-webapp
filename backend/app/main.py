@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import suppliers, customers, commission, sync, stats, mandants
+from .routers import suppliers, customers, commission, sync, stats, mandants, ingest
 from .routers import auth as auth_router, reports as reports_router, settings as settings_router
 from .routers.sync import run_customer_sync, test_mandant
 from .auth import get_current_user
@@ -142,6 +142,11 @@ app.include_router(stats.router, **_auth)
 app.include_router(mandants.router, **_auth)
 app.include_router(reports_router.router, **_auth)
 app.include_router(settings_router.router, **_auth)
+
+# Ingest-Router OHNE JWT-Router-Dependency:
+#  - POST /ingest/file ist Token-gesichert (INGEST_TOKEN), damit Reybex pushen kann
+#  - GET  /ingest/log  ist per require_admin am Endpoint selbst geschützt
+app.include_router(ingest.router)
 
 
 @app.get("/health")
