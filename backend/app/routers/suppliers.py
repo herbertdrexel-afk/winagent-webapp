@@ -309,6 +309,198 @@ def _match_customers(entries: list[dict], db: Session) -> list[dict]:
     return [{**e, "customer_suggestions": name_cache[e["customer_name_clean"]]} for e in entries]
 
 
+# ── Einheitlicher Import: CSV / Excel / JSON / XML (gleiche Spaltenstruktur) ──
+
+def _to_num(v) -> float:
+    """Zahl aus JSON (echte Zahl) oder Text (dt. '1.234,56' oder engl. '1234.56')."""
+    if v is None:
+        return 0.0
+    if isinstance(v, (int, float)):
+        return float(v)
+    s = str(v).strip()
+    if not s:
+        return 0.0
+    if ',' in s:                       # deutsches Format 1.234,56
+        return _parse_num_de(s)
+    try:
+        return float(s)                # 1234.56 oder 1234
+    except ValueError:
+        return _parse_num_de(s)
+
+
+def _to_iso_date(v) -> str:
+    if v is None:
+        return ''
+    if hasattr(v, 'strftime'):
+        return v.strftime('%Y-%m-%d')
+    s = str(v).strip()
+    if re.match(r'\d{4}-\d{2}-\d{2}', s):
+        return s[:10]
+    return _parse_date_de(s)
+
+
+def _normalize_row(raw: dict) -> dict | None:
+    """Beliebiges Zeilen-Dict (JSON-Objekt / XML-Row) → Standard-Eintrag.
+    Spalten wie in der CSV-Vorlage, deutsch oder englisch."""
+    low = {str(k).strip().lower(): val for k, val in raw.items()}
+
+    def pick(*keys):
+        for k in keys:
+            if k in low and low[k] not in (None, ''):
+                return low[k]
+        return None
+
+    cur   = str(pick('währung', 'waehrung', 'currency') or '').strip()
+    kunde = str(pick('kunde', 'customer') or '').strip()
+    if not cur or not kunde:
+        return None
+    return {
+        'customer_name_raw':   kunde,
+        'customer_name_clean': kunde,
+        'customer_nr':         None,
+        'invoice_date':        _to_iso_date(pick('datum', 'date')),
+        'invoice_number':      str(pick('rechnungsnummer', 'invoice number', 'invoice', 'belegnr') or '').strip(),
+        'art_nr':              '',
+        'total_amount':        round(_to_num(pick('provisionsbasis', 'commission basis', 'basis', 'umsatz', 'nettoumsatz')), 2),
+        'provision_rate':      round(_to_num(pick(
+            'provision %', 'provision%', 'commission %', 'commission%',
+            'provisionssatz', 'provisionsprozent', 'provsatz', 'satz', 'rate', 'commissionrate')), 4),
+        'provision_amount':    round(_to_num(pick('provision', 'commission', 'provisionsbetrag')), 2),
+        'currency':            cur,
+    }
+
+
+def _parse_json_content(content: bytes) -> list[dict]:
+    import json
+    obj = json.loads(content.decode('utf-8-sig', errors='replace'))
+    if isinstance(obj, dict):
+        # erstes Listen-Feld nehmen (z. B. {"rows":[...]}), sonst als Einzelobjekt
+        lst = next((v for v in obj.values() if isinstance(v, list)), None)
+        obj = lst if lst is not None else [obj]
+    out = []
+    for item in obj if isinstance(obj, list) else []:
+        if isinstance(item, dict):
+            n = _normalize_row(item)
+            if n:
+                out.append(n)
+    return out
+
+
+def _looks_like_xrechnung(content: bytes) -> bool:
+    head = content[:4000].lower()
+    return (b'crossindustryinvoice' in head
+            or b'oasis:names:specification:ubl' in head)
+
+
+def _parse_xml_content(content: bytes) -> list[dict]:
+    """Tabellarisches XML (gleiche Spalten wie CSV). Sucht sich wiederholende
+    Zeilen-Elemente und liest deren Kind-Elemente/Attribute als Spalten."""
+    import xml.etree.ElementTree as ET
+    root = ET.fromstring(content)
+
+    def local(tag: str) -> str:
+        return tag.split('}')[-1].strip().lower()
+
+    def rowdict(el) -> dict:
+        d = {}
+        for child in el:
+            kids = list(child)
+            if kids:
+                for cc in kids:
+                    if (cc.text or '').strip():
+                        d[local(cc.tag)] = cc.text.strip()
+            elif (child.text or '').strip():
+                d[local(child.tag)] = child.text.strip()
+        for k, v in el.attrib.items():
+            d[local(k)] = v
+        return d
+
+    best: list[dict] = []
+    for parent in root.iter():
+        kids = [k for k in parent if list(k)]
+        if kids:
+            norm = [x for x in (_normalize_row(rowdict(k)) for k in kids) if x]
+            if len(norm) > len(best):
+                best = norm
+    if not best:  # flache Struktur: direkte Kinder als Zeilen
+        norm = [x for x in (_normalize_row(rowdict(k)) for k in root) if x]
+        best = norm
+    return best
+
+
+def parse_import_content(content: bytes, ext: str) -> list[dict]:
+    """Dispatcher: CSV / Excel / JSON / XML → Liste von Standard-Einträgen."""
+    ext = (ext or '').lower().lstrip('.')
+    if ext in ('xlsx', 'xls'):
+        return _parse_excel_content(content)
+    if ext == 'json':
+        return _parse_json_content(content)
+    if ext == 'xml':
+        return _parse_xml_content(content)
+    return _parse_csv_content(content)
+
+
+def import_records_for_supplier(records: list[dict], supplier, db: Session) -> dict:
+    """Erzeugt/aktualisiert Transaktionen für einen Lieferanten aus Standard-Einträgen.
+    Kundenzuordnung über Name (exakt, sonst erster Namensteil). provision_rate = netto."""
+    customers = db.query(models.Customer).all()
+    by_name = {}
+    for c in customers:
+        if c.name:
+            by_name.setdefault(c.name.strip().lower(), c)
+
+    imported = skipped = unmatched = 0
+    for e in records:
+        cur = (e.get('currency') or '').strip()
+        iso = (e.get('invoice_date') or '').strip()
+        if not cur or not iso:
+            skipped += 1
+            continue
+        try:
+            d = date.fromisoformat(iso[:10])
+        except ValueError:
+            skipped += 1
+            continue
+
+        name = (e.get('customer_name_clean') or '').strip()
+        cust = by_name.get(name.lower())
+        if not cust and name:
+            fw = name.split()[0].lower()
+            cust = next((c for c in customers if c.name and fw in c.name.lower()), None)
+        if not cust:
+            unmatched += 1
+
+        inv_nr = (e.get('invoice_number') or '').strip()[:10]
+        existing = None
+        if inv_nr:
+            existing = (
+                db.query(models.Transaction)
+                .filter_by(supplier_id=supplier.id, invoice_number=inv_nr, invoice_date=d)
+                .first()
+            )
+        fields = dict(
+            supplier_id=supplier.id,
+            customer_id=cust.id if cust else None,
+            year=d.year,
+            invoice_number=inv_nr,
+            invoice_date=d,
+            provision_rate=e.get('provision_rate') or 0,
+            currency=cur,
+            total_amount=e.get('total_amount') or 0,
+            exchange_rate=1,
+            notes=None if cust else (f"Kunde nicht zugeordnet: {name}"[:200] or None),
+        )
+        if existing:
+            for k, v in fields.items():
+                setattr(existing, k, v)
+        else:
+            db.add(models.Transaction(**fields))
+        imported += 1
+
+    db.commit()
+    return {"imported": imported, "skipped": skipped, "unmatched": unmatched}
+
+
 @router.post("/{code}/transactions/parse-csv")
 async def parse_csv(
     code: str,

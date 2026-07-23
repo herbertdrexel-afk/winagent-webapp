@@ -1,15 +1,14 @@
 """HTTP-Ingest: externe Systeme (z. B. Reybex-Wochenexport) pushen Import-Dateien
-per HTTP-POST an /ingest/file. Authentifizierung über ein statisches Token
-(Umgebungsvariable INGEST_TOKEN) – kein JWT-Login nötig.
+per HTTP-POST. Authentifizierung über ein statisches Token (INGEST_TOKEN).
 
-Token kann geliefert werden als:
-  - Header  X-Ingest-Token: <token>
-  - Header  Authorization: Bearer <token>
-  - HTTP-Basic (beliebiger Benutzer, Passwort = Token)
-  - Query   ?token=<token>   (Fallback, wenn nur eine URL konfigurierbar ist)
+Zwei Wege:
+  - POST /ingest/{supplier_code}/file  → "Bereich pro Lieferant". Datei (CSV/XML/JSON/
+    Excel, gleiche Spaltenstruktur wie die CSV-Vorlage) wird für DIESEN Lieferanten importiert.
+    Reybex konfiguriert je Lieferant ein eigenes Ziel: /ingest/AM/file, /ingest/GW/file, …
+  - POST /ingest/file  → selbstbeschreibende Dateien ohne Lieferant-Angabe
+    (DBF via F_CODE, E-Rechnung via Verkäufername).
 
-DBF (*_INV.DBF) und E-Rechnung (XML) werden automatisch importiert
-(Lieferant steckt in den Daten). CSV/Excel benötigen ?supplier=CODE.
+Token: Header X-Ingest-Token, Authorization: Bearer, HTTP-Basic (Passwort=Token) oder ?token=.
 """
 import os
 import base64
@@ -20,8 +19,13 @@ from .. import models
 from ..database import get_db
 from ..auth import require_admin
 from .sync import import_dbf_bytes, import_einvoice_bytes
+from .suppliers import (
+    parse_import_content, import_records_for_supplier, _looks_like_xrechnung,
+)
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
+
+TABULAR = ("csv", "json", "xml", "xlsx", "xls")
 
 
 def _check_token(request: Request, token_q: str | None) -> None:
@@ -47,65 +51,113 @@ def _check_token(request: Request, token_q: str | None) -> None:
         raise HTTPException(401, "Ungültiges oder fehlendes Ingest-Token.")
 
 
+def _ext(fname: str) -> str:
+    return fname.rsplit(".", 1)[-1].lower() if "." in fname else ""
+
+
+def _log(db, fname, source, ext, status="ok", imported=0, skipped=0, detail=None):
+    row = models.IngestLog(filename=fname[:200], source=(source or "http")[:60],
+                           file_type=ext[:10], status=status,
+                           imported=imported, skipped=skipped,
+                           detail=(detail[:2000] if detail else None))
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.post("/{supplier_code}/file")
+async def ingest_for_supplier(
+    supplier_code: str,
+    request: Request,
+    file: UploadFile = File(...),
+    source: str = Query("reybex"),
+    token: str | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Import einer Datei für EINEN Lieferanten (Bereich pro Lieferant)."""
+    _check_token(request, token)
+
+    supplier = db.query(models.Supplier).filter(
+        models.Supplier.code == supplier_code.upper()
+    ).first()
+    if not supplier:
+        raise HTTPException(404, f"Lieferant '{supplier_code}' nicht gefunden.")
+
+    fname = (file.filename or "upload").strip()
+    ext = _ext(fname)
+    data = await file.read()
+
+    try:
+        if ext == "dbf":
+            res = import_dbf_bytes(data, db)  # F_CODE-basiert
+            row = _log(db, fname, source, ext, "ok",
+                       res.get("imported", 0), res.get("skipped", 0),
+                       "; ".join(res.get("errors", [])) or None)
+        elif ext == "xml" and _looks_like_xrechnung(data):
+            res = import_einvoice_bytes(data, db, supplier_code=supplier.code)
+            row = _log(db, fname, source, ext, "ok", res.get("lines_imported", 0), 0,
+                       f"E-Rechnung {res.get('invoice_number')}")
+        elif ext in TABULAR:
+            records = parse_import_content(data, ext)
+            if not records:
+                row = _log(db, fname, source, ext, "error", detail="Keine gültigen Zeilen erkannt.")
+            else:
+                res = import_records_for_supplier(records, supplier, db)
+                detail = f"{res['unmatched']} Kunden nicht zugeordnet" if res["unmatched"] else None
+                row = _log(db, fname, source, ext, "ok",
+                           res["imported"], res["skipped"], detail)
+        else:
+            row = _log(db, fname, source, ext, "error",
+                       detail=f"Dateityp '.{ext}' wird nicht unterstützt (csv, xml, json, xlsx, dbf).")
+    except HTTPException as e:
+        db.rollback()
+        row = _log(db, fname, source, ext, "error", detail=str(e.detail))
+    except Exception as e:  # pragma: no cover
+        db.rollback()
+        row = _log(db, fname, source, ext, "error", detail=str(e))
+
+    return {"id": row.id, "supplier": supplier.code, "filename": row.filename,
+            "type": row.file_type, "status": row.status,
+            "imported": row.imported, "skipped": row.skipped, "detail": row.detail}
+
+
 @router.post("/file")
 async def ingest_file(
     request: Request,
     file: UploadFile = File(...),
-    supplier: str | None = Query(None, description="Lieferanten-Code für CSV/Excel"),
-    source: str = Query("http"),
     token: str | None = Query(None),
+    source: str = Query("http"),
     db: Session = Depends(get_db),
 ):
-    """Nimmt genau eine Datei entgegen und importiert sie je nach Typ."""
+    """Selbstbeschreibende Datei ohne Lieferant-Angabe (DBF via F_CODE, E-Rechnung)."""
     _check_token(request, token)
-
     fname = (file.filename or "upload").strip()
-    ext = fname.rsplit(".", 1)[-1].lower() if "." in fname else ""
+    ext = _ext(fname)
     data = await file.read()
-
-    log = models.IngestLog(filename=fname[:200], source=(source or "http")[:60],
-                           file_type=ext[:10], status="ok", imported=0, skipped=0)
     try:
         if ext == "dbf":
             res = import_dbf_bytes(data, db)
-            log.imported = res.get("imported", 0)
-            log.skipped = res.get("skipped", 0)
-            errs = res.get("errors", [])
-            log.detail = ("; ".join(errs))[:2000] if errs else None
+            row = _log(db, fname, source, ext, "ok",
+                       res.get("imported", 0), res.get("skipped", 0),
+                       "; ".join(res.get("errors", [])) or None)
         elif ext == "xml":
-            res = import_einvoice_bytes(data, db, supplier_code=supplier)
-            log.imported = res.get("lines_imported", 0)
-            log.detail = f"{res.get('invoice_number')} · {res.get('supplier_matched')}"
-        elif ext in ("csv", "xlsx", "xls"):
-            # CSV/Excel brauchen Lieferant + Kundenzuordnung → vorerst als 'staged'
-            log.status = "staged"
-            log.detail = (
-                f"CSV/Excel empfangen ({len(data)} Bytes) für Lieferant '{supplier}'. "
-                "Automatischer Import wird ergänzt, sobald das Reybex-Exportformat vorliegt."
-                if supplier else
-                "CSV/Excel empfangen, aber ?supplier=CODE fehlt. Bitte im Webapp importieren "
-                "oder Lieferant-Code mitgeben."
-            )
+            res = import_einvoice_bytes(data, db)
+            row = _log(db, fname, source, ext, "ok", res.get("lines_imported", 0), 0,
+                       f"E-Rechnung {res.get('invoice_number')}")
         else:
-            log.status = "error"
-            log.detail = f"Dateityp '.{ext}' wird nicht unterstützt (erlaubt: dbf, xml, csv, xlsx)."
+            row = _log(db, fname, source, ext, "error",
+                       detail=f"Ohne Lieferant nur DBF/E-Rechnung. Für CSV/XML/JSON bitte "
+                              f"/ingest/<LIEFERANT>/file verwenden.")
     except HTTPException as e:
         db.rollback()
-        log.status = "error"
-        log.detail = str(e.detail)[:2000]
+        row = _log(db, fname, source, ext, "error", detail=str(e.detail))
     except Exception as e:  # pragma: no cover
         db.rollback()
-        log.status = "error"
-        log.detail = str(e)[:2000]
-
-    db.add(log)
-    db.commit()
-    db.refresh(log)
-    return {
-        "id": log.id, "filename": log.filename, "type": log.file_type,
-        "status": log.status, "imported": log.imported, "skipped": log.skipped,
-        "detail": log.detail,
-    }
+        row = _log(db, fname, source, ext, "error", detail=str(e))
+    return {"id": row.id, "filename": row.filename, "type": row.file_type,
+            "status": row.status, "imported": row.imported, "skipped": row.skipped,
+            "detail": row.detail}
 
 
 @router.get("/log")
