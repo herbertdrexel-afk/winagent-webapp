@@ -9,7 +9,7 @@ from .. import models, schemas
 from ..auth import get_current_user, get_allowed_supplier_ids, check_supplier_access
 from ..database import get_db
 from ..pdf_commission import build_pdf
-from ..pdf_invoice import generate_invoice_pdf
+from ..pdf_invoice import generate_invoice_pdf, generate_invoice_pdf_alt
 from ..pdf_aufstellung import generate_aufstellung_pdf
 from ..dbf_writer import write_hdubw_dbf
 
@@ -462,6 +462,42 @@ def reprint_commission_invoice_pdf(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{inv.pr_number}.pdf"'},
+    )
+
+
+@router.post("/invoices/{inv_id}/pdf-alt")
+def reprint_commission_invoice_pdf_alt(
+    inv_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Alternatives Rechnungs-Layout (Beschreibungstext als Position, Ort + Datum,
+    Hinweis auf beiliegende Abrechnung)."""
+    inv = db.get(models.CommissionInvoice, inv_id)
+    if not inv:
+        raise HTTPException(404, "Rechnung nicht gefunden")
+    check_supplier_access(current_user, db, inv.supplier_id)
+    supplier = db.get(models.Supplier, inv.supplier_id)
+    address_lines = _supplier_address_lines(supplier)
+    bank_accounts, logo_b64 = _load_invoice_settings(db)
+    place = (bank_accounts or {}).get("place") or "Zuzwil"
+    pdf_bytes = generate_invoice_pdf_alt(
+        pr_number=inv.pr_number,
+        invoice_date=inv.invoice_date,
+        supplier_name=supplier.name,
+        supplier_address=address_lines,
+        description=inv.description or "",
+        currency=inv.currency,
+        amount=float(inv.amount),
+        place=place,
+        invoice_language=supplier.invoice_language or "de+en",
+        bank_accounts=bank_accounts,
+        logo_b64=logo_b64,
+    )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{inv.pr_number}_alt.pdf"'},
     )
 
 

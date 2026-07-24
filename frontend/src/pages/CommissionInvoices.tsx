@@ -135,6 +135,18 @@ export default function CommissionInvoices() {
     } catch (e: unknown) { alert(e instanceof Error ? e.message : t.common.error); }
   }
 
+  async function reprintAltPdf(id: number, prNumber: string) {
+    try {
+      const res = await fetch(api.commission.reprintAltPdfUrl(id), { method: "POST", headers: authHeaders() });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${prNumber}_alt.pdf`;
+      a.click();
+    } catch (e: unknown) { alert(e instanceof Error ? e.message : t.common.error); }
+  }
+
   async function previewPdf(id: number) {
     try {
       const res = await fetch(api.commission.reprintPdfUrl(id), { method: "POST", headers: authHeaders() });
@@ -265,9 +277,13 @@ export default function CommissionInvoices() {
                   <td className="px-4 py-2.5"><StatusBadge status={r.status} /></td>
                   <td className="px-3 py-2.5">
                     <div className="flex gap-1 justify-end items-center">
-                      <button onClick={() => reprintPdf(r.id, r.pr_number)} title="PDF"
+                      <button onClick={() => reprintPdf(r.id, r.pr_number)} title="PDF (Standard-Layout)"
                         className="text-[#2563eb] hover:bg-[#2563eb]/10 px-1.5 py-0.5 rounded text-xs border border-[#2563eb]/30 transition-colors">
                         {t.provisions.pdfPreview}
+                      </button>
+                      <button onClick={() => reprintAltPdf(r.id, r.pr_number)} title={t.provisions.pdfAlt}
+                        className="text-violet-600 hover:bg-violet-50 px-1.5 py-0.5 rounded text-xs border border-violet-300 transition-colors">
+                        {t.provisions.pdfAltShort}
                       </button>
                       <button onClick={() => previewPdf(r.id)} title="Vorschau"
                         className="text-emerald-600 hover:bg-emerald-50 px-1.5 py-0.5 rounded text-xs border border-emerald-300 transition-colors">🖥</button>

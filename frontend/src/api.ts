@@ -245,6 +245,7 @@ export const api = {
       fetch(`${BASE}/commission/invoices/${id}`, { method: "DELETE", headers: authHeaders() })
         .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
     reprintPdfUrl: (id: number) => `${BASE}/commission/invoices/${id}/pdf`,
+    reprintAltPdfUrl: (id: number) => `${BASE}/commission/invoices/${id}/pdf-alt`,
   },
   sync: {
     customers: () => post<SyncResult>("/sync/reybex/customers", {}),

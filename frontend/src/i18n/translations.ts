@@ -90,6 +90,8 @@ const de = {
     amountNet: "Betrag (netto)",
     amountTotal: "Betrag gesamt",
     pdfPreview: "PDF",
+    pdfAlt: "Alternatives Layout (Beschreibung als Position)",
+    pdfAltShort: "PDF 2",
   },
   suppliers: {
     title: "Lieferanten",
@@ -426,6 +428,8 @@ const en: typeof de = {
     amountNet: "Amount (net)",
     amountTotal: "Total amount",
     pdfPreview: "PDF",
+    pdfAlt: "Alternative layout (description as line item)",
+    pdfAltShort: "PDF 2",
   },
   suppliers: {
     title: "Suppliers",
