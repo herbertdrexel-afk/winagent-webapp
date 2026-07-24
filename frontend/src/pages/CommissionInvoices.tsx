@@ -144,6 +144,13 @@ export default function CommissionInvoices() {
     } catch (e: unknown) { alert(e instanceof Error ? e.message : t.common.error); }
   }
 
+  // Eindeutige Lieferantenliste aus den vorhandenen Rechnungen für das Dropdown
+  const supplierOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of rows) if (r.supplier_code) map.set(r.supplier_code, r.supplier_name ?? r.supplier_code);
+    return Array.from(map, ([code, name]) => ({ code, name })).sort((a, b) => a.code.localeCompare(b.code));
+  }, [rows]);
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     return rows.filter(r => {
@@ -154,8 +161,7 @@ export default function CommissionInvoices() {
         (r.period_from ?? "").includes(q) ||
         (r.period_to ?? "").includes(q);
 
-      const matchSupplier = !colFilter.supplier ||
-        (r.supplier_name ?? "").toLowerCase().includes(colFilter.supplier.toLowerCase());
+      const matchSupplier = !colFilter.supplier || r.supplier_code === colFilter.supplier;
       // Zeitraum-Überlappung: Rechnungsperiode [period_from, period_to] schneidet Filter [dateFrom, dateTo]
       const matchPeriod = (!dateFrom && !dateTo) ||
         (!dateTo || r.period_from <= dateTo) && (!dateFrom || r.period_to >= dateFrom);
@@ -209,10 +215,14 @@ export default function CommissionInvoices() {
               {/* Inline column filters */}
               <tr style={{ background: "#f7f8fa", borderBottom: "1px solid #e2e5eb" }}>
                 <td className="px-2 py-1.5">
-                  <input value={colFilter.supplier}
+                  <select value={colFilter.supplier}
                     onChange={e => setColFilter(f => ({ ...f, supplier: e.target.value }))}
-                    placeholder={t.provisions.filterSupplier}
-                    className={inputCls} />
+                    className={inputCls}>
+                    <option value="">{t.stats.allSuppliers}</option>
+                    {supplierOptions.map(s => (
+                      <option key={s.code} value={s.code}>{s.code} – {s.name}</option>
+                    ))}
+                  </select>
                 </td>
                 <td className="px-2 py-1.5" />
                 <td className="px-2 py-1.5" />
