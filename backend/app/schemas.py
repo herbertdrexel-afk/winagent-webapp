@@ -18,6 +18,7 @@ class SupplierOut(BaseModel):
     provision_splits: Optional[Any] = None
     representative_code: Optional[str] = None
     contact_person: Optional[str] = None
+    uid_number: Optional[str] = None
     is_active: bool
     invoice_language: Optional[str] = "de+en"
 
@@ -34,6 +35,7 @@ class SupplierCreate(BaseModel):
     provision_splits: Optional[Any] = None
     representative_code: Optional[str] = None
     contact_person: Optional[str] = None
+    uid_number: Optional[str] = None
     is_active: bool = True
     notes: Optional[str] = None
     invoice_language: Optional[str] = "de+en"
@@ -50,6 +52,7 @@ class SupplierUpdate(BaseModel):
     provision_splits: Optional[Any] = None
     representative_code: Optional[str] = None
     contact_person: Optional[str] = None
+    uid_number: Optional[str] = None
     is_active: Optional[bool] = None
     notes: Optional[str] = None
     invoice_language: Optional[str] = None

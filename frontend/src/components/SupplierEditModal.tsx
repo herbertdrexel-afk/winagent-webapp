@@ -20,6 +20,7 @@ type Form = {
   default_currency: string;
   representative_code: string;
   contact_person: string;
+  uid_number: string;
   is_active: boolean;
   notes: string;
   splits: Split[];
@@ -38,6 +39,7 @@ function toForm(s: Supplier | null): Form {
     default_currency:    s?.default_currency ?? "",
     representative_code: s?.representative_code ?? "",
     contact_person:      s?.contact_person ?? "",
+    uid_number:          s?.uid_number ?? "",
     is_active:           s?.is_active ?? true,
     notes:               "",
     splits:              s?.provision_splits ? [...s.provision_splits] : [],
@@ -78,6 +80,7 @@ export default function SupplierEditModal({ supplier, onClose, onSaved }: Props)
         default_currency: form.default_currency.toUpperCase() || undefined,
         representative_code: form.representative_code.toUpperCase() || undefined,
         contact_person: form.contact_person || undefined,
+        uid_number: form.uid_number || undefined,
         is_active: form.is_active,
         provision_splits: form.splits.length > 0 ? form.splits : undefined,
         invoice_language: form.invoice_language || "de+en",
@@ -206,6 +209,13 @@ export default function SupplierEditModal({ supplier, onClose, onSaved }: Props)
                 onChange={(e) => set("contact_person", e.target.value)}
                 className={inputCls} />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">UID-Nummer <span className="text-gray-400 font-normal">(erscheint auf der Rechnung)</span></label>
+            <input type="text" value={form.uid_number}
+              onChange={(e) => set("uid_number", e.target.value)}
+              className={inputCls} placeholder="z.B. RO 31837967 / ATU12345678" />
           </div>
 
           <div>

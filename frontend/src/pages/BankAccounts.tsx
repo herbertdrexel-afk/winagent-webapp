@@ -23,11 +23,15 @@ export default function BankAccountsPage() {
   const [naPlace, setNaPlace] = useState("");
   const [naUid, setNaUid]     = useState("");
   const [naReg, setNaReg]     = useState("");
+  const [naLogoUrl, setNaLogoUrl] = useState<string | null>(null);
+  const [uploadingNa, setUploadingNa] = useState(false);
+  const naFileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg]             = useState<{ ok: boolean; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    api.settings.getLogoNa().then(l => setNaLogoUrl(l.data_url)).catch(() => {});
     Promise.all([api.settings.getBankAccounts(), api.settings.getLogo(), api.settings.getBankNa()])
       .then(([ba, logo, na]) => {
         const filled: Record<string, BankAccount> = {};
@@ -110,6 +114,27 @@ export default function BankAccountsPage() {
     if (!confirm("Logo löschen?")) return;
     await api.settings.deleteLogo();
     setLogoUrl(null);
+    setMsg({ ok: true, text: "Logo gelöscht." });
+  }
+
+  async function handleNaLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingNa(true); setMsg(null);
+    try {
+      await api.settings.uploadLogoNa(file);
+      const logo = await api.settings.getLogoNa();
+      setNaLogoUrl(logo.data_url);
+      setMsg({ ok: true, text: t.settings.logoUploaded });
+    } catch (err: unknown) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : t.common.error });
+    } finally { setUploadingNa(false); if (naFileRef.current) naFileRef.current.value = ""; }
+  }
+
+  async function handleNaLogoDelete() {
+    if (!confirm("Logo löschen?")) return;
+    await api.settings.deleteLogoNa();
+    setNaLogoUrl(null);
     setMsg({ ok: true, text: "Logo gelöscht." });
   }
 
@@ -225,6 +250,32 @@ export default function BankAccountsPage() {
         <div>
           <h2 className="font-semibold text-violet-800">{t.settings.naTitle}</h2>
           <p className="text-xs text-gray-500 mt-0.5">{t.settings.naHint}</p>
+        </div>
+
+        {/* NA-Logo */}
+        <div className="space-y-2 pb-4 border-b border-gray-100">
+          <label className="block text-xs font-medium text-gray-500">{t.settings.naLogo}</label>
+          {naLogoUrl ? (
+            <div className="flex items-start gap-4">
+              <img src={naLogoUrl} alt="NA Logo" className="h-16 object-contain border border-gray-200 rounded-lg p-1 bg-gray-50" />
+              <div className="flex flex-col gap-2">
+                <button onClick={() => naFileRef.current?.click()} disabled={uploadingNa}
+                  className="flex items-center gap-1.5 text-xs border border-violet-500 text-violet-700 px-3 py-1.5 rounded-lg hover:bg-violet-50 disabled:opacity-50">
+                  <Upload size={12} /> {uploadingNa ? t.settings.uploading : t.settings.replaceLogo}
+                </button>
+                <button onClick={handleNaLogoDelete}
+                  className="flex items-center gap-1.5 text-xs border border-red-300 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50">
+                  <Trash2 size={12} /> {t.settings.deleteLogo}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => naFileRef.current?.click()} disabled={uploadingNa}
+              className="flex items-center gap-2 border-2 border-dashed border-gray-300 rounded-xl px-6 py-4 text-sm text-gray-500 hover:border-violet-400 hover:text-violet-700 transition-colors disabled:opacity-50">
+              <Plus size={16} /> {uploadingNa ? t.settings.uploading : t.settings.uploadLogo}
+            </button>
+          )}
+          <input ref={naFileRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={handleNaLogoUpload} />
         </div>
 
         <div className="grid grid-cols-1 gap-3">

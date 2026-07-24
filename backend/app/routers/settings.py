@@ -13,6 +13,7 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 _BANK_KEY = "bank_accounts"
 _BANK_NA_KEY = "bank_na_ag"
 _LOGO_KEY = "amv_logo_b64"
+_LOGO_NA_KEY = "na_logo_b64"
 
 
 def _get(db: Session, key: str) -> Any | None:
@@ -87,6 +88,34 @@ async def upload_logo(file: UploadFile = File(...), db: Session = Depends(get_db
 @router.delete("/logo")
 def delete_logo(db: Session = Depends(get_db)):
     row = db.get(models.AppSetting, _LOGO_KEY)
+    if row:
+        db.delete(row)
+        db.commit()
+    return {"ok": True}
+
+
+# ── NA AG Logo (für das alternative Rechnungs-Layout) ────────────────────────
+
+@router.get("/logo-na")
+def get_logo_na(db: Session = Depends(get_db)):
+    b64 = _get(db, _LOGO_NA_KEY)
+    return {"data_url": f"data:image/png;base64,{b64}" if b64 else None}
+
+
+@router.post("/logo-na")
+async def upload_logo_na(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    if file.content_type not in ("image/png", "image/jpeg", "image/jpg"):
+        raise HTTPException(400, "Nur PNG oder JPEG erlaubt")
+    content = await file.read()
+    if len(content) > 500_000:
+        raise HTTPException(400, "Logo zu groß (max. 500 KB)")
+    _set(db, _LOGO_NA_KEY, base64.b64encode(content).decode())
+    return {"ok": True, "size": len(content)}
+
+
+@router.delete("/logo-na")
+def delete_logo_na(db: Session = Depends(get_db)):
+    row = db.get(models.AppSetting, _LOGO_NA_KEY)
     if row:
         db.delete(row)
         db.commit()

@@ -27,6 +27,8 @@ def _supplier_address_lines(supplier) -> list[str]:
         lines.append(zip_city)
     if supplier.country:
         lines.append(supplier.country)
+    if getattr(supplier, "uid_number", None):
+        lines.append(f"UID-Nr. {supplier.uid_number}")
     return lines
 
 
@@ -479,7 +481,11 @@ def reprint_commission_invoice_pdf_alt(
     check_supplier_access(current_user, db, inv.supplier_id)
     supplier = db.get(models.Supplier, inv.supplier_id)
     address_lines = _supplier_address_lines(supplier)
-    bank_accounts, logo_b64 = _load_invoice_settings(db)
+    bank_accounts, amv_logo = _load_invoice_settings(db)
+
+    # Eigenes NA-Logo (Fallback: AMV-Logo)
+    na_logo_row = db.get(models.AppSetting, "na_logo_b64")
+    logo_b64 = (na_logo_row.value if na_logo_row else None) or amv_logo
 
     na_row = db.get(models.AppSetting, "bank_na_ag")
     na = na_row.value if na_row and isinstance(na_row.value, dict) else {}

@@ -55,6 +55,7 @@ export interface Supplier {
   provision_splits?: { rate: number; rep_code: string }[];
   representative_code?: string;
   contact_person?: string;
+  uid_number?: string;
   is_active: boolean;
   invoice_language?: string;  // "de" | "en" | "de+en"
 }
@@ -302,6 +303,16 @@ export const api = {
     },
     deleteLogo: () =>
       fetch(`${BASE}/settings/logo`, { method: "DELETE", headers: authHeaders() })
+        .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
+    getLogoNa: () => get<{ data_url: string | null }>("/settings/logo-na"),
+    uploadLogoNa: (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      return fetch(`${BASE}/settings/logo-na`, { method: "POST", headers: authHeaders(), body: fd })
+        .then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json(); });
+    },
+    deleteLogoNa: () =>
+      fetch(`${BASE}/settings/logo-na`, { method: "DELETE", headers: authHeaders() })
         .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   },
   mandants: {

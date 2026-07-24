@@ -75,6 +75,7 @@ class Supplier(Base):
     provision_splits = Column(JSONB)
     representative_code = Column(String(2), ForeignKey("representatives.code"))
     contact_person = Column(String(60))
+    uid_number = Column(String(30))      # UID-/USt-Nummer des Lieferanten (für Rechnung)
     display_config = Column(JSONB)
     is_active = Column(Boolean, default=True)
     notes = Column(Text)
