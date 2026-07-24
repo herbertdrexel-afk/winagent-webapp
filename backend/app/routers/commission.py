@@ -480,7 +480,28 @@ def reprint_commission_invoice_pdf_alt(
     supplier = db.get(models.Supplier, inv.supplier_id)
     address_lines = _supplier_address_lines(supplier)
     bank_accounts, logo_b64 = _load_invoice_settings(db)
-    place = (bank_accounts or {}).get("place") or "Zuzwil"
+
+    na_row = db.get(models.AppSetting, "bank_na_ag")
+    na = na_row.value if na_row and isinstance(na_row.value, dict) else {}
+    if na:
+        payee = {
+            "name": na.get("issuer_name") or "NA AG",
+            "lines": [l for l in str(na.get("issuer_lines") or "").splitlines() if l.strip()],
+            "place": na.get("place") or "Zuzwil",
+            "uid_nr": na.get("uid_nr") or "",
+            "registration": na.get("registration") or "",
+            "bank": na.get(inv.currency) or {},
+        }
+    else:
+        ba = bank_accounts or {}
+        payee = {
+            "name": "AMV Ltd.",
+            "lines": ["86, Main Street", "STJ 1015 St. Julians / Malta"],
+            "place": ba.get("place") or "Zuzwil",
+            "uid_nr": ba.get("uid_nr") or "",
+            "registration": ba.get("registration") or "",
+            "bank": ba.get(inv.currency) or {},
+        }
     pdf_bytes = generate_invoice_pdf_alt(
         pr_number=inv.pr_number,
         invoice_date=inv.invoice_date,
@@ -489,9 +510,8 @@ def reprint_commission_invoice_pdf_alt(
         description=inv.description or "",
         currency=inv.currency,
         amount=float(inv.amount),
-        place=place,
+        payee=payee,
         invoice_language=supplier.invoice_language or "de+en",
-        bank_accounts=bank_accounts,
         logo_b64=logo_b64,
     )
     return Response(

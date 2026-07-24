@@ -14,21 +14,38 @@ export default function BankAccountsPage() {
   const [logoUrl, setLogoUrl]     = useState<string | null>(null);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
+  const [savingNa, setSavingNa]   = useState(false);
+
+  // Bankverbindung NA AG (Alt-Layout)
+  const [naAccounts, setNaAccounts] = useState<Record<string, BankAccount>>({});
+  const [naName, setNaName]   = useState("");
+  const [naLines, setNaLines] = useState("");
+  const [naPlace, setNaPlace] = useState("");
+  const [naUid, setNaUid]     = useState("");
+  const [naReg, setNaReg]     = useState("");
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg]             = useState<{ ok: boolean; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    Promise.all([api.settings.getBankAccounts(), api.settings.getLogo()])
-      .then(([ba, logo]) => {
+    Promise.all([api.settings.getBankAccounts(), api.settings.getLogo(), api.settings.getBankNa()])
+      .then(([ba, logo, na]) => {
         const filled: Record<string, BankAccount> = {};
+        const filledNa: Record<string, BankAccount> = {};
         for (const c of CURRENCIES) {
           filled[c] = (ba[c] as BankAccount | undefined) ?? { bank: "", iban: "", bic: "" };
+          filledNa[c] = (na[c] as BankAccount | undefined) ?? { bank: "", iban: "", bic: "" };
         }
         setAccounts(filled);
         setUidNr((ba.uid_nr as string | undefined) ?? "");
         setReg((ba.registration as string | undefined) ?? "");
         setLogoUrl(logo.data_url);
+        setNaAccounts(filledNa);
+        setNaName((na.issuer_name as string | undefined) ?? "");
+        setNaLines((na.issuer_lines as string | undefined) ?? "");
+        setNaPlace((na.place as string | undefined) ?? "");
+        setNaUid((na.uid_nr as string | undefined) ?? "");
+        setNaReg((na.registration as string | undefined) ?? "");
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -39,6 +56,28 @@ export default function BankAccountsPage() {
       ...prev,
       [currency]: { ...(prev[currency] ?? { bank: "", iban: "", bic: "" }), [field]: value },
     }));
+  }
+
+  function setNaField(currency: string, field: "bank" | "iban" | "bic", value: string) {
+    setNaAccounts(prev => ({
+      ...prev,
+      [currency]: { ...(prev[currency] ?? { bank: "", iban: "", bic: "" }), [field]: value },
+    }));
+  }
+
+  async function handleSaveNa() {
+    setSavingNa(true);
+    setMsg(null);
+    try {
+      await api.settings.saveBankNa({
+        ...naAccounts,
+        issuer_name: naName, issuer_lines: naLines, place: naPlace,
+        uid_nr: naUid, registration: naReg,
+      });
+      setMsg({ ok: true, text: t.settings.savedMsg });
+    } catch (e: unknown) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : t.common.error });
+    } finally { setSavingNa(false); }
   }
 
   async function handleSave() {
@@ -177,6 +216,80 @@ export default function BankAccountsPage() {
             className="flex items-center gap-2 bg-[#2563eb] text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 disabled:opacity-50 transition-colors">
             <Save size={14} />
             {saving ? t.settings.saving : t.settings.saveBanks}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Bankverbindung NA AG (Alt-Layout) ──────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-violet-200 p-5 space-y-4">
+        <div>
+          <h2 className="font-semibold text-violet-800">{t.settings.naTitle}</h2>
+          <p className="text-xs text-gray-500 mt-0.5">{t.settings.naHint}</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">{t.settings.naName}</label>
+            <input type="text" value={naName} onChange={e => setNaName(e.target.value)}
+              className={inputCls} placeholder="NA AG" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">{t.settings.naLines}</label>
+            <textarea value={naLines} onChange={e => setNaLines(e.target.value)} rows={3}
+              className={inputCls} placeholder={"Obere Bahnhofstr. 36\nCH-9500 WIL\nSchweiz"} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">{t.settings.naPlace}</label>
+              <input type="text" value={naPlace} onChange={e => setNaPlace(e.target.value)}
+                className={inputCls} placeholder="Zuzwil" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">{t.settings.uid}</label>
+              <input type="text" value={naUid} onChange={e => setNaUid(e.target.value)}
+                className={inputCls} placeholder="CHE-123.456.789" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">{t.settings.registration}</label>
+            <input type="text" value={naReg} onChange={e => setNaReg(e.target.value)}
+              className={inputCls} placeholder="CH-…" />
+          </div>
+        </div>
+
+        <div className="pt-2 space-y-5">
+          {CURRENCIES.map(cur => (
+            <div key={cur} className="space-y-2 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+              <span className="font-mono font-semibold text-violet-700 text-sm bg-violet-100 px-2 py-0.5 rounded">{cur}</span>
+              <div className="grid grid-cols-1 gap-2">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{t.settings.bank}</label>
+                  <input type="text" value={naAccounts[cur]?.bank ?? ""}
+                    onChange={e => setNaField(cur, "bank", e.target.value)}
+                    className={inputCls} placeholder="z.B. UBS Switzerland AG" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">IBAN</label>
+                  <input type="text" value={naAccounts[cur]?.iban ?? ""}
+                    onChange={e => setNaField(cur, "iban", e.target.value)}
+                    className={inputCls + " font-mono"} placeholder="CH19 0025 6256 6895 946S H" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">BIC / SWIFT</label>
+                  <input type="text" value={naAccounts[cur]?.bic ?? ""}
+                    onChange={e => setNaField(cur, "bic", e.target.value)}
+                    className={inputCls + " font-mono uppercase"} placeholder="UBSWCHZH80A" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex justify-end pt-2">
+          <button onClick={handleSaveNa} disabled={savingNa}
+            className="flex items-center gap-2 bg-violet-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 transition-colors">
+            <Save size={14} />
+            {savingNa ? t.settings.saving : t.settings.saveBanks}
           </button>
         </div>
       </div>

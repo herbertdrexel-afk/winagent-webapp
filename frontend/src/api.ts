@@ -286,6 +286,13 @@ export const api = {
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(data),
       }).then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json(); }),
+    getBankNa: () => get<Record<string, unknown>>("/settings/bank-na"),
+    saveBankNa: (data: Record<string, unknown>) =>
+      fetch(`${BASE}/settings/bank-na`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(data),
+      }).then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json(); }),
     getLogo: () => get<{ data_url: string | null }>("/settings/logo"),
     uploadLogo: (file: File) => {
       const fd = new FormData();

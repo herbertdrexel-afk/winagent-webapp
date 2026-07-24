@@ -235,15 +235,23 @@ def generate_invoice_pdf_alt(
     description: str,
     currency: str,
     amount: float,
-    place: str = "Zuzwil",
-    representative_name: str = "AMV Ltd.",
+    payee: dict | None = None,
     invoice_language: str = "de+en",
-    bank_accounts: dict | None = None,
     logo_b64: str | None = None,
 ) -> bytes:
     """Alternatives Rechnungs-Layout: zeigt den freien Beschreibungstext als
-    Position + Hinweis auf beiliegende Abrechnung, Ort vor dem Datum."""
+    Position + Hinweis auf beiliegende Abrechnung, Ort vor dem Datum.
+
+    payee = {name, lines:[...], place, uid_nr, registration, bank:{bank,iban,bic}}
+    – der ausstellende/zu bezahlende Betrieb (z. B. NA AG)."""
     lang = invoice_language or "de+en"
+    payee = payee or {}
+    p_name  = payee.get("name") or "AMV Ltd."
+    p_lines = payee.get("lines") or ["86, Main Street", "STJ 1015 St. Julians / Malta"]
+    place   = payee.get("place") or "Zuzwil"
+    p_uid   = payee.get("uid_nr") or ""
+    p_reg   = payee.get("registration") or ""
+    p_bank  = payee.get("bank") or {}
 
     buf = BytesIO()
     doc = SimpleDocTemplate(
@@ -275,9 +283,10 @@ def generate_invoice_pdf_alt(
             logo_img.hAlign = "CENTER"
             story.append(logo_img)
         except Exception:
-            story.append(Paragraph("amv ltd.", grey8))
+            story.append(Paragraph(p_name, grey8))
     else:
-        for line in ("amv ltd.", "86, Main Street", "STJ 1015 - St. Julians", "Malta", "amv@nagroup.biz"):
+        story.append(Paragraph(p_name, grey8))
+        for line in p_lines:
             story.append(Paragraph(line, grey8))
     story.append(Spacer(1, 0.8*cm))
 
@@ -320,11 +329,8 @@ def generate_invoice_pdf_alt(
     story.append(inv_table)
     story.append(Spacer(1, 1.5*cm))
 
-    # Zahlungsblock (wie Standard-Layout)
-    ba = bank_accounts or {}
-    bank_info = ba.get(currency, {})
-    bank_name = bank_info.get("bank", ""); iban = bank_info.get("iban", ""); bic = bank_info.get("bic", "")
-    uid_nr = ba.get("uid_nr", ""); registration = ba.get("registration", "")
+    # Zahlungsblock: Aussteller (payee) + Bank
+    bank_name = p_bank.get("bank", ""); iban = p_bank.get("iban", ""); bic = p_bank.get("bic", "")
 
     LABEL_W, VALUE_W = 3.5*cm, 6.5*cm
     inner_rows, inner_spans = [], []
@@ -335,12 +341,12 @@ def generate_invoice_pdf_alt(
     def _gap():
         idx = len(inner_rows); inner_rows.append([Spacer(1, 4), ""]); inner_spans.append(("SPAN", (0, idx), (1, idx)))
 
-    _full(Paragraph(representative_name, normal))
-    _full(Paragraph("86, Main Street", normal))
-    _full(Paragraph("STJ 1015 St. Julians / Malta", normal))
+    _full(Paragraph(p_name, normal))
+    for line in p_lines:
+        _full(Paragraph(line, normal))
     _gap()
-    if uid_nr: _detail("UID-Nr./VAT-no.:", uid_nr)
-    if registration: _detail("Registration:", registration)
+    if p_uid: _detail("UID-Nr./VAT-no.:", p_uid)
+    if p_reg: _detail("Registration:", p_reg)
     if bank_name or iban or bic:
         _gap()
         if bank_name: _detail("Bank account:", bank_name)

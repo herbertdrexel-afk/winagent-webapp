@@ -11,6 +11,7 @@ from ..database import get_db
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 _BANK_KEY = "bank_accounts"
+_BANK_NA_KEY = "bank_na_ag"
 _LOGO_KEY = "amv_logo_b64"
 
 
@@ -41,6 +42,21 @@ def get_bank_accounts(db: Session = Depends(get_db)):
 def save_bank_accounts(payload: dict, db: Session = Depends(get_db)):
     """Save bank account dict keyed by currency."""
     _set(db, _BANK_KEY, payload)
+    return {"ok": True}
+
+
+# ── Bankverbindung NA AG (für das alternative Rechnungs-Layout) ──────────────
+
+@router.get("/bank-na")
+def get_bank_na(db: Session = Depends(get_db)):
+    """Aussteller + Bank für das Alt-Layout: {issuer_name, issuer_lines, place,
+    uid_nr, registration, EUR:{bank,iban,bic}, USD:{...}, CHF:{...}}"""
+    return _get(db, _BANK_NA_KEY) or {}
+
+
+@router.put("/bank-na")
+def save_bank_na(payload: dict, db: Session = Depends(get_db)):
+    _set(db, _BANK_NA_KEY, payload)
     return {"ok": True}
 
 
