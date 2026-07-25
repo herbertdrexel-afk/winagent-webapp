@@ -123,26 +123,26 @@ export default function CommissionInvoices() {
     catch (e: unknown) { alert(e instanceof Error ? e.message : t.common.error); }
   }
 
-  async function reprintPdf(id: number, prNumber: string) {
+  async function reprintPdf(id: number, prNumber: string, supplierCode?: string) {
     try {
       const res = await fetch(api.commission.reprintPdfUrl(id), { method: "POST", headers: authHeaders() });
       if (!res.ok) throw new Error(`${res.status}`);
       const blob = await res.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `${prNumber}.pdf`;
+      a.download = [prNumber, supplierCode, "AMV"].filter(Boolean).join("_") + ".pdf";
       a.click();
     } catch (e: unknown) { alert(e instanceof Error ? e.message : t.common.error); }
   }
 
-  async function reprintAltPdf(id: number, prNumber: string) {
+  async function reprintAltPdf(id: number, prNumber: string, supplierCode?: string) {
     try {
       const res = await fetch(api.commission.reprintAltPdfUrl(id), { method: "POST", headers: authHeaders() });
       if (!res.ok) throw new Error(`${res.status}`);
       const blob = await res.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `${prNumber}_alt.pdf`;
+      a.download = [prNumber, supplierCode, "NAAG"].filter(Boolean).join("_") + ".pdf";
       a.click();
     } catch (e: unknown) { alert(e instanceof Error ? e.message : t.common.error); }
   }
@@ -277,11 +277,11 @@ export default function CommissionInvoices() {
                   <td className="px-4 py-2.5"><StatusBadge status={r.status} /></td>
                   <td className="px-3 py-2.5">
                     <div className="flex gap-1 justify-end items-center">
-                      <button onClick={() => reprintPdf(r.id, r.pr_number)} title="PDF (Standard-Layout)"
+                      <button onClick={() => reprintPdf(r.id, r.pr_number, r.supplier_code)} title="PDF (Standard-Layout)"
                         className="text-[#2563eb] hover:bg-[#2563eb]/10 px-1.5 py-0.5 rounded text-xs border border-[#2563eb]/30 transition-colors">
                         {t.provisions.pdfPreview}
                       </button>
-                      <button onClick={() => reprintAltPdf(r.id, r.pr_number)} title={t.provisions.pdfAlt}
+                      <button onClick={() => reprintAltPdf(r.id, r.pr_number, r.supplier_code)} title={t.provisions.pdfAlt}
                         className="text-violet-600 hover:bg-violet-50 px-1.5 py-0.5 rounded text-xs border border-violet-300 transition-colors">
                         {t.provisions.pdfAltShort}
                       </button>

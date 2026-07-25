@@ -463,7 +463,7 @@ def reprint_commission_invoice_pdf(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{inv.pr_number}.pdf"'},
+        headers={"Content-Disposition": f'attachment; filename="{inv.pr_number}_{supplier.code}_AMV.pdf"'},
     )
 
 
@@ -523,7 +523,7 @@ def reprint_commission_invoice_pdf_alt(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{inv.pr_number}_alt.pdf"'},
+        headers={"Content-Disposition": f'attachment; filename="{inv.pr_number}_{supplier.code}_NAAG.pdf"'},
     )
 
 
