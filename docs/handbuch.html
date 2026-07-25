@@ -235,6 +235,8 @@
         <li><a href="#berichte">Berichte (Admin)</a></li>
         <li><a href="#benutzer">Benutzer &amp; Zugriffsrechte (Admin)</a></li>
         <li><a href="#konzepte">Wichtige Konzepte</a></li>
+        <li><a href="#feeds">Reybex-Feeds (Admin)</a></li>
+        <li><a href="#einstellungen">Einstellungen (Admin)</a></li>
         <li><a href="#faq">Tipps &amp; häufige Fragen</a></li>
       </ol>
     </nav>
@@ -284,7 +286,8 @@
             <div class="navitem"><span class="badge">R</span><div><div class="t">Rechnungen</div><div class="d">Umsätze / Transaktionen</div></div></div>
             <div class="navitem"><span class="badge">S</span><div><div class="t">Statistik</div><div class="d">Auswertungen</div></div></div>
             <div class="navitem"><span class="badge">B</span><div><div class="t">Berichte <span class="adminflag">Admin</span></div><div class="d">Automatische E-Mails</div></div></div>
-            <div class="navitem"><span class="badge">⚙</span><div><div class="t">Einstellungen <span class="adminflag">Admin</span></div><div class="d">Bankdaten u. a.</div></div></div>
+            <div class="navitem"><span class="badge">⇊</span><div><div class="t">Reybex-Feeds <span class="adminflag">Admin</span></div><div class="d">Automatischer Import</div></div></div>
+            <div class="navitem"><span class="badge">⚙</span><div><div class="t">Einstellungen <span class="adminflag">Admin</span></div><div class="d">Bankdaten, Logos u. a.</div></div></div>
             <div class="navitem"><span class="badge">U</span><div><div class="t">Benutzer <span class="adminflag">Admin</span></div><div class="d">Konten &amp; Rechte</div></div></div>
           </div>
 
@@ -388,6 +391,28 @@
             <p class="mono">Provision = PROVISION − PROV2 − PROV3 − PROV4 − PROV5 − PROV6</p>
             <p>Die Anteile der Unter-Vertreter (PROV2–PROV6) werden separat mitgespeichert. Details in Kapitel 12.</p>
           </div>
+
+          <h3>Import-Vorlagen (CSV / Excel / XML / JSON)</h3>
+          <p>Für den Import einer Rechnungsdatei gibt es fertige <strong>Excel-Vorlagen</strong> (deutsch und englisch) im Ordner <code>doc</code>. Alle Formate – CSV, Excel, XML und JSON – nutzen dieselben Spalten:</p>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Spalte</th><th>Pflicht</th><th>Beispiel</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Währung</strong></td><td>ja</td><td>EUR, USD, CHF</td></tr>
+                <tr><td><strong>Kunde</strong></td><td>ja</td><td>Gewohnheit GmbH (wird über den Namen zugeordnet)</td></tr>
+                <tr><td><strong>Datum</strong></td><td>ja</td><td>09.01.2026</td></tr>
+                <tr><td><strong>Rechnungsnummer</strong></td><td>–</td><td>RE-810068</td></tr>
+                <tr><td><strong>Provisionsbasis</strong></td><td>ja</td><td>12.755,00 (Umsatz)</td></tr>
+                <tr><td><strong>Provision %</strong></td><td>ja</td><td>5 (Netto-Satz, reine Zahl)</td></tr>
+                <tr><td><strong>Provision</strong></td><td>–</td><td>637,75 (= Basis × % ÷ 100)</td></tr>
+                <tr><td><strong>Lieferant</strong></td><td>–</td><td>GW (optional – für eine Datei mit mehreren Lieferanten)</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Die Spalten dürfen deutsch oder englisch benannt sein. Ist die Spalte <strong>Lieferant</strong> (Code) vorhanden, wird jede Zeile automatisch dem richtigen Lieferanten zugeordnet – sonst gilt der ausgewählte bzw. zugeordnete Lieferant.</p>
+          <div class="box tip"><span class="lbl">Automatischer Import per Reybex-Feed</span>
+            <p>Diese Dateien müssen Sie nicht manuell hochladen: Über die <strong>Reybex-Feeds</strong> (Kapitel 13) holt WinAgent die Wochen-Exporte automatisch ab.</p>
+          </div>
         </div>
       </section>
 
@@ -425,7 +450,23 @@
             <span class="pill paid">Bezahlt</span>
             <span class="pill check">In Prüfung</span>
           </p>
-          <p>Den Status ändern Sie direkt in der Zeile. Über die <strong>Aktionen</strong> können Sie die Rechnung als <strong>PDF</strong> erneut drucken, <strong>bearbeiten</strong> oder <strong>löschen</strong>.</p>
+          <p>Den Status ändern Sie direkt in der Zeile. Der <strong>Lieferanten-Filter</strong> oben ist eine Auswahlliste (Dropdown). Über die <strong>Aktionen</strong> können Sie die Rechnung <strong>bearbeiten</strong> oder <strong>löschen</strong>.</p>
+
+          <h3>Zwei PDF-Layouts</h3>
+          <p>Bei jeder Rechnung gibt es zwei Druck-Knöpfe:</p>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Knopf</th><th>Layout</th><th>Dateiname</th></tr></thead>
+              <tbody>
+                <tr><td><strong>PDF</strong></td><td>Standard-Layout (AMV)</td><td class="mono">PR26-0185_GW_AMV.pdf</td></tr>
+                <tr><td><strong>PDF 2</strong></td><td>Alternatives Layout: Beschreibungstext der Rechnung als Position, Zusatzzeile „(Siehe beiliegende Abrechnung)", Ort + Datum, Aussteller/Bank <strong>NA AG</strong></td><td class="mono">PR26-0185_GW_NAAG.pdf</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Der Dateiname ist immer <code>{PR-Nummer}_{Lieferant}_{AMV/NAAG}.pdf</code>. Aussteller, Bank und Logo für „PDF 2" hinterlegen Sie in den <strong>Einstellungen</strong> (Kapitel 14, Abschnitt <em>Bankverbindung NA AG</em>).</p>
+          <div class="box tip"><span class="lbl">Tipp</span>
+            <p>Der Text der Positionszeile im Alt-Layout kommt aus dem Feld <strong>Bezeichnung</strong> der Rechnung – diesen können Sie über <strong>bearbeiten</strong> anpassen.</p>
+          </div>
         </div>
       </section>
 
@@ -455,6 +496,9 @@
 
           <h3>Lieferanten <span class="badge" style="width:22px;height:22px;font-size:11px;vertical-align:middle;">L</span></h3>
           <p>Liste aller Lieferanten mit Code, Name, Währung, Vertreter, Kontakt und Provisions-Splits. Über <strong>+ Neuer Lieferant</strong> legen Sie einen neuen an; per Klick bearbeiten Sie einen bestehenden (Adresse, Kontakt, Rechnungssprache usw.).</p>
+          <div class="box tip"><span class="lbl">UID-Nummer &amp; Rechnungsadresse</span>
+            <p>Im Bearbeiten-Dialog gibt es das Feld <strong>UID-Nummer</strong> (z. B. „RO 31837967"). Sie erscheint auf der Provisionsrechnung im Empfängerblock als „UID-Nr. …". Die <strong>Empfängeradresse auf der Rechnung stammt aus dem Lieferantenstamm</strong> (Adresse, PLZ/Ort, Land) – korrigieren Sie sie also hier.</p>
+          </div>
 
           <h3>Kunden <span class="badge" style="width:22px;height:22px;font-size:11px;vertical-align:middle;">K</span></h3>
           <p>Der Adressenstamm mit Code, Name, Land, Stadt und Telefon. Über <strong>Reybex-Sync</strong> werden die Kundendaten automatisch abgeglichen; der Zeitpunkt des letzten Abgleichs wird angezeigt.</p>
@@ -553,9 +597,58 @@
       </section>
 
       <!-- 13 -->
+      <section id="feeds">
+        <div class="content">
+          <h2><span class="num">13</span> Reybex-Feeds – automatischer Import <span class="adminflag" style="font-size:.7rem;">nur Admin</span></h2>
+          <p class="lead">Reybex stellt pro Lieferant einen <strong>Abhol-Feed</strong> (dataExportFeed-Link) mit den Rechnungen bereit. WinAgent ruft diese Feeds <strong>täglich automatisch</strong> ab und importiert die Rechnungen – Sie müssen nichts mehr manuell hochladen.</p>
+
+          <h3>Feed einrichten</h3>
+          <ol class="steps">
+            <li>In Reybex je Lieferant/Mandant den <strong>Datenexport-Feed</strong> anlegen (Format wie die Import-Vorlage, siehe Kapitel 5). Reybex liefert dazu einen <strong>Feed-Link</strong> mit <code>feedToken</code>.</li>
+            <li>In WinAgent <strong>Reybex-Feeds</strong> öffnen und den Link in der Zeile des <strong>richtigen Lieferanten</strong> eintragen.</li>
+            <li><strong>Speichern</strong> – danach <strong>„Jetzt abrufen"</strong> für den sofortigen Import, oder auf den täglichen Auto-Abruf warten.</li>
+          </ol>
+          <p>Mit <strong>„Alle abrufen"</strong> holen Sie alle Feeds auf einmal. Das <strong>Import-Protokoll</strong> unten zeigt zu jedem Abruf: Zeit, Datei, Status und wie viele Rechnungen neu, aktualisiert oder unverändert waren.</p>
+
+          <div class="box important"><span class="lbl">Keine doppelten Rechnungen</span>
+            <p>Eine bereits importierte Rechnung wird <strong>nicht erneut angelegt</strong>. Nur wenn sich <strong>Betrag oder Provision geändert</strong> haben, wird die bestehende Rechnung überschrieben – sonst bleibt sie unverändert.</p>
+          </div>
+          <div class="box tip"><span class="lbl">Ein Feed = ein Lieferant</span>
+            <p>Üblich ist ein Feed pro Lieferant. Enthält ein gemeinsamer Feed mehrere Lieferanten, ergänzen Sie in Reybex die Spalte <strong>Lieferant</strong> (Code) – dann verteilt WinAgent jede Zeile automatisch.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 14 -->
+      <section id="einstellungen">
+        <div class="content">
+          <h2><span class="num">14</span> Einstellungen <span class="adminflag" style="font-size:.7rem;">nur Admin</span></h2>
+          <p class="lead">Unter <strong>Einstellungen</strong> hinterlegen Sie Logos, Firmendaten und Bankverbindungen für die Rechnungs-PDFs.</p>
+
+          <h3>Standard (AMV)</h3>
+          <ul>
+            <li><strong>Logo</strong> – erscheint im Kopf der Standard-Rechnung.</li>
+            <li><strong>Firmendaten</strong> – UID-Nr. und Registration.</li>
+            <li><strong>Bankkonten je Währung</strong> (EUR / USD / CHF) mit Bank, IBAN, BIC. Das passende Konto wird automatisch anhand der Rechnungswährung gewählt.</li>
+          </ul>
+
+          <h3>Bankverbindung NA AG (für „PDF 2")</h3>
+          <p>Eine <strong>eigene</strong> Sektion für das alternative Rechnungs-Layout (Kapitel 7). Hier hinterlegen Sie separat:</p>
+          <ul>
+            <li><strong>NA-Logo</strong> – Kopf des Alt-Layouts.</li>
+            <li><strong>Aussteller / Firma</strong>, <strong>Adresse</strong> und <strong>Ort</strong> (erscheint vor dem Datum, z. B. „Zuzwil").</li>
+            <li><strong>UID-Nr.</strong>, <strong>Registration</strong> und <strong>Bank je Währung</strong> (z. B. Schweizer UBS).</li>
+          </ul>
+          <div class="box tip"><span class="lbl">Fallback</span>
+            <p>Bleiben die NA-AG-Felder leer, verwendet „PDF 2" automatisch die Standard-Bankverbindung (AMV).</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 15 -->
       <section id="faq">
         <div class="content">
-          <h2><span class="num">13</span> Tipps &amp; häufige Fragen</h2>
+          <h2><span class="num">15</span> Tipps &amp; häufige Fragen</h2>
 
           <h3>Nach einer Änderung sehe ich die neuen Daten nicht</h3>
           <p>Laden Sie die Seite neu: <kbd>Strg</kbd> + <kbd>F5</kbd> (Mac: <kbd>Cmd</kbd> + <kbd>R</kbd>). So holt der Browser die aktuelle Version.</p>
@@ -575,7 +668,9 @@
           <div class="box tip"><span class="lbl">Kurz-Spickzettel</span>
             <p><strong>Rechnungen:</strong> Lieferant → Zeitraum → (Suche) → Zeile anklicken zum Bearbeiten.<br>
             <strong>Provisionsrechnung:</strong> Rechnungen → 🧾 Prov.-Rechn. → bestätigen.<br>
-            <strong>Import:</strong> Rechnungen → 🔄 DBF / 📊 CSV/Excel / 📨 E-Rechnung.<br>
+            <strong>PDF drucken:</strong> Provisionen → <strong>PDF</strong> (Standard) oder <strong>PDF 2</strong> (Alt-Layout NA AG).<br>
+            <strong>Import:</strong> Rechnungen → 🔄 DBF / 📊 CSV/Excel / 📨 E-Rechnung – oder automatisch per Reybex-Feed.<br>
+            <strong>Auto-Import:</strong> Reybex-Feeds → Feed-Link je Lieferant → „Jetzt abrufen".<br>
             <strong>Rechte:</strong> Benutzer → ✏ Bearbeiten → Lieferanten-Zugriff.</p>
           </div>
         </div>
