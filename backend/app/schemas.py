@@ -19,6 +19,7 @@ class SupplierOut(BaseModel):
     representative_code: Optional[str] = None
     contact_person: Optional[str] = None
     uid_number: Optional[str] = None
+    show_alt_pdf: Optional[bool] = None
     is_active: bool
     invoice_language: Optional[str] = "de+en"
 
@@ -36,6 +37,7 @@ class SupplierCreate(BaseModel):
     representative_code: Optional[str] = None
     contact_person: Optional[str] = None
     uid_number: Optional[str] = None
+    show_alt_pdf: Optional[bool] = None
     is_active: bool = True
     notes: Optional[str] = None
     invoice_language: Optional[str] = "de+en"
@@ -53,6 +55,7 @@ class SupplierUpdate(BaseModel):
     representative_code: Optional[str] = None
     contact_person: Optional[str] = None
     uid_number: Optional[str] = None
+    show_alt_pdf: Optional[bool] = None
     is_active: Optional[bool] = None
     notes: Optional[str] = None
     invoice_language: Optional[str] = None
@@ -228,6 +231,7 @@ class CommissionInvoiceOut(BaseModel):
     supplier_id: int
     supplier_code: Optional[str] = None
     supplier_name: Optional[str] = None
+    supplier_alt_pdf: Optional[bool] = None
     pr_number: str
     invoice_date: date
     description: Optional[str] = None

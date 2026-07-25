@@ -21,6 +21,7 @@ type Form = {
   representative_code: string;
   contact_person: string;
   uid_number: string;
+  show_alt_pdf: boolean;
   is_active: boolean;
   notes: string;
   splits: Split[];
@@ -40,6 +41,7 @@ function toForm(s: Supplier | null): Form {
     representative_code: s?.representative_code ?? "",
     contact_person:      s?.contact_person ?? "",
     uid_number:          s?.uid_number ?? "",
+    show_alt_pdf:        s?.show_alt_pdf ?? false,
     is_active:           s?.is_active ?? true,
     notes:               "",
     splits:              s?.provision_splits ? [...s.provision_splits] : [],
@@ -81,6 +83,7 @@ export default function SupplierEditModal({ supplier, onClose, onSaved }: Props)
         representative_code: form.representative_code.toUpperCase() || undefined,
         contact_person: form.contact_person || undefined,
         uid_number: form.uid_number || undefined,
+        show_alt_pdf: form.show_alt_pdf,
         is_active: form.is_active,
         provision_splits: form.splits.length > 0 ? form.splits : undefined,
         invoice_language: form.invoice_language || "de+en",
@@ -295,6 +298,15 @@ export default function SupplierEditModal({ supplier, onClose, onSaved }: Props)
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <input type="checkbox" id="show_alt_pdf" checked={form.show_alt_pdf}
+              onChange={(e) => set("show_alt_pdf", e.target.checked)}
+              className="w-4 h-4 accent-violet-600" />
+            <label htmlFor="show_alt_pdf" className="text-sm text-gray-700">
+              Button „PDF NAAG" (Alt-Layout) anzeigen
+            </label>
           </div>
 
           <div className="flex items-center gap-3">

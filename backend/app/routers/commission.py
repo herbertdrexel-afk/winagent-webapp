@@ -395,6 +395,7 @@ def list_commission_invoices(
         out = schemas.CommissionInvoiceOut.model_validate(inv)
         out.supplier_code = inv.supplier.code
         out.supplier_name = inv.supplier.name
+        out.supplier_alt_pdf = bool(inv.supplier.show_alt_pdf)
         result.append(out)
     return result
 
@@ -417,6 +418,7 @@ def update_commission_invoice(
     out = schemas.CommissionInvoiceOut.model_validate(inv)
     out.supplier_code = inv.supplier.code
     out.supplier_name = inv.supplier.name
+    out.supplier_alt_pdf = bool(inv.supplier.show_alt_pdf)
     return out
 
 

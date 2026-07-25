@@ -76,6 +76,7 @@ class Supplier(Base):
     representative_code = Column(String(2), ForeignKey("representatives.code"))
     contact_person = Column(String(60))
     uid_number = Column(String(30))      # UID-/USt-Nummer des Lieferanten (für Rechnung)
+    show_alt_pdf = Column(Boolean, default=False)  # Button "PDF NAAG" (Alt-Layout) anzeigen?
     display_config = Column(JSONB)
     is_active = Column(Boolean, default=True)
     notes = Column(Text)

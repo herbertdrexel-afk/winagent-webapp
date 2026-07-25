@@ -56,6 +56,7 @@ export interface Supplier {
   representative_code?: string;
   contact_person?: string;
   uid_number?: string;
+  show_alt_pdf?: boolean;
   is_active: boolean;
   invoice_language?: string;  // "de" | "en" | "de+en"
 }
@@ -422,6 +423,7 @@ export interface CommissionInvoiceRecord {
   supplier_id: number;
   supplier_code?: string;
   supplier_name?: string;
+  supplier_alt_pdf?: boolean;
   pr_number: string;
   invoice_date: string;
   description?: string;

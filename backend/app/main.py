@@ -127,6 +127,7 @@ with engine.connect() as _conn:
     _conn.execute(_sql("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS country VARCHAR(60)"))
     _conn.execute(_sql("ALTER TABLE commission_invoices ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'offen'"))
     _conn.execute(_sql("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS uid_number VARCHAR(30)"))
+    _conn.execute(_sql("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS show_alt_pdf BOOLEAN DEFAULT FALSE"))
     _conn.execute(_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(60)"))
     _conn.execute(_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(60)"))
     _conn.execute(_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS language VARCHAR(5) DEFAULT 'de'"))

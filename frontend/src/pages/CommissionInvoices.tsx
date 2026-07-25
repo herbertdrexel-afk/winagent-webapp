@@ -281,10 +281,12 @@ export default function CommissionInvoices() {
                         className="text-[#2563eb] hover:bg-[#2563eb]/10 px-1.5 py-0.5 rounded text-xs border border-[#2563eb]/30 transition-colors">
                         {t.provisions.pdfPreview}
                       </button>
-                      <button onClick={() => reprintAltPdf(r.id, r.pr_number, r.supplier_code)} title={t.provisions.pdfAlt}
-                        className="text-violet-600 hover:bg-violet-50 px-1.5 py-0.5 rounded text-xs border border-violet-300 transition-colors">
-                        {t.provisions.pdfAltShort}
-                      </button>
+                      {r.supplier_alt_pdf && (
+                        <button onClick={() => reprintAltPdf(r.id, r.pr_number, r.supplier_code)} title={t.provisions.pdfAlt}
+                          className="text-violet-600 hover:bg-violet-50 px-1.5 py-0.5 rounded text-xs border border-violet-300 transition-colors">
+                          {t.provisions.pdfAltShort}
+                        </button>
+                      )}
                       <button onClick={() => previewPdf(r.id)} title="Vorschau"
                         className="text-emerald-600 hover:bg-emerald-50 px-1.5 py-0.5 rounded text-xs border border-emerald-300 transition-colors">🖥</button>
                       <button onClick={() => openEdit(r)} title={t.common.edit}
