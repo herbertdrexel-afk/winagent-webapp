@@ -1,0 +1,137 @@
+<title>WinAgent – Kurzanleitung</title>
+<style>
+  :root{
+    --bg:#eef1f6; --surface:#fff; --surface-2:#f7f8fa; --ink:#1a2230; --muted:#5b6472;
+    --border:#e2e5eb; --primary:#2563eb; --primary-dark:#1d4ed8; --primary-soft:#dbeafe;
+    --tip-bg:#eff5ff; --tip-bd:#bcd3f7; --tip-ink:#1e40af;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#0e131a; --surface:#161c26; --surface-2:#121821; --ink:#e7eaf0; --muted:#9aa3b2;
+    --border:#262e3a; --primary:#5b8def; --primary-dark:#7aa5f5; --primary-soft:#1c2942;
+    --tip-bg:#13233f; --tip-bd:#2a4670; --tip-ink:#a9c6f5;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0e131a; --surface:#161c26; --surface-2:#121821; --ink:#e7eaf0; --muted:#9aa3b2;
+    --border:#262e3a; --primary:#5b8def; --primary-dark:#7aa5f5; --primary-soft:#1c2942;
+    --tip-bg:#13233f; --tip-bd:#2a4670; --tip-ink:#a9c6f5;
+  }
+  :root[data-theme="light"]{
+    --bg:#eef1f6; --surface:#fff; --surface-2:#f7f8fa; --ink:#1a2230; --muted:#5b6472;
+    --border:#e2e5eb; --primary:#2563eb; --primary-dark:#1d4ed8; --primary-soft:#dbeafe;
+    --tip-bg:#eff5ff; --tip-bd:#bcd3f7; --tip-ink:#1e40af;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Arial,sans-serif;
+    line-height:1.6;font-size:17px;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:44rem;margin:0 auto;padding:0 1.2rem;}
+  .hero{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;
+    padding:2.4rem 0 2rem;}
+  .hero .brand{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1rem;}
+  .logo{width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.18);
+    border:1px solid rgba(255,255,255,.3);display:grid;place-items:center;font-weight:800;}
+  .hero h1{margin:.5rem 0 .2rem;font-size:2rem;font-weight:800;letter-spacing:-.02em;}
+  .hero p{margin:0;color:rgba(255,255,255,.9);}
+  main{padding:1.5rem 0 4rem;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:1.2rem 1.3rem;margin-top:1rem;}
+  .card h2{display:flex;align-items:center;gap:.6rem;margin:0 0 .3rem;font-size:1.2rem;font-weight:750;}
+  .num{width:1.7rem;height:1.7rem;flex:none;border-radius:50%;background:var(--primary);color:#fff;
+    display:grid;place-items:center;font-size:.9rem;font-weight:700;}
+  .card p{margin:.4rem 0;color:var(--ink);}
+  ol,ul{margin:.4rem 0;padding-left:1.3rem;}
+  li{margin:.3rem 0;}
+  strong{font-weight:680;}
+  .muted{color:var(--muted);font-size:.95rem;}
+  kbd{font-family:ui-monospace,Consolas,monospace;font-size:.85em;background:var(--surface-2);
+    border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:.05em .4em;}
+  .tip{background:var(--tip-bg);border:1px solid var(--tip-bd);border-radius:10px;
+    padding:.7rem .9rem;margin:.8rem 0;font-size:.95rem;}
+  .tip b{color:var(--tip-ink);}
+  .menu{display:grid;grid-template-columns:repeat(auto-fill,minmax(12rem,1fr));gap:.5rem;margin:.6rem 0;}
+  .mi{display:flex;align-items:center;gap:.55rem;background:var(--surface-2);border:1px solid var(--border);
+    border-radius:9px;padding:.45rem .6rem;font-size:.92rem;}
+  .badge{width:26px;height:26px;flex:none;border-radius:6px;background:var(--primary);color:#fff;
+    display:grid;place-items:center;font-weight:800;font-size:12px;}
+  footer{text-align:center;color:var(--muted);font-size:.85rem;padding:1rem 0 2.5rem;}
+  @media print{.hero{background:var(--primary-dark)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .card{break-inside:avoid;}}
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><span class="logo">W</span> WinAgent</div>
+    <h1>Kurzanleitung</h1>
+    <p>Die wichtigsten Schritte auf einen Blick – in wenigen Minuten erklärt.</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="card">
+    <h2><span class="num">1</span> Anmelden</h2>
+    <ol>
+      <li>WinAgent im Browser öffnen (Chrome, Edge, Safari …).</li>
+      <li><strong>Benutzername</strong> und <strong>Passwort</strong> eingeben.</li>
+      <li>Auf <strong>Anmelden</strong> klicken.</li>
+    </ol>
+    <p class="muted">Noch kein Zugang? Über <strong>Registrieren</strong> anlegen – ein Administrator gibt Ihr Konto anschließend frei.</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">2</span> Überblick</h2>
+    <p>Links (am Handy unten) ist das Menü. Das brauchen Sie im Alltag:</p>
+    <div class="menu">
+      <div class="mi"><span class="badge">D</span> Dashboard – Überblick</div>
+      <div class="mi"><span class="badge">R</span> Rechnungen – Umsätze</div>
+      <div class="mi"><span class="badge">S</span> Statistik – Auswertungen</div>
+      <div class="mi"><span class="badge">%</span> Provisionen – Rechnungen</div>
+      <div class="mi"><span class="badge">L</span> Lieferanten</div>
+      <div class="mi"><span class="badge">K</span> Kunden</div>
+    </div>
+    <p class="muted">Manche Menüpunkte sehen nur Administratoren – das ist normal.</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">3</span> Rechnungen ansehen</h2>
+    <ol>
+      <li>Auf <strong>Rechnungen</strong> klicken.</li>
+      <li>Oben den <strong>Lieferanten</strong> wählen.</li>
+      <li>Den <strong>Zeitraum</strong> über die Knöpfe wählen: <strong>Diese Woche</strong>, <strong>Dieser Monat</strong>, <strong>Q1–Q4</strong> oder <strong>Jahr</strong> – oder <strong>Von/Bis</strong> selbst eingeben.</li>
+      <li>Bei Bedarf rechts suchen nach <strong>Rg-Nr</strong>, <strong>Kunde</strong> oder <strong>Datum</strong>.</li>
+    </ol>
+    <p>Die Liste lädt automatisch. <strong>Klick auf eine Zeile</strong> öffnet die Rechnung mit allen Positionen. Ganz unten sehen Sie die <strong>Summe</strong>.</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">4</span> Auswertungen (Statistik)</h2>
+    <p>Unter <strong>Statistik</strong> sehen Sie Umsätze und Provisionen – je Lieferant oder je Kunde, mit Vergleich zum Vorjahr.</p>
+    <ol>
+      <li>Register oben wählen (z. B. <strong>Lieferant Statistik</strong> oder <strong>Kunden-Detail</strong>).</li>
+      <li>Zeitraum bzw. Jahr einstellen.</li>
+      <li>Mit <strong>PDF</strong> die Auswertung herunterladen.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">5</span> Provisionsrechnung drucken</h2>
+    <p>Unter <strong>Provisionen</strong> stehen alle Provisionsrechnungen. Rechts in der Zeile:</p>
+    <ul>
+      <li><strong>PDF AMV</strong> – Rechnung als PDF herunterladen.</li>
+      <li><strong>PDF NAAG</strong> – falls vorhanden, das alternative Layout.</li>
+    </ul>
+    <p class="muted">Filtern können Sie oben nach <strong>Lieferant</strong> und <strong>Status</strong> (Offen, Bezahlt, In Prüfung).</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">6</span> Sprache &amp; Profil</h2>
+    <p>Oben rechts auf Ihr <strong>Namenskürzel</strong> (blauer Kreis) klicken. Dort können Sie <strong>Vorname/Name</strong> hinterlegen und die <strong>Sprache</strong> (Deutsch/English) umstellen – die Umstellung wirkt sofort.</p>
+  </div>
+
+  <div class="tip"><b>Gut zu wissen</b><br>
+    Sehen Sie nach einer Änderung noch alte Daten? Seite neu laden mit <kbd>Strg</kbd> + <kbd>F5</kbd>.
+    Zum Beenden oben bzw. unten auf das <strong>Abmelden</strong>-Symbol klicken.</div>
+
+</main>
+
+<footer>WinAgent · Kurzanleitung für Anwender</footer>
