@@ -10,6 +10,7 @@ const de = {
     stats: "Statistik",
     reports: "Berichte",
     feeds: "Reybex-Feeds",
+    log: "Protokoll",
     settings: "Einstellungen",
     users: "Benutzer",
     logout: "Abmelden",
@@ -342,6 +343,20 @@ const de = {
     imported: "Importiert",
     detail: "Detail",
   },
+  log: {
+    title: "Import-Protokoll",
+    intro: "Übersicht aller automatischen und manuellen Importe. Pro Abruf siehst du Zeitpunkt, Quelle, Datei, Status und wie viele Rechnungen neu angelegt, aktualisiert oder unverändert übernommen wurden.",
+    search: "Suchen (Datei, Quelle, Detail …)",
+    time: "Zeit",
+    source: "Quelle",
+    file: "Datei",
+    type: "Typ",
+    status: "Status",
+    imported: "Importiert",
+    skipped: "Übersprungen",
+    detail: "Detail",
+    count: (n: number) => `${n} Einträge`,
+  },
 };
 
 const en: typeof de = {
@@ -354,6 +369,7 @@ const en: typeof de = {
     stats: "Statistics",
     reports: "Reports",
     feeds: "Reybex Feeds",
+    log: "Log",
     settings: "Settings",
     users: "Users",
     logout: "Sign out",
@@ -685,6 +701,20 @@ const en: typeof de = {
     file: "File",
     imported: "Imported",
     detail: "Detail",
+  },
+  log: {
+    title: "Import log",
+    intro: "Overview of all automatic and manual imports. For each run you see the time, source, file, status and how many invoices were newly created, updated or kept unchanged.",
+    search: "Search (file, source, detail …)",
+    time: "Time",
+    source: "Source",
+    file: "File",
+    type: "Type",
+    status: "Status",
+    imported: "Imported",
+    skipped: "Skipped",
+    detail: "Detail",
+    count: (n: number) => `${n} entries`,
   },
 };
 

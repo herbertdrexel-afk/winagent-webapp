@@ -10,6 +10,7 @@ import UserManagement from "./pages/UserManagement";
 import BankAccounts from "./pages/BankAccounts";
 import Reports from "./pages/Reports";
 import ReybexFeeds from "./pages/ReybexFeeds";
+import ImportLog from "./pages/ImportLog";
 import Login from "./pages/Login";
 import { useAuth } from "./context/AuthContext";
 import { LocaleProvider } from "./context/LocaleContext";
@@ -38,6 +39,7 @@ function ProtectedRoutes() {
               <>
                 <Route path="reports" element={<Reports />} />
                 <Route path="reybex-feeds" element={<ReybexFeeds />} />
+                <Route path="import-log" element={<ImportLog />} />
                 <Route path="users" element={<UserManagement />} />
                 <Route path="bank-accounts" element={<BankAccounts />} />
               </>
