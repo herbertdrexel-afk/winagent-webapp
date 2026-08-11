@@ -222,6 +222,13 @@ export const api = {
         return r.json() as Promise<PdfEntry[]>;
       });
     },
+    importConfirmed: (supplierCode: string, entries: Record<string, unknown>[]) =>
+      fetch(`${BASE}/suppliers/${supplierCode}/transactions/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(entries),
+      }).then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); }
+        return r.json() as Promise<{ new: number; updated: number; unchanged: number; skipped: number; imported: number }>; }),
   },
   commission: {
     statements: () => get<CommissionStatement[]>("/commission/statements"),

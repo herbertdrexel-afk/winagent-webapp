@@ -493,45 +493,30 @@ def import_records_for_supplier(records: list[dict], supplier, db: Session) -> d
             unmatched += 1
 
         inv_nr = (e.get('invoice_number') or '').strip()[:10]
-        new_total = round(float(e.get('total_amount') or 0), 2)
-        new_rate = round(float(e.get('provision_rate') or 0), 4)
-
-        # Bestehende Rechnung über (Lieferant + Rechnungsnummer) finden
-        existing = None
-        if inv_nr:
-            existing = (
-                db.query(models.Transaction)
-                .filter_by(supplier_id=sup.id, invoice_number=inv_nr)
-                .first()
-            )
-
-        # Schon vorhanden UND unverändert (Betrag + Provisionssatz gleich) → überspringen
-        if existing is not None and \
-           round(float(existing.total_amount or 0), 2) == new_total and \
-           round(float(existing.provision_rate or 0), 4) == new_rate:
-            unchanged += 1
-            continue
-
         fields = dict(
             supplier_id=sup.id,
             customer_id=cust.id if cust else None,
             year=d.year,
             invoice_number=inv_nr,
             invoice_date=d,
-            provision_rate=new_rate,
+            provision_rate=round(float(e.get('provision_rate') or 0), 4),
             currency=cur,
-            total_amount=new_total,
+            total_amount=round(float(e.get('total_amount') or 0), 2),
             exchange_rate=1,
             notes=None if cust else (f"Kunde nicht zugeordnet: {name}"[:200] or None),
         )
-        if existing is not None:
-            # Betrag/Provision hat sich geändert → bestehende Rechnung überschreiben
-            for k, v in fields.items():
-                setattr(existing, k, v)
-            updated += 1
+        # Zentrale Import-Regel: neu / bei Änderung überschreiben / sonst unverändert lassen
+        if inv_nr:
+            outcome = models.upsert_transaction(db, {"supplier_id": sup.id, "invoice_number": inv_nr}, fields)
         else:
             db.add(models.Transaction(**fields))
+            outcome = "new"
+        if outcome == "new":
             new += 1
+        elif outcome == "updated":
+            updated += 1
+        else:
+            unchanged += 1
 
     db.commit()
     return {"new": new, "updated": updated, "unchanged": unchanged,
@@ -567,3 +552,56 @@ async def parse_csv(
         raise HTTPException(400, "Keine Einträge in der Datei gefunden")
 
     return _match_customers(entries, db)
+
+
+@router.post("/{code}/transactions/import")
+def import_confirmed_entries(
+    code: str,
+    payload: list[dict],
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Bestätigte Import-Zeilen (mit gewählter Kundenzuordnung) übernehmen –
+    mit derselben Regel wie alle Importe: neu / bei Änderung überschreiben / sonst unverändert."""
+    supplier = db.query(models.Supplier).filter(models.Supplier.code == code.upper()).first()
+    if not supplier:
+        raise HTTPException(404, "Lieferant nicht gefunden")
+    check_supplier_access(current_user, db, supplier.id)
+
+    new = updated = unchanged = skipped = 0
+    for e in payload:
+        iso = str(e.get("invoice_date") or "").strip()
+        try:
+            d = date.fromisoformat(iso[:10])
+        except ValueError:
+            skipped += 1
+            continue
+        inv_nr = str(e.get("invoice_number") or "").strip()[:10]
+        fields = dict(
+            supplier_id=supplier.id,
+            customer_id=e.get("customer_id"),
+            year=d.year,
+            invoice_number=inv_nr,
+            invoice_date=d,
+            art_nr=(str(e.get("art_nr") or "").strip() or None),
+            provision_rate=e.get("provision_rate"),
+            currency=e.get("currency"),
+            total_amount=e.get("total_amount") or 0,
+            exchange_rate=1,
+        )
+        if inv_nr:
+            outcome = models.upsert_transaction(
+                db, {"supplier_id": supplier.id, "invoice_number": inv_nr}, fields)
+        else:
+            db.add(models.Transaction(**fields))
+            outcome = "new"
+        if outcome == "new":
+            new += 1
+        elif outcome == "updated":
+            updated += 1
+        else:
+            unchanged += 1
+
+    db.commit()
+    return {"new": new, "updated": updated, "unchanged": unchanged, "skipped": skipped,
+            "imported": new + updated}

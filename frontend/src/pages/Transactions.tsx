@@ -273,15 +273,9 @@ export default function Transactions() {
     }
   }
 
-  function handlePdfImported(imported: Transaction[]) {
-    setRows((prev) => {
-      const existingNrs = new Set(imported.map((r) => r.invoice_number));
-      const withoutDupes = prev.filter((r) => !existingNrs.has(r.invoice_number));
-      return [...withoutDupes, ...imported].sort(
-        (a, b) => a.invoice_date.localeCompare(b.invoice_date)
-      );
-    });
+  function handlePdfImported() {
     setShowPdfImport(false);
+    loadData();
   }
 
   // Group and filter

@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
-import { api, type PdfEntry, type Transaction } from "../api";
+import { api, type PdfEntry } from "../api";
 import { formatDate } from "../utils/format";
 
 interface Props {
   supplierCode: string;
   onClose: () => void;
-  onImported: (transactions: Transaction[]) => void;
+  onImported: () => void;
 }
 
 export default function PdfImportModal({ supplierCode, onClose, onImported }: Props) {
@@ -41,22 +41,19 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
     if (!entries) return;
     setImporting(true);
     setError(null);
-    const created: Transaction[] = [];
     try {
-      for (let i = 0; i < entries.length; i++) {
-        const e = entries[i];
-        const tx = await api.transactions.create(supplierCode, {
-          customer_id: customerMap[i] ?? undefined,
-          invoice_number: e.invoice_number,
-          invoice_date: e.invoice_date,
-          art_nr: e.art_nr,
-          total_amount: String(e.total_amount),
-          provision_rate: e.provision_rate != null ? String(e.provision_rate) : undefined,
-          currency: e.currency,
-        });
-        created.push(tx);
-      }
-      onImported(created);
+      const rows = entries.map((e, i) => ({
+        customer_id: customerMap[i] ?? null,
+        invoice_number: e.invoice_number,
+        invoice_date: e.invoice_date,
+        art_nr: e.art_nr,
+        total_amount: e.total_amount,
+        provision_rate: e.provision_rate,
+        currency: e.currency,
+      }));
+      // Import mit Dedup: neu / bei Änderung überschreiben / sonst unverändert
+      await api.transactions.importConfirmed(supplierCode, rows);
+      onImported();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Fehler beim Importieren");
       setImporting(false);

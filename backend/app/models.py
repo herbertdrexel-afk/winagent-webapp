@@ -36,6 +36,29 @@ class UserSupplierAccess(Base):
     supplier = relationship("Supplier")
 
 
+def upsert_transaction(db, match: dict, fields: dict) -> str:
+    """Zentrale Import-Regel für ALLE Import-Wege (DBF, E-Rechnung, CSV/Excel/XML/JSON, Feed).
+
+    - Rechnung nicht vorhanden           → anlegen        ('new')
+    - vorhanden, Betrag+Satz unverändert → nichts ändern  ('unchanged')
+    - vorhanden, Betrag oder Satz anders → überschreiben  ('updated')
+
+    `match` = eindeutige Suchfelder (z. B. supplier_id + invoice_number).
+    """
+    existing = db.query(Transaction).filter_by(**match).first()
+    if existing is not None:
+        def n2(x): return round(float(x or 0), 2)
+        def n4(x): return round(float(x if x is not None else 0), 4)
+        if n2(existing.total_amount) == n2(fields.get("total_amount")) and \
+           n4(existing.provision_rate) == n4(fields.get("provision_rate")):
+            return "unchanged"
+        for k, v in fields.items():
+            setattr(existing, k, v)
+        return "updated"
+    db.add(Transaction(**fields))
+    return "new"
+
+
 class Country(Base):
     __tablename__ = "countries"
     code = Column(String(3), primary_key=True)

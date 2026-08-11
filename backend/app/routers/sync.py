@@ -184,7 +184,7 @@ def import_dbf_bytes(data: bytes, db: Session) -> dict:
         if c.code
     }
 
-    imported = skipped = 0
+    imported = skipped = unchanged = 0
     errors: list[str] = []
 
     for r in rows:
@@ -210,12 +210,7 @@ def import_dbf_bytes(data: bytes, db: Session) -> dict:
         code = (r.get("CODE") or "").strip().upper()
         customer = customers_by_ku.get(ku_nr) or customers_by_code.get(code)
 
-        # Check for existing transaction (upsert by supplier + invoice_number + date)
-        existing = (
-            db.query(models.Transaction)
-            .filter_by(supplier_id=supplier.id, invoice_number=inv_nr, invoice_date=inv_date)
-            .first()
-        )
+        # Bestehende Rechnung (supplier + invoice_number + date)
 
         # Netto-Provision = PROVISION - PROV2..PROV6 (Sub-Vertreter-Anteile).
         # Die Anteile werden zusaetzlich in provision_splits abgelegt.
@@ -255,16 +250,20 @@ def import_dbf_bytes(data: bytes, db: Session) -> dict:
             notes=None,
         )
 
-        if existing:
-            for k, v in fields.items():
-                setattr(existing, k, v)
+        outcome = models.upsert_transaction(
+            db,
+            {"supplier_id": supplier.id, "invoice_number": inv_nr, "invoice_date": inv_date},
+            fields,
+        )
+        if outcome == "unchanged":
+            unchanged += 1
         else:
-            db.add(models.Transaction(**fields))
-        imported += 1
+            imported += 1
 
     db.commit()
     return {
         "imported": imported,
+        "unchanged": unchanged,
         "skipped": skipped,
         "errors": errors[:20],
     }
@@ -325,13 +324,10 @@ def import_einvoice_bytes(
 
     prov_rate = provision_rate
 
-    imported = 0
+    imported = unchanged = 0
     if inv.lines:
         for line in inv.lines:
             inv_nr = f"{inv.invoice_number}"[:10]
-            existing = db.query(models.Transaction).filter_by(
-                supplier_id=supplier.id, invoice_number=inv_nr, invoice_date=inv.invoice_date
-            ).first()
             fields = dict(
                 supplier_id=supplier.id,
                 customer_id=customer.id if customer else None,
@@ -348,18 +344,15 @@ def import_einvoice_bytes(
                 exchange_rate=1,
                 notes=line.description[:200] if line.description else None,
             )
-            if existing:
-                for k, v in fields.items():
-                    setattr(existing, k, v)
+            outcome = models.upsert_transaction(
+                db, {"supplier_id": supplier.id, "invoice_number": inv_nr, "invoice_date": inv.invoice_date}, fields)
+            if outcome == "unchanged":
+                unchanged += 1
             else:
-                db.add(models.Transaction(**fields))
-            imported += 1
+                imported += 1
     else:
         # No line items — create single summary transaction
         inv_nr = inv.invoice_number[:10]
-        existing = db.query(models.Transaction).filter_by(
-            supplier_id=supplier.id, invoice_number=inv_nr, invoice_date=inv.invoice_date
-        ).first()
         fields = dict(
             supplier_id=supplier.id,
             customer_id=customer.id if customer else None,
@@ -371,12 +364,12 @@ def import_einvoice_bytes(
             total_amount=inv.net_total,
             exchange_rate=1,
         )
-        if existing:
-            for k, v in fields.items():
-                setattr(existing, k, v)
+        outcome = models.upsert_transaction(
+            db, {"supplier_id": supplier.id, "invoice_number": inv_nr, "invoice_date": inv.invoice_date}, fields)
+        if outcome == "unchanged":
+            unchanged += 1
         else:
-            db.add(models.Transaction(**fields))
-        imported = 1
+            imported += 1
 
     db.commit()
     return {
