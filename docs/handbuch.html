@@ -236,6 +236,7 @@
         <li><a href="#benutzer">Benutzer &amp; Zugriffsrechte (Admin)</a></li>
         <li><a href="#konzepte">Wichtige Konzepte</a></li>
         <li><a href="#feeds">Reybex-Feeds (Admin)</a></li>
+        <li><a href="#protokoll">Protokoll (Admin)</a></li>
         <li><a href="#einstellungen">Einstellungen (Admin)</a></li>
         <li><a href="#faq">Tipps &amp; häufige Fragen</a></li>
       </ol>
@@ -287,6 +288,7 @@
             <div class="navitem"><span class="badge">S</span><div><div class="t">Statistik</div><div class="d">Auswertungen</div></div></div>
             <div class="navitem"><span class="badge">B</span><div><div class="t">Berichte <span class="adminflag">Admin</span></div><div class="d">Automatische E-Mails</div></div></div>
             <div class="navitem"><span class="badge">⇊</span><div><div class="t">Reybex-Feeds <span class="adminflag">Admin</span></div><div class="d">Automatischer Import</div></div></div>
+            <div class="navitem"><span class="badge">≡</span><div><div class="t">Protokoll <span class="adminflag">Admin</span></div><div class="d">Import-Historie</div></div></div>
             <div class="navitem"><span class="badge">⚙</span><div><div class="t">Einstellungen <span class="adminflag">Admin</span></div><div class="d">Bankdaten, Logos u. a.</div></div></div>
             <div class="navitem"><span class="badge">U</span><div><div class="t">Benutzer <span class="adminflag">Admin</span></div><div class="d">Konten &amp; Rechte</div></div></div>
           </div>
@@ -463,7 +465,7 @@
               </tbody>
             </table>
           </div>
-          <p>Der Dateiname ist immer <code>{PR-Nummer}_{Lieferant}_{AMV/NAAG}.pdf</code>. Aussteller, Bank und Logo für „PDF 2" hinterlegen Sie in den <strong>Einstellungen</strong> (Kapitel 14, Abschnitt <em>Bankverbindung NA AG</em>).</p>
+          <p>Der Dateiname ist immer <code>{PR-Nummer}_{Lieferant}_{AMV/NAAG}.pdf</code>. Aussteller, Bank und Logo für „PDF 2" hinterlegen Sie in den <strong>Einstellungen</strong> (Kapitel 15, Abschnitt <em>Bankverbindung NA AG</em>).</p>
           <div class="box tip"><span class="lbl">Tipp</span>
             <p>Der Text der Positionszeile im Alt-Layout kommt aus dem Feld <strong>Bezeichnung</strong> der Rechnung – diesen können Sie über <strong>bearbeiten</strong> anpassen.</p>
           </div>
@@ -620,9 +622,33 @@
       </section>
 
       <!-- 14 -->
+      <section id="protokoll">
+        <div class="content">
+          <h2><span class="num">14</span> Protokoll <span class="adminflag" style="font-size:.7rem;">nur Admin</span></h2>
+          <p class="lead">Das <strong>Protokoll</strong> zeigt lückenlos alle Importe – sowohl die automatischen Feed-Abrufe als auch manuelle Datei-Importe. So sehen Sie jederzeit, was wann eingelesen wurde und ob dabei etwas verändert wurde.</p>
+
+          <p>Je Vorgang werden angezeigt:</p>
+          <ul>
+            <li><strong>Zeit</strong> – Zeitpunkt des Imports.</li>
+            <li><strong>Quelle</strong> – z. B. der Feed-Abruf oder ein manueller Upload.</li>
+            <li><strong>Datei</strong> und <strong>Typ</strong> (CSV, XML, JSON, DBF …).</li>
+            <li><strong>Status</strong> – grün <em>ok</em>, gelb <em>staged</em> (zur Kontrolle vorgemerkt) oder rot bei einem Fehler.</li>
+            <li><strong>Importiert</strong> / <strong>Übersprungen</strong> – Anzahl der verarbeiteten Zeilen.</li>
+            <li><strong>Detail</strong> – Kurztext, u. a. wie viele Rechnungen <strong>neu</strong>, <strong>aktualisiert</strong> oder <strong>unverändert</strong> waren.</li>
+          </ul>
+
+          <p>Über das <strong>Suchfeld</strong> filtern Sie nach Datei, Quelle, Status oder Detailtext; mit <strong>Aktualisieren</strong> laden Sie die neuesten Einträge.</p>
+
+          <div class="box tip"><span class="lbl">Wozu das Protokoll?</span>
+            <p>Wenn eine Rechnung überschrieben wurde (weil sich Betrag oder Provision geändert haben), erkennen Sie das hier an der Zahl der <strong>aktualisierten</strong> Rechnungen. Bleibt alles gleich, erscheinen die Zeilen als <strong>unverändert</strong> – ein schneller Beleg, dass der Abruf sauber gelaufen ist.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 15 -->
       <section id="einstellungen">
         <div class="content">
-          <h2><span class="num">14</span> Einstellungen <span class="adminflag" style="font-size:.7rem;">nur Admin</span></h2>
+          <h2><span class="num">15</span> Einstellungen <span class="adminflag" style="font-size:.7rem;">nur Admin</span></h2>
           <p class="lead">Unter <strong>Einstellungen</strong> hinterlegen Sie Logos, Firmendaten und Bankverbindungen für die Rechnungs-PDFs.</p>
 
           <h3>Standard (AMV)</h3>
@@ -645,10 +671,10 @@
         </div>
       </section>
 
-      <!-- 15 -->
+      <!-- 16 -->
       <section id="faq">
         <div class="content">
-          <h2><span class="num">15</span> Tipps &amp; häufige Fragen</h2>
+          <h2><span class="num">16</span> Tipps &amp; häufige Fragen</h2>
 
           <h3>Nach einer Änderung sehe ich die neuen Daten nicht</h3>
           <p>Laden Sie die Seite neu: <kbd>Strg</kbd> + <kbd>F5</kbd> (Mac: <kbd>Cmd</kbd> + <kbd>R</kbd>). So holt der Browser die aktuelle Version.</p>
