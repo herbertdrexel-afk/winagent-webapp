@@ -131,6 +131,8 @@ with engine.connect() as _conn:
     _conn.execute(_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(60)"))
     _conn.execute(_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(60)"))
     _conn.execute(_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS language VARCHAR(5) DEFAULT 'de'"))
+    # Längere Rechnungsnummern zulassen (z. B. ND-TexPack 'CS20260115-01A')
+    _conn.execute(_sql("ALTER TABLE transactions ALTER COLUMN invoice_number TYPE VARCHAR(30)"))
     _conn.commit()
 
 app = FastAPI(

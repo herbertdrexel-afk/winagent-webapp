@@ -221,6 +221,110 @@ def _parse_csv_content(content: bytes) -> list[dict]:
     return entries
 
 
+def _nd_col_map(headers: list[str]) -> dict | None:
+    """Erkennt das ND-TexPack-Sonderformat anhand einer Kopfzeile und liefert die
+    Spaltenindizes. Kennzeichen: getrennte 'Amount (USD)'/'Amount (EUR)'-Spalten
+    und eine 'Commission to AMV %'-Spalte. Sonst None."""
+    def find(*needles):
+        for i, h in enumerate(headers):
+            if all(n in h for n in needles):
+                return i
+        return None
+    i_rate = find('commission to amv')
+    i_usd  = find('amount', 'usd')
+    i_eur  = find('amount', 'eur')
+    if i_rate is None or (i_usd is None and i_eur is None):
+        return None
+    return {
+        'customer': find('customer'),
+        'date':     find('invoice date') if find('invoice date') is not None else find('date'),
+        'invoice':  find('invoice no') if find('invoice no') is not None else find('invoice number'),
+        'usd':      i_usd,
+        'eur':      i_eur,
+        'rate':     i_rate,
+    }
+
+
+def _parse_excel_nd(rows: list[tuple], cmap: dict) -> list[dict]:
+    """ND-TexPack: Währung ergibt sich aus der befüllten Amount-Spalte (USD/EUR),
+    der Provisionssatz aus 'Commission to AMV %' (Bruch 0,05 → 5 %). Summen-/
+    Total-Zeilen (ohne Rechnungsnummer) werden übersprungen. Mehrere Positions-
+    zeilen mit derselben Rechnungsnummer werden zu einer Rechnung zusammengefasst
+    (Beträge summiert), da eine Rechnungsnummer genau einer Provisionsrechnung
+    entspricht."""
+    def cell(row: tuple, idx: int | None):
+        return row[idx] if idx is not None and idx < len(row) else None
+
+    groups: dict[str, dict] = {}
+    order: list[str] = []
+    for row in rows:
+        if not any(row):
+            continue
+        re_nr = str(cell(row, cmap['invoice']) or '').strip()
+        if not re_nr:
+            continue  # Summen-/Total-Zeilen ohne Rechnungsnummer
+        usd = float(cell(row, cmap['usd']) or 0)
+        eur = float(cell(row, cmap['eur']) or 0)
+        if usd:
+            cur, amt = 'USD', usd
+        elif eur:
+            cur, amt = 'EUR', eur
+        else:
+            continue  # keine Beträge → keine Position
+        rate = float(cell(row, cmap['rate']) or 0)
+        if 0 < rate <= 1:          # 0,05 → 5 %
+            rate *= 100
+        datum = cell(row, cmap['date'])
+        inv_date = datum.strftime('%Y-%m-%d') if hasattr(datum, 'strftime') else _parse_date_de(datum)
+        kunde = str(cell(row, cmap['customer']) or '').strip()
+
+        g = groups.get(re_nr)
+        if g is None:
+            groups[re_nr] = {
+                'date': inv_date, 'customer': kunde,
+                'amount': amt, 'provision': amt * rate / 100,
+                'currency': cur, 'top_amt': abs(amt),
+                'rate': rate, 'mixed_rate': False,
+            }
+            order.append(re_nr)
+        else:
+            g['amount']    += amt
+            g['provision'] += amt * rate / 100
+            if not g['customer']:
+                g['customer'] = kunde
+            if rate != g['rate']:
+                g['mixed_rate'] = True
+            # Währung der betragsmäßig größten Zeile behalten (falls gemischt)
+            if abs(amt) > g['top_amt']:
+                g['top_amt'] = abs(amt)
+                g['currency'] = cur
+
+    entries = []
+    for re_nr in order:
+        g = groups[re_nr]
+        amt = round(g['amount'], 2)
+        prov = round(g['provision'], 2)
+        # Einheitlicher Satz → exakt behalten; nur bei gemischten Sätzen mitteln
+        if not g['mixed_rate']:
+            rate = round(g['rate'], 4)
+        else:
+            rate = round(prov / amt * 100, 4) if amt else 0.0
+        entries.append({
+            'customer_name_raw':   g['customer'],
+            'customer_name_clean': g['customer'],
+            'customer_nr':         None,
+            'invoice_date':        g['date'],
+            'invoice_number':      re_nr,
+            'art_nr':              '',
+            'total_amount':        amt,
+            'provision_rate':      rate,
+            'provision_amount':    prov,
+            'currency':            g['currency'],
+            'supplier_code':       None,   # erbt vom Ziel-Lieferanten (ND)
+        })
+    return entries
+
+
 def _parse_excel_content(content: bytes) -> list[dict]:
     import openpyxl
     wb = openpyxl.load_workbook(BytesIO(content), data_only=True)
@@ -228,6 +332,12 @@ def _parse_excel_content(content: bytes) -> list[dict]:
     rows = list(ws.iter_rows(values_only=True))
     if not rows:
         return []
+
+    # ND-TexPack-Sonderformat (Kopfzeile evtl. nicht in Zeile 1) automatisch erkennen
+    for hidx, hrow in enumerate(rows[:8]):
+        cmap = _nd_col_map([str(c or '').strip().lower() for c in hrow])
+        if cmap:
+            return _parse_excel_nd(rows[hidx + 1:], cmap)
 
     headers = [str(h or '').strip().lower() for h in rows[0]]
 
@@ -492,7 +602,7 @@ def import_records_for_supplier(records: list[dict], supplier, db: Session) -> d
         if not cust:
             unmatched += 1
 
-        inv_nr = (e.get('invoice_number') or '').strip()[:10]
+        inv_nr = (e.get('invoice_number') or '').strip()[:30]
         fields = dict(
             supplier_id=sup.id,
             customer_id=cust.id if cust else None,
@@ -576,7 +686,7 @@ def import_confirmed_entries(
         except ValueError:
             skipped += 1
             continue
-        inv_nr = str(e.get("invoice_number") or "").strip()[:10]
+        inv_nr = str(e.get("invoice_number") or "").strip()[:30]
         fields = dict(
             supplier_id=supplier.id,
             customer_id=e.get("customer_id"),

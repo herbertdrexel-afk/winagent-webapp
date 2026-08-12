@@ -165,7 +165,7 @@ class Transaction(Base):
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=False)
     customer_id = Column(Integer, ForeignKey("customers.id"))
     year = Column(SmallInteger, nullable=False)
-    invoice_number = Column(String(10), nullable=False)
+    invoice_number = Column(String(30), nullable=False)
     invoice_date = Column(Date, nullable=False)
     art_nr = Column(String(20))
     color = Column(String(15))
