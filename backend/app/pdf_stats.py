@@ -232,6 +232,7 @@ def build_supplier_detail_pdf(data: dict) -> bytes:
 
         table_data = [col_header]
         BOLD_ROWS = []
+        SUB_ROWS = []
 
         for i, r in enumerate(s["rows"], 1):
             label = r["label"]
@@ -240,11 +241,13 @@ def build_supplier_detail_pdf(data: dict) -> bytes:
             bc = r["budget_commission"]; cp = r["curr_commission"]
             diff = cp - pp
             is_total = label in ("1.HY", "2.HY", "Jahr")
-            style = rb if is_total else smr
-            label_style = bold if is_total else sm
+            is_sub = label in ("1.Q", "2.Q", "3.Q", "4.Q")
+            emphasized = is_total or is_sub
+            style = rb if emphasized else smr
+            label_style = bold if emphasized else sm
 
             table_data.append([
-                Paragraph(f"<b>{label}</b>" if is_total else label, label_style),
+                Paragraph(f"<b>{label}</b>" if emphasized else label, label_style),
                 Paragraph(_fmt(pt), style),
                 Paragraph(_fmt(bt) if bt else "", style),
                 Paragraph(pct_str(bt, pt) if bt and pt else "", style),
@@ -260,6 +263,8 @@ def build_supplier_detail_pdf(data: dict) -> bytes:
             ])
             if is_total:
                 BOLD_ROWS.append(i)
+            elif is_sub:
+                SUB_ROWS.append(i)
 
         t = Table(table_data, colWidths=COL_W, repeatRows=1)
         ts = [
@@ -271,6 +276,8 @@ def build_supplier_detail_pdf(data: dict) -> bytes:
             ("LEFTPADDING", (0,0), (-1,-1), 3), ("RIGHTPADDING",  (0,0), (-1,-1), 3),
             ("VALIGN",      (0,0), (-1,-1), "MIDDLE"),
         ]
+        for row_idx in SUB_ROWS:
+            ts.append(("BACKGROUND", (0, row_idx), (-1, row_idx), colors.HexColor("#eef2f6")))
         for row_idx in BOLD_ROWS:
             ts.append(("BACKGROUND", (0, row_idx), (-1, row_idx), colors.HexColor("#dce8f5")))
             ts.append(("LINEABOVE",  (0, row_idx), (-1, row_idx), 0.5, H_FILL))

@@ -289,7 +289,8 @@ function SupplierDetailTab() {
     return (p >= 0 ? "+" : "") + p.toFixed(0) + "%";
   }
 
-  const BOLD_LABELS = new Set(["1.HY", "2.HY", "Jahr"]);
+  const SUBTOTAL_LABELS = new Set(["1.Q", "2.Q", "3.Q", "4.Q"]);
+  const TOTAL_LABELS = new Set(["1.HY", "2.HY", "Jahr"]);
 
   return (
     <div className="space-y-4">
@@ -331,10 +332,11 @@ function SupplierDetailTab() {
               </thead>
               <tbody>
                 {s.rows.map((r, i) => {
-                  const isBold = BOLD_LABELS.has(r.label);
+                  const isTotal = TOTAL_LABELS.has(r.label);
+                  const isSub = SUBTOTAL_LABELS.has(r.label);
                   const diff = r.curr_commission - r.prev_commission;
                   return (
-                    <tr key={r.label} className={`${isBold ? "bg-blue-50 font-semibold" : i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
+                    <tr key={r.label} className={`${isTotal ? "bg-blue-50 font-semibold" : isSub ? "bg-gray-100 font-medium" : i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
                       <td className="px-3 py-1 text-gray-600">{r.label}</td>
                       <td className="px-3 py-1 text-right text-gray-500">{fmt(r.prev_turnover)}</td>
                       <td className="px-3 py-1 text-right text-gray-400">{r.budget_turnover ? fmt(r.budget_turnover) : ""}</td>

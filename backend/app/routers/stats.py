@@ -211,12 +211,25 @@ def supplier_detail(
     current_user: models.User = Depends(get_current_user),
 ):
     from datetime import date as date_cls
+    from calendar import monthrange
+    MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun",
+              "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]
+
+    def _month(m: int):
+        return (MONTHS[m - 1], date_cls(year, m, 1),
+                date_cls(year, m, monthrange(year, m)[1]))
+
+    # Monate mit ihren Quartals-/Halbjahres-/Jahres-Zwischensummen
     quarters = [
+        _month(1), _month(2), _month(3),
         ("1.Q", date_cls(year, 1, 1),  date_cls(year, 3, 31)),
+        _month(4), _month(5), _month(6),
         ("2.Q", date_cls(year, 4, 1),  date_cls(year, 6, 30)),
-        ("3.Q", date_cls(year, 7, 1),  date_cls(year, 9, 30)),
-        ("4.Q", date_cls(year, 10, 1), date_cls(year, 12, 31)),
         ("1.HY", date_cls(year, 1, 1), date_cls(year, 6, 30)),
+        _month(7), _month(8), _month(9),
+        ("3.Q", date_cls(year, 7, 1),  date_cls(year, 9, 30)),
+        _month(10), _month(11), _month(12),
+        ("4.Q", date_cls(year, 10, 1), date_cls(year, 12, 31)),
         ("2.HY", date_cls(year, 7, 1), date_cls(year, 12, 31)),
         ("Jahr", date_cls(year, 1, 1), date_cls(year, 12, 31)),
     ]
@@ -275,8 +288,9 @@ def supplier_detail(
         for label, qfrom, qto in quarters:
             d_from = qfrom
             d_to = qto
-            ly_from = date_cls(prev_year, qfrom.month, qfrom.day)
-            ly_to = date_cls(prev_year, qto.month, qto.day)
+            # Vorjahres-Zeitraum über Monatsgrenzen (korrekt bei Schaltjahr/Feb)
+            ly_from = date_cls(prev_year, qfrom.month, 1)
+            ly_to = date_cls(prev_year, qto.month, monthrange(prev_year, qto.month)[1])
             ct, cp = agg(s.id, d_from, d_to, year)
             pt, pp = agg(s.id, ly_from, ly_to, prev_year)
             bt = budget_t.get(s.id, 0) if label == "Jahr" else 0
