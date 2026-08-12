@@ -4,7 +4,7 @@ from datetime import date
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
 
@@ -223,7 +223,10 @@ def build_supplier_detail_pdf(data: dict) -> bytes:
         Paragraph("<b>+/-</b>", rb),
     ]
 
-    for s in suppliers:
+    for idx, s in enumerate(suppliers):
+        # Jeder Lieferant beginnt auf einer neuen Seite
+        if idx > 0:
+            story.append(PageBreak())
         # Supplier header
         story.append(Paragraph(
             f"<b>{s['name']}</b>",
