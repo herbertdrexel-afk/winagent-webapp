@@ -34,6 +34,12 @@ async def import_dbf(
     data = await file.read()
     result = import_dbf_bytes(data, db)
     result["filename"] = file.filename
+    models.log_ingest(
+        db, filename=file.filename, source="DBF-Import", file_type="dbf",
+        status="ok", imported=result.get("imported", 0), skipped=result.get("skipped", 0),
+        detail=f"{result.get('imported', 0)} importiert, "
+               f"{result.get('unchanged', 0)} unverändert, {result.get('skipped', 0)} übersprungen",
+    )
     return result
 
 
@@ -119,7 +125,7 @@ def import_dbf_bytes(data: bytes, db: Session) -> dict:
             provision_rate=net_rate,
             provision_splits=splits or None,
             price=r.get("PREIS"),
-            currency=(r.get("WAEHRUNG") or "").strip() or None,
+            currency=(r.get("WAEHRUNG") or "").strip().upper() or None,
             total_amount=r.get("TOTAL_S") or 0,
             exchange_rate=r.get("KURS") or 1,
             customer_order_no=(r.get("CUST_ORDNO") or "").strip() or None,

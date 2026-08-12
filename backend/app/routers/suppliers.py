@@ -691,6 +691,7 @@ async def parse_csv(
 def import_confirmed_entries(
     code: str,
     payload: list[dict],
+    filename: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -753,5 +754,15 @@ def import_confirmed_entries(
             new += 1
 
     db.commit()
+
+    fn = (filename or "").strip()
+    ext = fn.rsplit(".", 1)[-1].lower() if "." in fn else "csv"
+    models.log_ingest(
+        db, filename=fn or f"Import {supplier.code}",
+        source=f"manuell · {supplier.code}", file_type=ext,
+        status="ok", imported=new + updated, skipped=skipped,
+        detail=f"{new} neu, {updated} aktualisiert, {unchanged} unverändert"
+               + (f", {skipped} übersprungen" if skipped else ""),
+    )
     return {"new": new, "updated": updated, "unchanged": unchanged, "skipped": skipped,
             "imported": new + updated}

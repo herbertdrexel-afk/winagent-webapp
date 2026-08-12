@@ -59,6 +59,24 @@ def upsert_transaction(db, match: dict, fields: dict) -> str:
     return "new"
 
 
+def log_ingest(db, filename, source, file_type, status="ok",
+               imported=0, skipped=0, detail=None):
+    """Einen Eintrag ins Import-Protokoll (ingest_log) schreiben. Fehler beim
+    Loggen dürfen den Import nicht abbrechen."""
+    try:
+        row = IngestLog(
+            filename=(str(filename or "")[:200] or None),
+            source=(str(source or "")[:60] or None),
+            file_type=(str(file_type or "")[:10] or None),
+            status=status, imported=int(imported or 0), skipped=int(skipped or 0),
+            detail=(str(detail)[:2000] if detail else None),
+        )
+        db.add(row)
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
 class Country(Base):
     __tablename__ = "countries"
     code = Column(String(3), primary_key=True)

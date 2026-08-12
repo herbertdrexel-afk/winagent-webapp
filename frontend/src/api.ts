@@ -230,8 +230,9 @@ export const api = {
         return r.json() as Promise<PdfEntry[]>;
       });
     },
-    importConfirmed: (supplierCode: string, entries: Record<string, unknown>[]) =>
-      fetch(`${BASE}/suppliers/${supplierCode}/transactions/import`, {
+    importConfirmed: (supplierCode: string, entries: Record<string, unknown>[], filename?: string) =>
+      fetch(`${BASE}/suppliers/${supplierCode}/transactions/import`
+            + (filename ? `?filename=${encodeURIComponent(filename)}` : ""), {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(entries),

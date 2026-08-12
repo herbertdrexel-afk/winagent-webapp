@@ -52,7 +52,7 @@ export default function PdfImportModal({ supplierCode, onClose, onImported }: Pr
         currency: e.currency,
       }));
       // Import mit Dedup: neu / bei Änderung überschreiben / sonst unverändert
-      await api.transactions.importConfirmed(supplierCode, rows);
+      await api.transactions.importConfirmed(supplierCode, rows, fileName || undefined);
       onImported();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Fehler beim Importieren");
