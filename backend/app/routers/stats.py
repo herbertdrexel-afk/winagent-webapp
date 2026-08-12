@@ -219,17 +219,13 @@ def supplier_detail(
         return (MONTHS[m - 1], date_cls(year, m, 1),
                 date_cls(year, m, monthrange(year, m)[1]))
 
-    # Monate mit ihren Quartals-/Halbjahres-/Jahres-Zwischensummen
-    quarters = [
-        _month(1), _month(2), _month(3),
+    # Zuerst alle Monate nacheinander, danach die Zwischensummen
+    quarters = [_month(m) for m in range(1, 13)] + [
         ("1.Q", date_cls(year, 1, 1),  date_cls(year, 3, 31)),
-        _month(4), _month(5), _month(6),
         ("2.Q", date_cls(year, 4, 1),  date_cls(year, 6, 30)),
-        ("1.HY", date_cls(year, 1, 1), date_cls(year, 6, 30)),
-        _month(7), _month(8), _month(9),
         ("3.Q", date_cls(year, 7, 1),  date_cls(year, 9, 30)),
-        _month(10), _month(11), _month(12),
         ("4.Q", date_cls(year, 10, 1), date_cls(year, 12, 31)),
+        ("1.HY", date_cls(year, 1, 1), date_cls(year, 6, 30)),
         ("2.HY", date_cls(year, 7, 1), date_cls(year, 12, 31)),
         ("Jahr", date_cls(year, 1, 1), date_cls(year, 12, 31)),
     ]
