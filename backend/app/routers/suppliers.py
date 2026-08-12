@@ -248,15 +248,13 @@ def _nd_col_map(headers: list[str]) -> dict | None:
 def _parse_excel_nd(rows: list[tuple], cmap: dict) -> list[dict]:
     """ND-TexPack: Währung ergibt sich aus der befüllten Amount-Spalte (USD/EUR),
     der Provisionssatz aus 'Commission to AMV %' (Bruch 0,05 → 5 %). Summen-/
-    Total-Zeilen (ohne Rechnungsnummer) werden übersprungen. Mehrere Positions-
-    zeilen mit derselben Rechnungsnummer werden zu einer Rechnung zusammengefasst
-    (Beträge summiert), da eine Rechnungsnummer genau einer Provisionsrechnung
-    entspricht."""
+    Total-Zeilen (ohne Rechnungsnummer) werden übersprungen. Jede Positionszeile
+    wird einzeln übernommen (auch mehrere Zeilen je Rechnungsnummer, ggf. mit
+    unterschiedlichem Satz)."""
     def cell(row: tuple, idx: int | None):
         return row[idx] if idx is not None and idx < len(row) else None
 
-    groups: dict[str, dict] = {}
-    order: list[str] = []
+    entries = []
     for row in rows:
         if not any(row):
             continue
@@ -277,49 +275,17 @@ def _parse_excel_nd(rows: list[tuple], cmap: dict) -> list[dict]:
         datum = cell(row, cmap['date'])
         inv_date = datum.strftime('%Y-%m-%d') if hasattr(datum, 'strftime') else _parse_date_de(datum)
         kunde = str(cell(row, cmap['customer']) or '').strip()
-
-        g = groups.get(re_nr)
-        if g is None:
-            groups[re_nr] = {
-                'date': inv_date, 'customer': kunde,
-                'amount': amt, 'provision': amt * rate / 100,
-                'currency': cur, 'top_amt': abs(amt),
-                'rate': rate, 'mixed_rate': False,
-            }
-            order.append(re_nr)
-        else:
-            g['amount']    += amt
-            g['provision'] += amt * rate / 100
-            if not g['customer']:
-                g['customer'] = kunde
-            if rate != g['rate']:
-                g['mixed_rate'] = True
-            # Währung der betragsmäßig größten Zeile behalten (falls gemischt)
-            if abs(amt) > g['top_amt']:
-                g['top_amt'] = abs(amt)
-                g['currency'] = cur
-
-    entries = []
-    for re_nr in order:
-        g = groups[re_nr]
-        amt = round(g['amount'], 2)
-        prov = round(g['provision'], 2)
-        # Einheitlicher Satz → exakt behalten; nur bei gemischten Sätzen mitteln
-        if not g['mixed_rate']:
-            rate = round(g['rate'], 4)
-        else:
-            rate = round(prov / amt * 100, 4) if amt else 0.0
         entries.append({
-            'customer_name_raw':   g['customer'],
-            'customer_name_clean': g['customer'],
+            'customer_name_raw':   kunde,
+            'customer_name_clean': kunde,
             'customer_nr':         None,
-            'invoice_date':        g['date'],
+            'invoice_date':        inv_date,
             'invoice_number':      re_nr,
             'art_nr':              '',
-            'total_amount':        amt,
-            'provision_rate':      rate,
-            'provision_amount':    prov,
-            'currency':            g['currency'],
+            'total_amount':        round(amt, 2),
+            'provision_rate':      round(rate, 4),
+            'provision_amount':    round(amt * rate / 100, 2),
+            'currency':            cur,
             'supplier_code':       None,   # erbt vom Ziel-Lieferanten (ND)
         })
     return entries
@@ -572,6 +538,16 @@ def import_records_for_supplier(records: list[dict], supplier, db: Session) -> d
             by_name.setdefault(c.name.strip().lower(), c)
     suppliers_by_code = {s.code.upper(): s for s in db.query(models.Supplier).all()}
 
+    # Mehrfach vorkommende Rechnungsnummern (mehrere Positionszeilen je Rechnung,
+    # z. B. ND-TexPack) → beim Import komplett ersetzen statt einzeln upserten.
+    from collections import Counter
+    inv_counts = Counter(
+        ((e.get('supplier_code') or '').strip().upper(),
+         (e.get('invoice_number') or '').strip()[:30])
+        for e in records
+    )
+    replaced: set[tuple] = set()
+
     new = updated = unchanged = skipped = unmatched = 0
     for e in records:
         cur = (e.get('currency') or '').strip()
@@ -615,18 +591,26 @@ def import_records_for_supplier(records: list[dict], supplier, db: Session) -> d
             exchange_rate=1,
             notes=None if cust else (f"Kunde nicht zugeordnet: {name}"[:200] or None),
         )
-        # Zentrale Import-Regel: neu / bei Änderung überschreiben / sonst unverändert lassen
-        if inv_nr:
+        # Zentrale Import-Regel: neu / bei Änderung überschreiben / sonst unverändert lassen.
+        # Mehrzeilige Rechnungen (gleiche Re-Nr mehrfach) werden komplett ersetzt.
+        if inv_nr and inv_counts[(row_code, inv_nr)] > 1:
+            if (sup.id, inv_nr) not in replaced:
+                db.query(models.Transaction).filter_by(
+                    supplier_id=sup.id, invoice_number=inv_nr).delete()
+                replaced.add((sup.id, inv_nr))
+            db.add(models.Transaction(**fields))
+            new += 1
+        elif inv_nr:
             outcome = models.upsert_transaction(db, {"supplier_id": sup.id, "invoice_number": inv_nr}, fields)
+            if outcome == "new":
+                new += 1
+            elif outcome == "updated":
+                updated += 1
+            else:
+                unchanged += 1
         else:
             db.add(models.Transaction(**fields))
-            outcome = "new"
-        if outcome == "new":
             new += 1
-        elif outcome == "updated":
-            updated += 1
-        else:
-            unchanged += 1
 
     db.commit()
     return {"new": new, "updated": updated, "unchanged": unchanged,
@@ -678,6 +662,14 @@ def import_confirmed_entries(
         raise HTTPException(404, "Lieferant nicht gefunden")
     check_supplier_access(current_user, db, supplier.id)
 
+    # Rechnungsnummern, die mehrfach vorkommen (mehrere Positionszeilen je Rechnung,
+    # z. B. ND-TexPack) → beim Import komplett ersetzen statt einzeln upserten.
+    from collections import Counter
+    inv_counts = Counter(
+        str(e.get("invoice_number") or "").strip()[:30] for e in payload
+    )
+    replaced: set[str] = set()
+
     new = updated = unchanged = skipped = 0
     for e in payload:
         iso = str(e.get("invoice_date") or "").strip()
@@ -699,18 +691,27 @@ def import_confirmed_entries(
             total_amount=e.get("total_amount") or 0,
             exchange_rate=1,
         )
-        if inv_nr:
+        if inv_nr and inv_counts[inv_nr] > 1:
+            # Mehrzeilige Rechnung: bestehende Zeilen dieser Re-Nr einmalig löschen,
+            # dann jede Positionszeile einzeln neu anlegen.
+            if inv_nr not in replaced:
+                db.query(models.Transaction).filter_by(
+                    supplier_id=supplier.id, invoice_number=inv_nr).delete()
+                replaced.add(inv_nr)
+            db.add(models.Transaction(**fields))
+            new += 1
+        elif inv_nr:
             outcome = models.upsert_transaction(
                 db, {"supplier_id": supplier.id, "invoice_number": inv_nr}, fields)
+            if outcome == "new":
+                new += 1
+            elif outcome == "updated":
+                updated += 1
+            else:
+                unchanged += 1
         else:
             db.add(models.Transaction(**fields))
-            outcome = "new"
-        if outcome == "new":
             new += 1
-        elif outcome == "updated":
-            updated += 1
-        else:
-            unchanged += 1
 
     db.commit()
     return {"new": new, "updated": updated, "unchanged": unchanged, "skipped": skipped,
