@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type Customer, type Transaction, type TransactionUpdate } from "../api";
+import { formatNum } from "../utils/format";
 
 interface Props {
   transaction: Transaction;
@@ -94,6 +95,11 @@ export default function TransactionEditModal({ transaction: tx, onClose, onSaved
   function handleBackdrop(e: React.MouseEvent<HTMLDivElement>) {
     if (e.target === e.currentTarget) onClose();
   }
+
+  // Provision live berechnen (Betrag × Satz / 100) – negative Beträge inklusive
+  const calcAmount = parseFloat(String(form.total_amount ?? "")) || 0;
+  const calcRate = parseFloat(String(form.provision_rate ?? "")) || 0;
+  const calcProvision = calcAmount * calcRate / 100;
 
   return (
     <div
@@ -222,6 +228,20 @@ export default function TransactionEditModal({ transaction: tx, onClose, onSaved
                 onChange={(e) => set("customer_order_no", e.target.value)}
                 className={inputCls} />
             </Field>
+          </div>
+
+          {/* Live berechnete Provision */}
+          <div className="flex items-center justify-between rounded-lg bg-[#f0f5fb] border border-[#dce8f5] px-4 py-2.5">
+            <span className="text-sm font-medium text-gray-600">
+              Provision (berechnet)
+              <span className="ml-2 text-xs text-gray-400 font-normal">
+                {formatNum(calcAmount)} × {formatNum(calcRate)} %
+              </span>
+            </span>
+            <span className={`text-base font-semibold tabular-nums ${
+              calcProvision < 0 ? "text-red-600" : "text-emerald-700"}`}>
+              {formatNum(calcProvision)} {form.currency ?? ""}
+            </span>
           </div>
 
           <Field label="Notizen">

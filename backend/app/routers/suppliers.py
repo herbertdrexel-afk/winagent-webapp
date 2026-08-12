@@ -1,5 +1,6 @@
 import csv
 import re
+import difflib
 from datetime import date
 from io import StringIO, BytesIO
 
@@ -376,26 +377,51 @@ def _parse_excel_content(content: bytes) -> list[dict]:
     return entries
 
 
+def _norm_name(s: str) -> str:
+    """Name für den Vergleich normalisieren: klein, ohne Sonderzeichen."""
+    s = re.sub(r'[^a-z0-9äöüß]+', ' ', (s or '').lower())
+    return re.sub(r'\s+', ' ', s).strip()
+
+
+def _name_similarity(a: str, b: str) -> float:
+    """Ähnlichkeit zweier (bereits normalisierter) Namen: 0..1."""
+    if not a or not b:
+        return 0.0
+    r = difflib.SequenceMatcher(None, a, b).ratio()
+    if a in b or b in a:          # starke Teilübereinstimmung (z. B. 'centa star' ⊂ 'centa star gmbh')
+        r = max(r, 0.92)
+    fa, fb = a.split(' ')[0], b.split(' ')[0]
+    if fa and fa == fb:           # gleicher erster Namensbestandteil
+        r = max(r, 0.6)
+    return r
+
+
+def _rank_customers(clean: str, normed: list[tuple], limit: int = 5, threshold: float = 0.45) -> list:
+    """Beste Kunden-Treffer für einen Namen, nach Ähnlichkeit absteigend."""
+    cn = _norm_name(clean)
+    if not cn:
+        return []
+    scored = sorted(
+        ((_name_similarity(cn, nn), c) for c, nn in normed),
+        key=lambda t: t[0], reverse=True,
+    )
+    return [c for s, c in scored[:limit] if s >= threshold]
+
+
 def _match_customers(entries: list[dict], db: Session) -> list[dict]:
-    """Add customer_suggestions to each entry by matching name against DB."""
+    """Add customer_suggestions to each entry – nach höchster Namens-Übereinstimmung
+    sortiert (bester Treffer zuerst)."""
+    all_cust = db.query(models.Customer).all()
+    normed = [(c, _norm_name(c.name)) for c in all_cust if c.name]
     name_cache: dict[str, list] = {}
     for entry in entries:
         clean = entry["customer_name_clean"]
         if clean in name_cache:
             continue
-        if not clean:
-            name_cache[clean] = []
-            continue
-        first_word = clean.split()[0]
-        customers = (
-            db.query(models.Customer)
-            .filter(models.Customer.name.ilike(f"%{first_word}%"))
-            .limit(5)
-            .all()
-        )
+        top = _rank_customers(clean, normed) if clean else []
         name_cache[clean] = [
             {"id": c.id, "code": c.code, "ku_nr": c.ku_nr, "name": c.name, "city": c.city}
-            for c in customers
+            for c in top
         ]
     return [{**e, "customer_suggestions": name_cache[e["customer_name_clean"]]} for e in entries]
 
@@ -547,6 +573,7 @@ def import_records_for_supplier(records: list[dict], supplier, db: Session) -> d
     for c in customers:
         if c.name:
             by_name.setdefault(c.name.strip().lower(), c)
+    normed = [(c, _norm_name(c.name)) for c in customers if c.name]
     suppliers_by_code = {s.code.upper(): s for s in db.query(models.Supplier).all()}
 
     # Mehrfach vorkommende Rechnungsnummern (mehrere Positionszeilen je Rechnung,
@@ -584,8 +611,9 @@ def import_records_for_supplier(records: list[dict], supplier, db: Session) -> d
         name = (e.get('customer_name_clean') or '').strip()
         cust = by_name.get(name.lower())
         if not cust and name:
-            fw = name.split()[0].lower()
-            cust = next((c for c in customers if c.name and fw in c.name.lower()), None)
+            # beste Namens-Übereinstimmung (konservativer Schwellwert fürs Auto-Zuordnen)
+            best = _rank_customers(name, normed, limit=1, threshold=0.5)
+            cust = best[0] if best else None
         if not cust:
             unmatched += 1
 

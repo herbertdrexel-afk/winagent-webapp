@@ -10,6 +10,8 @@ export default function Customers() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Customer | null | undefined>(undefined);
+  const [selected, setSelected] = useState<Customer | null>(null);
+  const [deleting, setDeleting] = useState(false);
   // undefined = geschlossen, null = Neuanlage, Customer = bearbeiten
 
   useEffect(() => {
@@ -25,7 +27,23 @@ export default function Customers() {
 
   function handleDeleted(code: string) {
     setCustomers((prev) => prev.filter((c) => c.code !== code));
+    setSelected((s) => (s?.code === code ? null : s));
     setEditing(undefined);
+  }
+
+  async function handleDeleteSelected() {
+    if (!selected) return;
+    if (!window.confirm(`Kunde „${selected.name}" (${selected.code}) wirklich löschen?`)) return;
+    setError(null);
+    setDeleting(true);
+    try {
+      await api.customers.delete(selected.code);
+      handleDeleted(selected.code);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Fehler beim Löschen");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   function handleSaved(saved: Customer) {
@@ -60,6 +78,14 @@ export default function Customers() {
           >
             {t.customers.newCustomer}
           </button>
+          <button
+            onClick={handleDeleteSelected}
+            disabled={!selected || deleting}
+            title={selected ? `„${selected.name}" löschen` : "Zeile markieren zum Löschen"}
+            className="border border-red-300 text-red-600 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {deleting ? "Löscht…" : t.common.delete}
+          </button>
         </div>
       </div>
 
@@ -69,6 +95,7 @@ export default function Customers() {
         <table className="w-full text-sm min-w-[560px]">
           <thead className="bg-[#2563eb] text-white">
             <tr>
+              <th className="px-3 py-3 w-8"></th>
               {["Kd-Nr", "Code", "Name", "PLZ / Ort", "Land", "E-Mail", "Kontakt"].map((h) => (
                 <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
               ))}
@@ -76,19 +103,31 @@ export default function Customers() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">{t.common.loading}</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">{t.common.loading}</td></tr>
             ) : customers.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">{t.customers.noData}</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">{t.customers.noData}</td></tr>
             ) : customers.map((c, i) => (
               <tr
                 key={c.id}
                 onClick={() => setEditing(c)}
                 className={
-                  (i % 2 === 0 ? "bg-white" : "bg-[#dce8f5]/40") +
+                  (selected?.id === c.id
+                    ? "bg-[#2563eb]/15"
+                    : i % 2 === 0 ? "bg-white" : "bg-[#dce8f5]/40") +
                   " cursor-pointer hover:bg-[#2563eb]/10 transition-colors"
                 }
                 title="Klicken zum Bearbeiten"
               >
+                <td className="px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="radio"
+                    name="customer-select"
+                    checked={selected?.id === c.id}
+                    onChange={() => setSelected(c)}
+                    className="accent-[#2563eb] cursor-pointer"
+                    title="Zeile markieren"
+                  />
+                </td>
                 <td className="px-4 py-2 text-gray-500 text-xs">{c.ku_nr ?? "–"}</td>
                 <td className="px-4 py-2 font-mono text-xs font-semibold text-[#2563eb]">{c.code}</td>
                 <td className="px-4 py-2 font-medium">{c.name}</td>
@@ -113,7 +152,6 @@ export default function Customers() {
         customer={editing}
         onClose={() => setEditing(undefined)}
         onSaved={handleSaved}
-        onDeleted={handleDeleted}
       />
     )}
     </>

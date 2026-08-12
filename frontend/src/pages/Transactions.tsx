@@ -596,12 +596,13 @@ export default function Transactions() {
                     {formatNum(inv.total_amount)}
                   </td>
                   <td className="px-4 py-2 text-right text-gray-500">
-                    {inv.provision_rate != null && inv.provision_rate > 0
+                    {inv.provision_rate != null && inv.provision_rate !== 0
                       ? `${formatNum(inv.provision_rate)} %`
                       : "–"}
                   </td>
-                  <td className="px-4 py-2 text-right text-emerald-700 font-medium">
-                    {inv.provision_amount > 0
+                  <td className={`px-4 py-2 text-right font-medium ${
+                    inv.provision_amount < 0 ? "text-red-600" : "text-emerald-700"}`}>
+                    {inv.provision_amount !== 0
                       ? formatNum(inv.provision_amount)
                       : "–"}
                   </td>

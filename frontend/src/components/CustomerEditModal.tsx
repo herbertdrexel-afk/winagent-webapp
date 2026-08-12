@@ -5,7 +5,6 @@ interface Props {
   customer: Customer | null;  // null = Neuanlage
   onClose: () => void;
   onSaved: (c: Customer) => void;
-  onDeleted?: (code: string) => void;
 }
 
 type Form = Omit<Customer, "id" | "ku_nr">;
@@ -29,29 +28,14 @@ function toForm(c: Customer | null): Form {
   };
 }
 
-export default function CustomerEditModal({ customer, onClose, onSaved, onDeleted }: Props) {
+export default function CustomerEditModal({ customer, onClose, onSaved }: Props) {
   const isNew = customer === null;
   const [form, setForm] = useState<Form>(toForm(customer));
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function set(field: keyof Form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
-  }
-
-  async function handleDelete() {
-    if (!customer) return;
-    if (!window.confirm(`Kunde „${customer.name}" (${customer.code}) wirklich löschen?`)) return;
-    setError(null);
-    setDeleting(true);
-    try {
-      await api.customers.delete(customer.code);
-      onDeleted?.(customer.code);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Fehler beim Löschen");
-      setDeleting(false);
-    }
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -238,19 +222,12 @@ export default function CustomerEditModal({ customer, onClose, onSaved, onDelete
             </p>
           )}
 
-          <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
-            {!isNew && (
-              <button type="button" onClick={handleDelete} disabled={deleting || saving}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 border border-red-300 hover:bg-red-50 disabled:opacity-50">
-                {deleting ? "Löscht…" : "Löschen"}
-              </button>
-            )}
-            <div className="flex-1" />
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
             <button type="button" onClick={onClose}
               className="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">
               Abbrechen
             </button>
-            <button type="submit" disabled={saving || deleting}
+            <button type="submit" disabled={saving}
               className="px-5 py-2 rounded-lg text-sm font-medium bg-[#2563eb] text-white hover:bg-[#2563eb]/80 disabled:opacity-50">
               {saving ? "Speichert…" : isNew ? "Anlegen" : "Speichern"}
             </button>
