@@ -242,15 +242,19 @@ def _nd_col_map(headers: list[str]) -> dict | None:
         'usd':      i_usd,
         'eur':      i_eur,
         'rate':     i_rate,
+        # tatsächliche AMV-Provision je Währung (Betrag) → Satz = Betrag / Amount
+        'amv_usd':  find('amv commission', 'usd'),
+        'amv_eur':  find('amv commission', 'eur'),
     }
 
 
 def _parse_excel_nd(rows: list[tuple], cmap: dict) -> list[dict]:
-    """ND-TexPack: Währung ergibt sich aus der befüllten Amount-Spalte (USD/EUR),
-    der Provisionssatz aus 'Commission to AMV %' (Bruch 0,05 → 5 %). Summen-/
-    Total-Zeilen (ohne Rechnungsnummer) werden übersprungen. Jede Positionszeile
-    wird einzeln übernommen (auch mehrere Zeilen je Rechnungsnummer, ggf. mit
-    unterschiedlichem Satz)."""
+    """ND-TexPack: Währung ergibt sich aus der befüllten Amount-Spalte (USD/EUR).
+    Die Provision wird aus der tatsächlichen 'AMV Commission (USD/EUR)'-Spalte
+    genommen und der Satz daraus errechnet (AMV Commission / Amount), NICHT aus
+    'Commission to AMV %' (die enthält den ungesplitteten 5-%-Satz). Negative
+    Beträge werden mitgerechnet. Summen-/Total-Zeilen (ohne Rechnungsnummer)
+    werden übersprungen. Jede Positionszeile wird einzeln übernommen."""
     def cell(row: tuple, idx: int | None):
         return row[idx] if idx is not None and idx < len(row) else None
 
@@ -265,13 +269,20 @@ def _parse_excel_nd(rows: list[tuple], cmap: dict) -> list[dict]:
         eur = float(cell(row, cmap['eur']) or 0)
         if usd:
             cur, amt = 'USD', usd
+            prov = float(cell(row, cmap['amv_usd']) or 0)
         elif eur:
             cur, amt = 'EUR', eur
+            prov = float(cell(row, cmap['amv_eur']) or 0)
         else:
             continue  # keine Beträge → keine Position
-        rate = float(cell(row, cmap['rate']) or 0)
-        if 0 < rate <= 1:          # 0,05 → 5 %
-            rate *= 100
+        # Satz aus tatsächlicher AMV-Provision errechnen (funktioniert auch bei
+        # negativen Beträgen: neg/neg → positiver Satz)
+        if amt:
+            rate = prov / amt * 100
+        else:
+            rate = float(cell(row, cmap['rate']) or 0)
+            if 0 < rate <= 1:
+                rate *= 100
         datum = cell(row, cmap['date'])
         inv_date = datum.strftime('%Y-%m-%d') if hasattr(datum, 'strftime') else _parse_date_de(datum)
         kunde = str(cell(row, cmap['customer']) or '').strip()
@@ -284,7 +295,7 @@ def _parse_excel_nd(rows: list[tuple], cmap: dict) -> list[dict]:
             'art_nr':              '',
             'total_amount':        round(amt, 2),
             'provision_rate':      round(rate, 4),
-            'provision_amount':    round(amt * rate / 100, 2),
+            'provision_amount':    round(prov, 2),   # tatsächliche AMV-Provision
             'currency':            cur,
             'supplier_code':       None,   # erbt vom Ziel-Lieferanten (ND)
         })
