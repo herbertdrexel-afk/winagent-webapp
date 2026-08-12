@@ -19,7 +19,7 @@ def _next_ku_nr(db: Session) -> str:
 @router.get("", response_model=list[schemas.CustomerOut])
 def list_customers(
     q: str | None = Query(None, description="Suche in Name/Code"),
-    limit: int = Query(200, le=1000),
+    limit: int = Query(200, le=100000),
     db: Session = Depends(get_db),
 ):
     query = db.query(models.Customer)

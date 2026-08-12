@@ -17,7 +17,7 @@ export default function Customers() {
   useEffect(() => {
     setLoading(true);
     const t = setTimeout(() => {
-      api.customers.list(search || undefined)
+      api.customers.list(search || undefined, 100000)
         .then(setCustomers)
         .catch((e) => setError(e.message))
         .finally(() => setLoading(false));

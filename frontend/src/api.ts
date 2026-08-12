@@ -184,8 +184,13 @@ export const api = {
       }),
   },
   customers: {
-    list: (search?: string) =>
-      get<Customer[]>("/customers" + (search ? `?q=${encodeURIComponent(search)}` : "")),
+    list: (search?: string, limit?: number) => {
+      const p = new URLSearchParams();
+      if (search) p.set("q", search);
+      if (limit) p.set("limit", String(limit));
+      const qs = p.toString();
+      return get<Customer[]>("/customers" + (qs ? `?${qs}` : ""));
+    },
     create: (data: Omit<Customer, "id" | "ku_nr">) =>
       post<Customer>("/customers", data),
     update: (code: string, data: Partial<Omit<Customer, "id" | "code" | "ku_nr">>) =>
