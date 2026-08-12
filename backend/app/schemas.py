@@ -1,7 +1,15 @@
 from datetime import date
 from decimal import Decimal
 from typing import Optional, Any
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
+
+
+def _upper_currency(v):
+    """Währung immer groß und ohne Leerzeichen speichern (für die Verknüpfung)."""
+    if isinstance(v, str):
+        v = v.strip().upper()
+        return v or None
+    return v
 
 
 class SupplierOut(BaseModel):
@@ -154,6 +162,8 @@ class TransactionCreate(BaseModel):
     customer_order_no: Optional[str] = None
     notes: Optional[str] = None
 
+    _cur = field_validator("currency")(_upper_currency)
+
 
 class TransactionUpdate(BaseModel):
     customer_id: Optional[int] = None
@@ -171,6 +181,8 @@ class TransactionUpdate(BaseModel):
     exchange_rate: Optional[Decimal] = None
     customer_order_no: Optional[str] = None
     notes: Optional[str] = None
+
+    _cur = field_validator("currency")(_upper_currency)
 
 
 class CommissionSummaryRow(BaseModel):
@@ -256,6 +268,8 @@ class CommissionInvoiceUpdate(BaseModel):
     v_code: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = None
+
+    _cur = field_validator("currency")(_upper_currency)
 
 
 class AufstellungRequest(BaseModel):

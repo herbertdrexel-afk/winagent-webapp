@@ -195,7 +195,7 @@ def _parse_csv_content(content: bytes) -> list[dict]:
     reader = csv.DictReader(StringIO(text), delimiter=delimiter)
     entries = []
     for row in reader:
-        waehrung = (row.get('Währung') or row.get('Waehrung') or row.get('Currency') or '').strip()
+        waehrung = (row.get('Währung') or row.get('Waehrung') or row.get('Currency') or '').strip().upper()
         kunde    = (row.get('Kunde') or row.get('Customer') or '').strip()
         datum    = (row.get('Datum') or row.get('Date') or '').strip()
         re_nr    = str(row.get('Rechnungsnummer') or row.get('Invoice Number') or row.get('Invoice') or '').strip()
@@ -347,7 +347,7 @@ def _parse_excel_content(content: bytes) -> list[dict]:
     for row in rows[1:]:
         if not any(row):
             continue
-        waehrung = str(cell(row, i_cur) or '').strip()
+        waehrung = str(cell(row, i_cur) or '').strip().upper()
         kunde    = str(cell(row, i_knd) or '').strip()
         datum    = cell(row, i_dat)
         re_nr    = str(cell(row, i_rnr) or '').strip()
@@ -473,7 +473,7 @@ def _normalize_row(raw: dict) -> dict | None:
                 return low[k]
         return None
 
-    cur   = str(pick('währung', 'waehrung', 'currency') or '').strip()
+    cur   = str(pick('währung', 'waehrung', 'currency') or '').strip().upper()
     kunde = str(pick('kunde', 'customer') or '').strip()
     if not cur or not kunde:
         return None
@@ -588,7 +588,7 @@ def import_records_for_supplier(records: list[dict], supplier, db: Session) -> d
 
     new = updated = unchanged = skipped = unmatched = 0
     for e in records:
-        cur = (e.get('currency') or '').strip()
+        cur = (e.get('currency') or '').strip().upper()
         iso = (e.get('invoice_date') or '').strip()
         if not cur or not iso:
             skipped += 1
@@ -726,7 +726,7 @@ def import_confirmed_entries(
             invoice_date=d,
             art_nr=(str(e.get("art_nr") or "").strip() or None),
             provision_rate=e.get("provision_rate"),
-            currency=e.get("currency"),
+            currency=(str(e.get("currency") or "").strip().upper() or None),
             total_amount=e.get("total_amount") or 0,
             exchange_rate=1,
         )

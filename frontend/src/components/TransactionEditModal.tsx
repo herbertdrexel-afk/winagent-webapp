@@ -200,8 +200,8 @@ export default function TransactionEditModal({ transaction: tx, onClose, onSaved
             </Field>
             <Field label="Währung">
               <input type="text" maxLength={3} value={form.currency ?? ""}
-                onChange={(e) => set("currency", e.target.value)}
-                className={inputCls} />
+                onChange={(e) => set("currency", e.target.value.toUpperCase())}
+                className={inputCls + " uppercase"} />
             </Field>
             <Field label="Betrag (Gesamt)" required>
               <input type="number" step="0.01" required value={form.total_amount ?? ""}

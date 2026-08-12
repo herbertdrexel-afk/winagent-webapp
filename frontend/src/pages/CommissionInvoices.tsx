@@ -42,6 +42,7 @@ interface EditState {
   id: number;
   description: string;
   amount: string;
+  currency: string;
   invoice_date: string;
   period_from: string;
   period_to: string;
@@ -87,6 +88,7 @@ export default function CommissionInvoices() {
       id: r.id,
       description: r.description ?? "",
       amount: String(r.amount),
+      currency: r.currency ?? "",
       invoice_date: r.invoice_date,
       period_from: r.period_from,
       period_to: r.period_to,
@@ -103,6 +105,7 @@ export default function CommissionInvoices() {
       await api.commission.updateInvoice(editing.id, {
         description: editing.description,
         amount: parseFloat(editing.amount),
+        currency: editing.currency.trim().toUpperCase() || undefined,
         invoice_date: editing.invoice_date,
         period_from: editing.period_from,
         period_to: editing.period_to,
@@ -348,11 +351,19 @@ export default function CommissionInvoices() {
                   onChange={e => setEditing({ ...editing, description: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">{t.provisions.amountNet}</label>
-                <input type="number" step="0.01" value={editing.amount}
-                  onChange={e => setEditing({ ...editing, amount: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">{t.provisions.amountNet}</label>
+                  <input type="number" step="0.01" value={editing.amount}
+                    onChange={e => setEditing({ ...editing, amount: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">{t.provisions.currency}</label>
+                  <input type="text" maxLength={3} value={editing.currency}
+                    onChange={e => setEditing({ ...editing, currency: e.target.value.toUpperCase() })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30" />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

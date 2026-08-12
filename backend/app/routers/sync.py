@@ -215,7 +215,7 @@ def import_einvoice_bytes(
                 unit=(line.unit or "")[:2] or None,
                 provision_rate=prov_rate,
                 price=line.unit_price,
-                currency=inv.currency,
+                currency=(str(inv.currency or "").strip().upper() or None),
                 total_amount=line.line_total,
                 exchange_rate=1,
                 notes=line.description[:200] if line.description else None,
@@ -236,7 +236,7 @@ def import_einvoice_bytes(
             invoice_number=inv_nr,
             invoice_date=inv.invoice_date,
             provision_rate=prov_rate,
-            currency=inv.currency,
+            currency=(str(inv.currency or "").strip().upper() or None),
             total_amount=inv.net_total,
             exchange_rate=1,
         )
