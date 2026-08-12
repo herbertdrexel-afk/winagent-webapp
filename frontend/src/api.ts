@@ -352,6 +352,12 @@ export const api = {
       fetch(`${BASE}/ingest/feeds/pull-all`, { method: "POST", headers: authHeaders() })
         .then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json() as Promise<Record<string, IngestPullResult>>; }),
     log: () => get<IngestLogEntry[]>("/ingest/log"),
+    deleteLog: (id: number) =>
+      fetch(`${BASE}/ingest/log/${id}`, { method: "DELETE", headers: authHeaders() })
+        .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
+    clearLog: () =>
+      fetch(`${BASE}/ingest/log`, { method: "DELETE", headers: authHeaders() })
+        .then(async (r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<{ deleted: number }>; }),
   },
 };
 

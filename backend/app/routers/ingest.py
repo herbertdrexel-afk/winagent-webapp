@@ -291,3 +291,28 @@ def ingest_log(
         "detail": r.detail,
         "created_at": r.created_at.isoformat() if r.created_at else None,
     } for r in rows]
+
+
+@router.delete("/log/{log_id}", status_code=204)
+def delete_ingest_log(
+    log_id: int,
+    _: models.User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Einen Protokoll-Eintrag löschen (nur Admin)."""
+    row = db.query(models.IngestLog).filter(models.IngestLog.id == log_id).first()
+    if row is None:
+        raise HTTPException(404, "Protokoll-Eintrag nicht gefunden")
+    db.delete(row)
+    db.commit()
+
+
+@router.delete("/log", status_code=200)
+def clear_ingest_log(
+    _: models.User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Gesamtes Import-Protokoll löschen (nur Admin)."""
+    deleted = db.query(models.IngestLog).delete()
+    db.commit()
+    return {"deleted": deleted}

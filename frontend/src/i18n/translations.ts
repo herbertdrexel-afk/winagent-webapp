@@ -356,6 +356,9 @@ const de = {
     skipped: "Übersprungen",
     detail: "Detail",
     count: (n: number) => `${n} Einträge`,
+    clear: "Protokoll leeren",
+    deleteConfirm: "Diesen Protokoll-Eintrag löschen?",
+    clearConfirm: "Das gesamte Import-Protokoll löschen?",
   },
 };
 
@@ -715,6 +718,9 @@ const en: typeof de = {
     skipped: "Skipped",
     detail: "Detail",
     count: (n: number) => `${n} entries`,
+    clear: "Clear log",
+    deleteConfirm: "Delete this log entry?",
+    clearConfirm: "Delete the entire import log?",
   },
 };
 

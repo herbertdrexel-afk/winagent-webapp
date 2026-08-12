@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type IngestLogEntry } from "../api";
 import { useT } from "../context/LocaleContext";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Trash2 } from "lucide-react";
 
 export default function ImportLog() {
   const t = useT();
@@ -14,6 +14,17 @@ export default function ImportLog() {
     api.ingest.log().then(setLog).catch(() => {}).finally(() => setLoading(false));
   }
   useEffect(() => { load(); }, []);
+
+  async function handleDelete(id: number) {
+    if (!window.confirm(t.log.deleteConfirm)) return;
+    setLog((rows) => rows.filter((r) => r.id !== id));
+    try { await api.ingest.deleteLog(id); } catch { load(); }
+  }
+
+  async function handleClear() {
+    if (!window.confirm(t.log.clearConfirm)) return;
+    try { await api.ingest.clearLog(); setLog([]); } catch { load(); }
+  }
 
   const rows = q.trim()
     ? log.filter(r => {
@@ -29,10 +40,16 @@ export default function ImportLog() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
         <h1 className="text-2xl font-semibold text-gray-800">{t.log.title}</h1>
-        <button onClick={load} disabled={loading}
-          className="flex items-center gap-1.5 border border-[#2563eb] text-[#2563eb] px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/10 disabled:opacity-50">
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> {t.common.refresh}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={load} disabled={loading}
+            className="flex items-center gap-1.5 border border-[#2563eb] text-[#2563eb] px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/10 disabled:opacity-50">
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> {t.common.refresh}
+          </button>
+          <button onClick={handleClear} disabled={loading || log.length === 0}
+            className="flex items-center gap-1.5 border border-red-500 text-red-600 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-red-50 disabled:opacity-40">
+            <Trash2 size={14} /> {t.log.clear}
+          </button>
+        </div>
       </div>
       <p className="text-sm text-gray-500 mb-4 max-w-3xl">{t.log.intro}</p>
 
@@ -54,13 +71,14 @@ export default function ImportLog() {
               <th className="px-4 py-2.5 text-right font-medium">{t.log.imported}</th>
               <th className="px-4 py-2.5 text-right font-medium">{t.log.skipped}</th>
               <th className="px-4 py-2.5 text-left font-medium">{t.log.detail}</th>
+              <th className="px-4 py-2.5 text-right font-medium w-10"></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">{t.common.loading}</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">{t.common.loading}</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">{t.common.noData}</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">{t.common.noData}</td></tr>
             ) : rows.map((r, i) => (
               <tr key={r.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                 <td className="px-4 py-2 text-xs text-gray-500 whitespace-nowrap">
@@ -78,6 +96,12 @@ export default function ImportLog() {
                 <td className="px-4 py-2 text-right tabular-nums">{r.imported}</td>
                 <td className="px-4 py-2 text-right tabular-nums text-gray-500">{r.skipped}</td>
                 <td className="px-4 py-2 text-xs text-gray-600">{r.detail}</td>
+                <td className="px-4 py-2 text-right">
+                  <button onClick={() => handleDelete(r.id)} title={t.common.delete}
+                    className="text-gray-400 hover:text-red-600 p-1">
+                    <Trash2 size={14} />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
