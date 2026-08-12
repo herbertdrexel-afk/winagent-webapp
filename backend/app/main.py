@@ -7,23 +7,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import suppliers, customers, commission, sync, stats, mandants, ingest
 from .routers import auth as auth_router, reports as reports_router, settings as settings_router
-from .routers.sync import run_customer_sync, test_mandant
+from .routers.sync import test_mandant
 from .auth import get_current_user
 from .database import engine, SessionLocal
 from . import models
 
 logger = logging.getLogger(__name__)
-
-
-async def _scheduled_sync():
-    """Run customer sync every hour; skip silently if credentials missing."""
-    while True:
-        await asyncio.sleep(3600)
-        try:
-            result = await run_customer_sync()
-            logger.info("Reybex auto-sync: %s", result)
-        except Exception as e:
-            logger.warning("Reybex auto-sync skipped: %s", e)
 
 
 async def _report_scheduler():
@@ -107,7 +96,6 @@ async def _feed_poller():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    asyncio.create_task(_scheduled_sync())
     asyncio.create_task(_report_scheduler())
     asyncio.create_task(_feed_poller())
     yield

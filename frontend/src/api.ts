@@ -197,6 +197,9 @@ export const api = {
         if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); }
         return r.json() as Promise<Customer>;
       }),
+    delete: (code: string) =>
+      fetch(`${BASE}/customers/${code}`, { method: "DELETE", headers: authHeaders() })
+        .then(async (r) => { if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail ?? `${r.status}`); } }),
   },
   transactions: {
     list: (supplierCode: string, from: string, to: string) =>
@@ -255,10 +258,6 @@ export const api = {
         .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
     reprintPdfUrl: (id: number) => `${BASE}/commission/invoices/${id}/pdf`,
     reprintAltPdfUrl: (id: number) => `${BASE}/commission/invoices/${id}/pdf-alt`,
-  },
-  sync: {
-    customers: () => post<SyncResult>("/sync/reybex/customers", {}),
-    status: () => get<{ last_sync: string | null; total?: number; created?: number; updated?: number }>("/sync/reybex/status"),
   },
   reports: {
     list: () => get<ReportSchedule[]>("/reports/schedules"),
@@ -380,15 +379,6 @@ export interface InvoiceSummary {
   period_to: string;
   next_pr_seq: number;
   totals: { currency: string; total_amount: number; provision_amount: number }[];
-}
-
-export interface SyncResult {
-  ok: boolean;
-  total: number;
-  created?: number;
-  updated?: number;
-  skipped?: number;
-  message?: string;
 }
 
 export interface ReybexMandant {

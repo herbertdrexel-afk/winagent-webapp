@@ -67,3 +67,25 @@ def update_customer(code: str, payload: schemas.CustomerUpdate, db: Session = De
     db.commit()
     db.refresh(customer)
     return customer
+
+
+@router.delete("/{code}", status_code=204)
+def delete_customer(code: str, db: Session = Depends(get_db)):
+    """Kunde löschen. Nicht möglich, solange noch Umsätze/Rechnungen oder andere
+    Datensätze auf ihn verweisen."""
+    customer = db.query(models.Customer).filter(models.Customer.code == code.upper()).first()
+    if not customer:
+        raise HTTPException(404, "Kunde nicht gefunden")
+    n_tx = db.query(models.Transaction).filter_by(customer_id=customer.id).count()
+    n_bud = db.query(models.Budget).filter_by(customer_id=customer.id).count()
+    n_csi = db.query(models.CommissionStatementItem).filter_by(customer_id=customer.id).count()
+    total = n_tx + n_bud + n_csi
+    if total:
+        detail = f"{n_tx} Umsätze/Rechnungen" if n_tx else f"{total} verknüpfte Datensätze"
+        raise HTTPException(
+            409,
+            f"Kunde kann nicht gelöscht werden: {detail} noch zugeordnet. "
+            "Bitte zuerst diese Datensätze entfernen oder einem anderen Kunden zuordnen.",
+        )
+    db.delete(customer)
+    db.commit()
