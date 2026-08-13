@@ -54,7 +54,7 @@ def generate_invoice_pdf(
     title_sty  = ParagraphStyle("title",     parent=normal, fontName="Helvetica-Bold", fontSize=16)
     grey8      = ParagraphStyle("grey8",     parent=normal, fontSize=8, textColor=colors.grey)
 
-    period_str = f"{period_from.strftime('%m-%m/%y')}"
+    period_str = f"{period_from.strftime('%m')}-{period_to.strftime('%m/%y')}"
     date_str   = invoice_date.strftime("%d.%m.%Y")
 
     story = []
