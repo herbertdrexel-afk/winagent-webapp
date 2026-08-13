@@ -9,7 +9,7 @@ from .. import models, schemas
 from ..auth import get_current_user, get_allowed_supplier_ids, check_supplier_access
 from ..database import get_db
 from ..pdf_commission import build_pdf
-from ..pdf_invoice import generate_invoice_pdf, generate_invoice_pdf_alt
+from ..pdf_invoice import generate_invoice_pdf, generate_invoice_pdf_alt, _t
 from ..pdf_aufstellung import generate_aufstellung_pdf
 from ..dbf_writer import write_hdubw_dbf
 
@@ -290,12 +290,19 @@ def create_invoice_pdf(
 
     address_lines = _supplier_address_lines(supplier)
 
+    # Bezeichnung sprachabhängig (Provision / Commission je nach Lieferant-Einstellung)
+    lang = supplier.invoice_language or "de+en"
+    period_text = f"{_t('Provision', 'Commission', lang)} {payload.period_from.strftime('%m')}-{payload.period_to.strftime('%m/%y')}"
     # Save each PR entry to commission_invoices (skip if already exists)
-    period_text = f"Provision {payload.period_from.strftime('%m')}-{payload.period_to.strftime('%m/%y')}"
+    pdf_description = None
     for i, t in enumerate(payload.totals):
         pr_nr = f"PR{year_suffix}-{payload.pr_seq + i:04d}"
         existing = db.query(models.CommissionInvoice).filter_by(pr_number=pr_nr).first()
-        if not existing:
+        if existing:
+            # bereits vorhanden → ggf. manuell geänderte Bezeichnung beibehalten
+            if pdf_description is None:
+                pdf_description = existing.description
+        else:
             db.add(models.CommissionInvoice(
                 supplier_id=supplier.id,
                 pr_number=pr_nr,
@@ -308,6 +315,8 @@ def create_invoice_pdf(
                 period_to=payload.period_to,
                 v_code="NA",
             ))
+            if pdf_description is None:
+                pdf_description = period_text
     db.commit()
 
     bank_accounts, logo_b64 = _load_invoice_settings(db)
@@ -322,7 +331,7 @@ def create_invoice_pdf(
         invoice_language=supplier.invoice_language or "de+en",
         bank_accounts=bank_accounts,
         logo_b64=logo_b64,
-        description=period_text,
+        description=pdf_description or period_text,
     )
     pr_label = f"PR{year_suffix}-{payload.pr_seq:04d}"
     return Response(
