@@ -33,6 +33,7 @@ def generate_invoice_pdf(
     invoice_language: str = "de+en",
     bank_accounts: dict | None = None,   # {"EUR": {"bank": ..., "iban": ..., "bic": ...}, ...}
     logo_b64: str | None = None,
+    description: str | None = None,      # editierbarer Positionstext (sonst autom. Zeitraum)
 ) -> bytes:
     lang = invoice_language or "de+en"
 
@@ -55,6 +56,8 @@ def generate_invoice_pdf(
     grey8      = ParagraphStyle("grey8",     parent=normal, fontSize=8, textColor=colors.grey)
 
     period_str = f"{period_from.strftime('%m')}-{period_to.strftime('%m/%y')}"
+    # Geänderter Bezeichnungstext hat Vorrang; sonst automatischer Zeitraum-Text
+    line_label = (description or "").strip() or (_t("Provision", "Commission", lang) + f" {period_str}")
     date_str   = invoice_date.strftime("%d.%m.%Y")
 
     story = []
@@ -95,7 +98,7 @@ def generate_invoice_pdf(
     for t in totals:
         amt_fmt = f"{t['amount']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         inv_data.append([
-            Paragraph(_t("Provision", "Commission", lang) + f" {period_str}", normal),
+            Paragraph(line_label, normal),
             Paragraph(f"<b>{t['currency']}</b>", normal),
             Paragraph(f"<b>{amt_fmt}</b>", right),
         ])

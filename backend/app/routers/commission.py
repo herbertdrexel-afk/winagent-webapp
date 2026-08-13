@@ -322,6 +322,7 @@ def create_invoice_pdf(
         invoice_language=supplier.invoice_language or "de+en",
         bank_accounts=bank_accounts,
         logo_b64=logo_b64,
+        description=period_text,
     )
     pr_label = f"PR{year_suffix}-{payload.pr_seq:04d}"
     return Response(
@@ -461,6 +462,7 @@ def reprint_commission_invoice_pdf(
         invoice_language=supplier.invoice_language or "de+en",
         bank_accounts=bank_accounts,
         logo_b64=logo_b64,
+        description=inv.description,
     )
     return Response(
         content=pdf_bytes,
