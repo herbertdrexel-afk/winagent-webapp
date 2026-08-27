@@ -199,6 +199,105 @@ function TurnoverChart({ rows }: { rows: StatRow[] }) {
   );
 }
 
+// ── Umsatzanteil Donut (Kuchendiagramm) ────────────────────────────────────
+const PIE_COLORS = [
+  "#2563eb", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6",
+  "#ec4899", "#14b8a6", "#f97316", "#64748b", "#0ea5e9",
+  "#a3e635", "#e11d48",
+];
+
+function arcPath(cx: number, cy: number, rO: number, rI: number, a0: number, a1: number) {
+  const pt = (r: number, a: number) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  const large = a1 - a0 > Math.PI ? 1 : 0;
+  const [x1, y1] = pt(rO, a0);
+  const [x2, y2] = pt(rO, a1);
+  const [x3, y3] = pt(rI, a1);
+  const [x4, y4] = pt(rI, a0);
+  return `M${x1},${y1} A${rO},${rO} 0 ${large} 1 ${x2},${y2} L${x3},${y3} A${rI},${rI} 0 ${large} 0 ${x4},${y4} Z`;
+}
+
+function TurnoverDonut({ rows }: { rows: StatRow[] }) {
+  const t = useT();
+  const [hover, setHover] = useState<number | null>(null);
+
+  const data = rows
+    .map((r) => ({ code: r.code, name: r.name, value: r.curr_turnover }))
+    .filter((d) => d.value > 0)
+    .sort((a, b) => b.value - a.value);
+  const total = data.reduce((s, d) => s + d.value, 0);
+
+  if (total === 0) {
+    return <div className="h-full flex items-center justify-center text-gray-400 text-sm py-8">{t.common.noData}</div>;
+  }
+
+  const size = 176, stroke = 40, rO = size / 2, rI = size / 2 - stroke, cx = size / 2, cy = size / 2;
+  const TAU = Math.PI * 2;
+  let acc = -Math.PI / 2;
+  const segs = data.map((d, i) => {
+    const frac = d.value / total;
+    const a0 = acc, a1 = acc + frac * TAU;
+    acc = a1;
+    return { ...d, i, frac, a0, a1, color: PIE_COLORS[i % PIE_COLORS.length] };
+  });
+  const single = segs.length === 1;
+
+  const center = hover != null ? segs[hover] : null;
+
+  return (
+    <div>
+      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1 pb-2">
+        {t.dashboard.turnoverShare}
+      </div>
+      <div className="flex items-start gap-3">
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0"
+          onMouseLeave={() => setHover(null)}>
+          {single ? (
+            <circle cx={cx} cy={cy} r={(rO + rI) / 2} fill="none"
+              stroke={segs[0].color} strokeWidth={stroke} />
+          ) : (
+            segs.map((s) => (
+              <path key={s.code} d={arcPath(cx, cy, rO, rI, s.a0, s.a1)}
+                fill={s.color}
+                stroke="#fff" strokeWidth={1.5}
+                opacity={hover == null || hover === s.i ? 1 : 0.35}
+                style={{ transition: "opacity .12s" }}
+                onMouseEnter={() => setHover(s.i)} />
+            ))
+          )}
+          {/* Center label */}
+          <text x={cx} y={center ? cy - 6 : cy - 3} textAnchor="middle"
+            fontSize={center ? 13 : 11} fontWeight={700} fill="#374151"
+            fontFamily="system-ui, sans-serif">
+            {center ? center.code : t.dashboard.total}
+          </text>
+          <text x={cx} y={center ? cy + 12 : cy + 14} textAnchor="middle"
+            fontSize={center ? 11 : 12} fontWeight={600}
+            fill={center ? center.color : "#111827"}
+            fontFamily="system-ui, sans-serif">
+            {center ? `${(center.frac * 100).toFixed(1).replace(".", ",")}%` : fmtAxis(total)}
+          </text>
+        </svg>
+
+        {/* Legend */}
+        <div className="flex-1 min-w-0 text-xs space-y-1 max-h-[176px] overflow-y-auto pr-1">
+          {segs.map((s) => (
+            <div key={s.code}
+              className={`flex items-center gap-1.5 rounded px-1 py-0.5 cursor-default ${hover === s.i ? "bg-gray-100" : ""}`}
+              onMouseEnter={() => setHover(s.i)} onMouseLeave={() => setHover(null)}>
+              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: s.color }} />
+              <span className="font-medium text-gray-700 shrink-0" style={{ minWidth: 26 }}>{s.code}</span>
+              <span className="text-gray-400 truncate flex-1">{s.name}</span>
+              <span className="font-semibold text-gray-700 shrink-0 tabular-nums">
+                {(s.frac * 100).toFixed(1).replace(".", ",")}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Dashboard ──────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -284,7 +383,14 @@ export default function Dashboard() {
         ) : !stats || stats.rows.length === 0 ? (
           <div className="h-[160px] flex items-center justify-center text-gray-400 text-sm">{t.common.noData}</div>
         ) : (
-          <TurnoverChart rows={stats.rows} />
+          <div className="flex flex-col xl:flex-row xl:items-start">
+            <div className="flex-1 min-w-0">
+              <TurnoverChart rows={stats.rows} />
+            </div>
+            <div className="shrink-0 xl:w-[360px] border-t xl:border-t-0 xl:border-l border-gray-100 p-4">
+              <TurnoverDonut rows={stats.rows} />
+            </div>
+          </div>
         )}
 
         {/* Table */}

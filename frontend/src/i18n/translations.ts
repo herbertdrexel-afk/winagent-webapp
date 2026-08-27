@@ -60,6 +60,8 @@ const de = {
     commDiff: "Differenz",
     commChange: "Änderung",
     total: "Gesamt",
+    turnoverShare: "Umsatzanteil (Aktuell)",
+    share: "Anteil",
   },
   provisions: {
     title: "Provisionsrechnungen",
@@ -422,6 +424,8 @@ const en: typeof de = {
     commDiff: "Difference",
     commChange: "Change",
     total: "Total",
+    turnoverShare: "Turnover share (current)",
+    share: "Share",
   },
   provisions: {
     title: "Commission Invoices",
