@@ -1,0 +1,262 @@
+<title>WinAgent – Handbook</title>
+<style>
+  :root{
+    --bg:#eef1f6; --surface:#fff; --surface-2:#f7f8fa; --ink:#1a2230; --muted:#5b6472;
+    --border:#e2e5eb; --primary:#2563eb; --primary-dark:#1d4ed8; --primary-soft:#dbeafe;
+    --tip-bg:#eff5ff; --tip-bd:#bcd3f7; --tip-ink:#1e40af;
+    --warn-bg:#fff7ed; --warn-bd:#fed7aa; --warn-ink:#9a3412;
+    --admin:#7c3aed;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#0e131a; --surface:#161c26; --surface-2:#121821; --ink:#e7eaf0; --muted:#9aa3b2;
+    --border:#262e3a; --primary:#5b8def; --primary-dark:#7aa5f5; --primary-soft:#1c2942;
+    --tip-bg:#13233f; --tip-bd:#2a4670; --tip-ink:#a9c6f5;
+    --warn-bg:#2a1c10; --warn-bd:#573a1c; --warn-ink:#f0b47a; --admin:#a78bfa;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0e131a; --surface:#161c26; --surface-2:#121821; --ink:#e7eaf0; --muted:#9aa3b2;
+    --border:#262e3a; --primary:#5b8def; --primary-dark:#7aa5f5; --primary-soft:#1c2942;
+    --tip-bg:#13233f; --tip-bd:#2a4670; --tip-ink:#a9c6f5;
+    --warn-bg:#2a1c10; --warn-bd:#573a1c; --warn-ink:#f0b47a; --admin:#a78bfa;
+  }
+  :root[data-theme="light"]{
+    --bg:#eef1f6; --surface:#fff; --surface-2:#f7f8fa; --ink:#1a2230; --muted:#5b6472;
+    --border:#e2e5eb; --primary:#2563eb; --primary-dark:#1d4ed8; --primary-soft:#dbeafe;
+    --tip-bg:#eff5ff; --tip-bd:#bcd3f7; --tip-ink:#1e40af;
+    --warn-bg:#fff7ed; --warn-bd:#fed7aa; --warn-ink:#9a3412; --admin:#7c3aed;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Arial,sans-serif;
+    line-height:1.6;font-size:16.5px;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:46rem;margin:0 auto;padding:0 1.2rem;}
+  .hero{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;
+    padding:2.6rem 0 2.2rem;}
+  .hero .brand{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1rem;}
+  .logo{width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.18);
+    border:1px solid rgba(255,255,255,.3);display:grid;place-items:center;font-weight:800;}
+  .hero h1{margin:.5rem 0 .2rem;font-size:2.1rem;font-weight:800;letter-spacing:-.02em;}
+  .hero p{margin:0;color:rgba(255,255,255,.92);max-width:34rem;}
+  main{padding:1.4rem 0 4rem;}
+  .toc{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1rem 1.2rem;margin-top:1rem;}
+  .toc h2{margin:0 0 .5rem;font-size:1rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);}
+  .toc ol{margin:0;padding-left:1.2rem;columns:2;column-gap:1.4rem;}
+  .toc a{color:var(--primary);text-decoration:none;}
+  .toc a:hover{text-decoration:underline;}
+  .band{margin:2rem 0 .4rem;display:flex;align-items:center;gap:.7rem;}
+  .band h2{margin:0;font-size:1.05rem;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:var(--muted);}
+  .band .line{flex:1;height:1px;background:var(--border);}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:1.15rem 1.35rem 1.25rem;margin-top:1rem;}
+  .card h3{display:flex;align-items:center;gap:.6rem;margin:0 0 .35rem;font-size:1.2rem;font-weight:750;}
+  .num{width:1.8rem;height:1.8rem;flex:none;border-radius:50%;background:var(--primary);color:#fff;
+    display:grid;place-items:center;font-size:.9rem;font-weight:700;}
+  .card p{margin:.45rem 0;}
+  ol,ul{margin:.4rem 0;padding-left:1.35rem;}
+  li{margin:.32rem 0;}
+  strong{font-weight:680;}
+  .muted{color:var(--muted);font-size:.95rem;}
+  code{font-family:ui-monospace,Consolas,monospace;font-size:.88em;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:5px;padding:.05em .4em;}
+  kbd{font-family:ui-monospace,Consolas,monospace;font-size:.85em;background:var(--surface-2);
+    border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:.05em .4em;}
+  .tip{background:var(--tip-bg);border:1px solid var(--tip-bd);border-radius:10px;
+    padding:.7rem .95rem;margin:.85rem 0 .2rem;font-size:.95rem;}
+  .tip b{color:var(--tip-ink);}
+  .warn{background:var(--warn-bg);border:1px solid var(--warn-bd);border-radius:10px;
+    padding:.7rem .95rem;margin:.85rem 0 .2rem;font-size:.95rem;}
+  .warn b{color:var(--warn-ink);}
+  .admintag{font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    color:#fff;background:var(--admin);border-radius:6px;padding:.12em .5em;vertical-align:middle;}
+  .menu{display:grid;grid-template-columns:repeat(auto-fill,minmax(13rem,1fr));gap:.5rem;margin:.6rem 0;}
+  .mi{display:flex;align-items:center;gap:.55rem;background:var(--surface-2);border:1px solid var(--border);
+    border-radius:9px;padding:.45rem .6rem;font-size:.92rem;}
+  .badge{width:26px;height:26px;flex:none;border-radius:6px;background:var(--primary);color:#fff;
+    display:grid;place-items:center;font-weight:800;font-size:12px;}
+  footer{text-align:center;color:var(--muted);font-size:.85rem;padding:1rem 0 2.5rem;}
+  @media print{
+    .hero{background:var(--primary-dark)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .card,.toc{break-inside:avoid;}
+    .toc ol{columns:2;}
+  }
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><span class="logo">W</span> WinAgent</div>
+    <h1>Handbook</h1>
+    <p>Explained step by step, in plain language. For everyday use and for looking things up.</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <nav class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#signin">Signing in</a></li>
+      <li><a href="#overview">Overview &amp; menu</a></li>
+      <li><a href="#invoices">Viewing invoices</a></li>
+      <li><a href="#import">Importing data</a></li>
+      <li><a href="#create">Creating a commission invoice</a></li>
+      <li><a href="#manage">Printing &amp; editing invoices</a></li>
+      <li><a href="#stats">Statistics &amp; reports</a></li>
+      <li><a href="#master">Suppliers &amp; customers</a></li>
+      <li><a href="#profile">Profile &amp; language</a></li>
+      <li><a href="#users">Users &amp; access</a></li>
+      <li><a href="#settings">Settings</a></li>
+      <li><a href="#feeds">Automatic import &amp; log</a></li>
+      <li><a href="#concepts">Good to know</a></li>
+      <li><a href="#faq">Frequently asked questions</a></li>
+    </ol>
+  </nav>
+
+  <div class="band"><h2>For all users</h2><span class="line"></span></div>
+
+  <div class="card" id="signin">
+    <h3><span class="num">1</span> Signing in</h3>
+    <ol>
+      <li>Open WinAgent in your browser (Chrome, Edge, Safari …).</li>
+      <li>Enter your <strong>username</strong> and <strong>password</strong>.</li>
+      <li>Click <strong>Sign in</strong>.</li>
+    </ol>
+    <p class="muted">No account yet? Create one via <strong>Register</strong> – an administrator then approves it. If needed, an administrator resets your password.</p>
+  </div>
+
+  <div class="card" id="overview">
+    <h3><span class="num">2</span> Overview &amp; menu</h3>
+    <p>The menu is on the left (at the bottom on mobile). These are what you need day to day:</p>
+    <div class="menu">
+      <div class="mi"><span class="badge">D</span> Dashboard – overview</div>
+      <div class="mi"><span class="badge">%</span> Commissions – invoices</div>
+      <div class="mi"><span class="badge">R</span> Invoices – turnover</div>
+      <div class="mi"><span class="badge">S</span> Statistics – reports</div>
+      <div class="mi"><span class="badge">L</span> Suppliers</div>
+      <div class="mi"><span class="badge">K</span> Customers</div>
+    </div>
+    <p>At the top there is a <strong>search bar</strong> for the open area. On a computer you can keep several areas open as <strong>tabs</strong>.</p>
+    <p>The home page is the <strong>Dashboard</strong>: it shows the <strong>supplier statistics</strong> as a bar chart (current/prior-year turnover), a <strong>pie chart</strong> next to it with each supplier's <strong>commission share</strong>, and the table with all figures below. Use <strong>PDF</strong> to download the report, or <strong>Details →</strong> for the full statistics.</p>
+    <p class="muted">Some menu items are only visible to administrators – that is normal.</p>
+  </div>
+
+  <div class="card" id="invoices">
+    <h3><span class="num">3</span> Viewing invoices</h3>
+    <p>Under <strong>Invoices</strong> you see all turnover (customer invoices).</p>
+    <ol>
+      <li>Choose the <strong>supplier</strong> at the top.</li>
+      <li>Choose the <strong>period</strong> with the buttons: <strong>This week</strong>, <strong>This month</strong>, <strong>Last month</strong>, <strong>Q1–Q4</strong>, <strong>Year</strong> – or enter <strong>From/To</strong> yourself.</li>
+      <li>If needed, search on the right by <strong>invoice no.</strong>, <strong>customer</strong> or <strong>date</strong>.</li>
+    </ol>
+    <p>A <strong>click on a row</strong> opens the invoice with all line items. While editing, the <strong>commission is calculated live</strong> (amount × rate); negative amounts appear in red. The <strong>total</strong> is at the very bottom.</p>
+  </div>
+
+  <div class="card" id="import">
+    <h3><span class="num">4</span> Importing data</h3>
+    <p>Turnover does not have to be entered by hand – you can import files.</p>
+    <ol>
+      <li>At the desired <strong>supplier</strong>, click <strong>Upload CSV / Excel</strong>.</li>
+      <li>Select the file. The <strong>preview</strong> shows all line items.</li>
+      <li>Check the <strong>customer assignment</strong> – WinAgent automatically suggests the customer with the <strong>highest name match</strong>. Addresses that are not found are marked yellow.</li>
+      <li>Click <strong>Import</strong>.</li>
+    </ol>
+    <div class="tip"><b>No duplicate imports</b><br>
+      An invoice that already exists is not created again. Only if the <strong>amount or commission has changed</strong> is it overwritten – otherwise everything stays unchanged.</div>
+    <p class="muted">Supported formats: CSV, Excel, XML, JSON and DBF. A special format (ND TexPack) is detected automatically.</p>
+  </div>
+
+  <div class="card" id="create">
+    <h3><span class="num">5</span> Creating a commission invoice</h3>
+    <ol>
+      <li>First choose the <strong>supplier</strong> and the <strong>period</strong> as above.</li>
+      <li>Click <strong>Commission statement</strong> – WinAgent adds up the commission per currency.</li>
+      <li>Check the <strong>invoice date</strong> and choose: <strong>Invoice + list</strong> (the invoice is saved) or <strong>list only</strong>.</li>
+      <li>Click <strong>Create</strong> – the PDF is downloaded.</li>
+    </ol>
+    <p class="muted">The description (“Commission 01-03/26”) is built automatically from the period – for English suppliers as “Commission”, for German ones as “Provision”.</p>
+  </div>
+
+  <div class="card" id="manage">
+    <h3><span class="num">6</span> Printing &amp; editing invoices</h3>
+    <p>Under <strong>Commissions</strong> you find all commission invoices created. Filter at the top by <strong>supplier</strong> and <strong>status</strong>.</p>
+    <ul>
+      <li><strong>PDF AMV</strong> – print the invoice in the standard layout.</li>
+      <li><strong>PDF NAAG</strong> – the alternative layout, if enabled for the supplier.</li>
+    </ul>
+    <p>Clicking the row opens the edit dialog. There you can change the <strong>description, amount, currency, date and status</strong>. The <strong>changed description is printed on the PDF</strong> (AMV and NAAG).</p>
+    <p class="muted">File name: <code>PR-No_Supplier_AMV.pdf</code> or <code>…_NAAG.pdf</code>.</p>
+  </div>
+
+  <div class="card" id="stats">
+    <h3><span class="num">7</span> Statistics &amp; reports</h3>
+    <p>Under <strong>Statistics</strong> there are several tabs:</p>
+    <ul>
+      <li><strong>Supplier statistics</strong> – turnover &amp; commission per supplier, with a prior-year comparison.</li>
+      <li><strong>AdrUms</strong> – customers by commission or by turnover.</li>
+      <li><strong>Supplier detail</strong> – per supplier the <strong>months</strong> (Jan–Dec), followed by quarters, half-years and the year.</li>
+    </ul>
+    <p>Set the year or period, click <strong>Load</strong>, and download with <strong>PDF</strong>. In the detail PDF each supplier starts on its own page.</p>
+  </div>
+
+  <div class="card" id="master">
+    <h3><span class="num">8</span> Suppliers &amp; customers</h3>
+    <p><strong>Suppliers</strong> and <strong>Customers</strong> are the master data. Click a row to edit, or <strong>New</strong> at the top to add one.</p>
+    <p><strong>Delete a customer:</strong> <strong>select</strong> the row using the field on the left and click <strong>Delete</strong> next to “New” at the top. A customer that still has turnover/invoices assigned cannot be deleted – a note appears in that case.</p>
+    <p class="muted">On the supplier you store, among other things, the VAT/UID number, the invoice language and whether “PDF NAAG” is offered.</p>
+  </div>
+
+  <div class="card" id="profile">
+    <h3><span class="num">9</span> Profile &amp; language</h3>
+    <p>Click your <strong>initials</strong> (blue circle) at the top right. There you enter your <strong>first and last name</strong> and switch the <strong>language</strong> (German / English) – the change takes effect immediately.</p>
+  </div>
+
+  <div class="band"><h2>For administrators</h2><span class="line"></span></div>
+
+  <div class="card" id="users">
+    <h3><span class="num">10</span> Users &amp; access <span class="admintag">Admin</span></h3>
+    <p>Under <strong>Users</strong> you approve new accounts, create accounts and <strong>change passwords</strong>.</p>
+    <p>Per user you define <strong>which suppliers</strong> they may see (turnover, invoices, reports). With <strong>All on/off</strong> you quickly select or clear all. Without permission a “403” message appears when opening.</p>
+  </div>
+
+  <div class="card" id="settings">
+    <h3><span class="num">11</span> Settings <span class="admintag">Admin</span></h3>
+    <p>Under <strong>Settings</strong> you store logos, company data and bank details for the invoice PDFs.</p>
+    <ul>
+      <li><strong>Standard (AMV):</strong> logo, company data (VAT/UID, registration) and a bank account per currency (EUR/USD/CHF).</li>
+      <li><strong>Bank details NA AG:</strong> own logo, issuer, place and bank for the “PDF NAAG” layout. If the fields are empty, the standard bank details are used automatically.</li>
+    </ul>
+    <p class="muted">The matching bank account is chosen automatically by the invoice currency – that is why the currency is always stored in <strong>uppercase</strong> (EUR, USD, CHF).</p>
+  </div>
+
+  <div class="card" id="feeds">
+    <h3><span class="num">12</span> Automatic import &amp; log <span class="admintag">Admin</span></h3>
+    <p><strong>Reybex feeds:</strong> Store the pull link (with <code>feedToken</code>) per supplier. WinAgent fetches the invoices <strong>automatically every day</strong>; use <strong>Pull now</strong> to do it immediately. The same rules as the manual import apply (no duplicate imports).</p>
+    <p><strong>Log:</strong> Here you see <strong>every import</strong> – automatic and manual – with time, source, file, status and how many invoices were new, updated or unchanged. Entries can be deleted individually or all at once.</p>
+  </div>
+
+  <div class="band"><h2>Reference</h2><span class="line"></span></div>
+
+  <div class="card" id="concepts">
+    <h3><span class="num">13</span> Good to know</h3>
+    <ul>
+      <li><strong>Commission (net):</strong> the stored rate is already net – sub-agents' shares are deducted.</li>
+      <li><strong>Date &amp; numbers:</strong> everywhere in the format <strong>D.M.Y</strong> and <strong>28,222.20</strong> (German locale: 28.222,20).</li>
+      <li><strong>Currency:</strong> always uppercase (EUR/USD/CHF) so bank and reports link correctly.</li>
+      <li><strong>Reports</strong> <span class="admintag">Admin</span>: automatic e-mail reports can be scheduled.</li>
+    </ul>
+  </div>
+
+  <div class="card" id="faq">
+    <h3><span class="num">14</span> Frequently asked questions</h3>
+    <p><strong>I still see old data after a change.</strong><br>
+      Reload the page: <kbd>Ctrl</kbd> + <kbd>F5</kbd> (Mac: <kbd>Cmd</kbd> + <kbd>R</kbd>).</p>
+    <p><strong>I get a “403” when opening.</strong><br>
+      You lack permission for this supplier – an administrator can grant it (section 10).</p>
+    <p><strong>I can't find “Users” or “Settings”.</strong><br>
+      These areas are only visible to administrators.</p>
+    <p><strong>Can I print the handbook?</strong><br>
+      Yes – from the browser with <kbd>Ctrl</kbd> + <kbd>P</kbd>. The layout is optimised for printing.</p>
+  </div>
+
+</main>
+
+<footer>WinAgent · User handbook</footer>
