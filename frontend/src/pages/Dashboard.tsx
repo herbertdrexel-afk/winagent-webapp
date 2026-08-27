@@ -199,7 +199,7 @@ function TurnoverChart({ rows }: { rows: StatRow[] }) {
   );
 }
 
-// ── Umsatzanteil Donut (Kuchendiagramm) ────────────────────────────────────
+// ── Provisionsanteil Donut (Kuchendiagramm) ────────────────────────────────
 const PIE_COLORS = [
   "#2563eb", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6",
   "#ec4899", "#14b8a6", "#f97316", "#64748b", "#0ea5e9",
@@ -216,12 +216,12 @@ function arcPath(cx: number, cy: number, rO: number, rI: number, a0: number, a1:
   return `M${x1},${y1} A${rO},${rO} 0 ${large} 1 ${x2},${y2} L${x3},${y3} A${rI},${rI} 0 ${large} 0 ${x4},${y4} Z`;
 }
 
-function TurnoverDonut({ rows }: { rows: StatRow[] }) {
+function ShareDonut({ rows }: { rows: StatRow[] }) {
   const t = useT();
   const [hover, setHover] = useState<number | null>(null);
 
   const data = rows
-    .map((r) => ({ code: r.code, name: r.name, value: r.curr_turnover }))
+    .map((r) => ({ code: r.code, name: r.name, value: r.curr_commission }))
     .filter((d) => d.value > 0)
     .sort((a, b) => b.value - a.value);
   const total = data.reduce((s, d) => s + d.value, 0);
@@ -246,7 +246,7 @@ function TurnoverDonut({ rows }: { rows: StatRow[] }) {
   return (
     <div>
       <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1 pb-2">
-        {t.dashboard.turnoverShare}
+        {t.dashboard.commissionShare}
       </div>
       <div className="flex items-start gap-3">
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0"
@@ -388,7 +388,7 @@ export default function Dashboard() {
               <TurnoverChart rows={stats.rows} />
             </div>
             <div className="shrink-0 xl:w-[360px] border-t xl:border-t-0 xl:border-l border-gray-100 p-4">
-              <TurnoverDonut rows={stats.rows} />
+              <ShareDonut rows={stats.rows} />
             </div>
           </div>
         )}

@@ -61,6 +61,7 @@ const de = {
     commChange: "Änderung",
     total: "Gesamt",
     turnoverShare: "Umsatzanteil (Aktuell)",
+    commissionShare: "Provisionsanteil (Aktuell)",
     share: "Anteil",
   },
   provisions: {
@@ -425,6 +426,7 @@ const en: typeof de = {
     commChange: "Change",
     total: "Total",
     turnoverShare: "Turnover share (current)",
+    commissionShare: "Commission share (current)",
     share: "Share",
   },
   provisions: {
