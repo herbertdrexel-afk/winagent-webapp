@@ -33,6 +33,16 @@ def _xml(s: str) -> str:
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+def _bi(de: str, en: str) -> str:
+    """Einzeiliges zweisprachiges Label 'DE / EN' (für Titel/Zeilen)."""
+    return f"{_xml(de)} / {_xml(en)}"
+
+
+def _hdr(de: str, en: str) -> str:
+    """Zweizeiliger Tabellenkopf: DE (fett) über EN (klein) – für alle Sprachen."""
+    return f"<b>{_xml(de)}</b><br/><font size='6'>{_xml(en)}</font>"
+
+
 def _cust_label(r: dict) -> str:
     """Name / Firma inkl. Ort (mit Ländercode), wie im Alt-Report (XML-escaped)."""
     name = (r.get("customer_name") or "–").strip()
@@ -55,7 +65,7 @@ def build_customer_turnover_pdf(data: dict) -> bytes:
     period_from = data["period_from"]
     period_to = data["period_to"]
     period_label = f"{period_from[5:7]}.{period_from[2:4]} - {period_to[5:7]}.{period_to[2:4]}"
-    sort_label = "nach Provision" if is_prov else "nach Umsatz"
+    sort_label = _bi("nach Provision", "by commission") if is_prov else _bi("nach Umsatz", "by turnover")
     today_str = date.today().strftime("%d.%m.%y")
 
     buf = BytesIO()
@@ -73,7 +83,7 @@ def build_customer_turnover_pdf(data: dict) -> bytes:
 
     story = []
     hd = [[
-        Paragraph(f"<b>Umsatzliste {period_label} {sort_label}</b> &nbsp; <font size=8 color='#666666'>AdrUms</font>",
+        Paragraph(f"<b>{_bi('Umsatzliste', 'Turnover list')} {period_label} — {sort_label}</b> &nbsp; <font size=8 color='#666666'>AdrUms</font>",
                   ParagraphStyle("t", parent=n, fontName="Helvetica-Bold", fontSize=12)),
         Paragraph(today_str, ParagraphStyle("d", parent=n, fontSize=9, alignment=TA_RIGHT)),
     ]]
@@ -90,12 +100,12 @@ def build_customer_turnover_pdf(data: dict) -> bytes:
     if is_prov:
         COL_W = [10.0*cm, 3.2*cm, 3.2*cm, 3.2*cm, 2.2*cm, 2.2*cm, 1.3*cm]
         thead = [[
-            Paragraph("<b>Name / Firma</b>", bold),
-            Paragraph("<b>Umsatz VJ</b>", rb),
-            Paragraph("<b>Umsatz</b>", rb),
-            Paragraph("<b>Provision</b>", rb),
-            Paragraph("<b>DuPr %</b>", rb),
-            Paragraph("<b>Anteil %</b>", rb),
+            Paragraph(_hdr("Name / Firma", "Name / Company"), bold),
+            Paragraph(_hdr("Umsatz VJ", "turnover PY"), rb),
+            Paragraph(_hdr("Umsatz", "turnover"), rb),
+            Paragraph(_hdr("Provision", "commission"), rb),
+            Paragraph(_hdr("DuPr %", "comm. %"), rb),
+            Paragraph(_hdr("Anteil %", "share %"), rb),
             Paragraph("<b>P.</b>", cb),
         ]]
         table_data = thead[:]
@@ -112,7 +122,7 @@ def build_customer_turnover_pdf(data: dict) -> bytes:
                 Paragraph(str(i), smc),
             ])
         table_data.append([
-            Paragraph("<b>Gesamtsumme: EUR</b>", bold),
+            Paragraph(f"<b>{_bi('Gesamtsumme', 'Total')}: EUR</b>", bold),
             Paragraph(_fmt(tot_vj), rb),
             Paragraph(_fmt(tot_t), rb),
             Paragraph(_fmt(tot_p), rb),
@@ -121,10 +131,10 @@ def build_customer_turnover_pdf(data: dict) -> bytes:
     else:
         COL_W = [12.0*cm, 3.6*cm, 3.6*cm, 2.6*cm, 1.4*cm]
         thead = [[
-            Paragraph("<b>Name / Firma</b>", bold),
-            Paragraph("<b>Umsatz VJ</b>", rb),
-            Paragraph("<b>Umsatz</b>", rb),
-            Paragraph("<b>Wachstum %</b>", rb),
+            Paragraph(_hdr("Name / Firma", "Name / Company"), bold),
+            Paragraph(_hdr("Umsatz VJ", "turnover PY"), rb),
+            Paragraph(_hdr("Umsatz", "turnover"), rb),
+            Paragraph(_hdr("Wachstum %", "growth %"), rb),
             Paragraph("<b>Pos.</b>", cb),
         ]]
         table_data = thead[:]
@@ -145,7 +155,7 @@ def build_customer_turnover_pdf(data: dict) -> bytes:
             ])
         g_tot = (tot_t / tot_vj * 100) if tot_vj else None
         table_data.append([
-            Paragraph("<b>Gesamtsumme: EUR</b>", bold),
+            Paragraph(f"<b>{_bi('Gesamtsumme', 'Total')}: EUR</b>", bold),
             Paragraph(_fmt(tot_vj), rb),
             Paragraph(_fmt(tot_t), rb),
             Paragraph(f"{g_tot:.0f}%" if g_tot is not None else "~ %", rb),
@@ -201,25 +211,26 @@ def build_supplier_detail_pdf(data: dict) -> bytes:
     story = []
     # Global header
     story.append(Paragraph(
-        f"<b>Lieferant Statistik Detail — {year}</b>",
+        f"<b>{_bi('Lieferant-Detail', 'Supplier detail')} — {year}</b>",
         ParagraphStyle("title", parent=n, fontName="Helvetica-Bold", fontSize=13)))
-    story.append(Paragraph(f"turnover-quantity-commission-expense-budget-comparison in EUR   {today_str}",
-                            ParagraphStyle("sub", parent=n, fontSize=8)))
+    story.append(Paragraph(
+        f"{_bi('Umsatz-Provision-Budget-Vergleich', 'turnover-commission-budget comparison')} · EUR   {today_str}",
+        ParagraphStyle("sub", parent=n, fontSize=8)))
     story.append(Spacer(1, 0.4*cm))
 
     col_header = [
-        Paragraph("<b>des.</b>", bold),
-        Paragraph("<b>turnover last year</b>", rb),
-        Paragraph("<b>budget</b>", rb),
+        Paragraph(_hdr("Zeitr.", "period"), bold),
+        Paragraph(_hdr("Umsatz VJ", "turnover PY"), rb),
+        Paragraph(_hdr("Budget", "budget"), rb),
         Paragraph("<b>+/-</b>", rb),
-        Paragraph("<b>turnover curr y</b>", rb),
+        Paragraph(_hdr("Umsatz akt.", "turnover CY"), rb),
         Paragraph("<b>+/-</b>", rb),
-        Paragraph("<b>comm.-last y</b>", rb),
-        Paragraph("<b>comm. budget net</b>", rb),
-        Paragraph("<b>comm. curr y</b>", rb),
+        Paragraph(_hdr("Prov. VJ", "comm. PY"), rb),
+        Paragraph(_hdr("Prov.-Budget", "comm. budget"), rb),
+        Paragraph(_hdr("Prov. akt.", "comm. CY"), rb),
         Paragraph("<b>+/-</b>", rb),
-        Paragraph("<b>comm. brut</b>", rb),
-        Paragraph("<b>difference</b>", rb),
+        Paragraph(_hdr("Prov. brutto", "comm. gross"), rb),
+        Paragraph(_hdr("Differenz", "difference"), rb),
         Paragraph("<b>+/-</b>", rb),
     ]
 
@@ -330,35 +341,37 @@ def build_supplier_stats_pdf(data: dict) -> bytes:
     header_table = Table(header_data, colWidths=[10*cm, 10*cm, 8*cm])
     header_table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE")]))
     story.append(header_table)
-    story.append(Paragraph("<b>supplier- turnover- expense- budget in EUR</b>",
-                            ParagraphStyle("sub", parent=normal, fontName="Helvetica-Bold", fontSize=10)))
+    story.append(Paragraph(
+        f"<b>{_bi('Lieferant-Umsatz-Provision-Budget', 'supplier-turnover-commission-budget')} · EUR</b>",
+        ParagraphStyle("sub", parent=normal, fontName="Helvetica-Bold", fontSize=10)))
     story.append(Spacer(1, 0.4*cm))
 
     # Table header — two rows
     COL_W = [4.5*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.0*cm, 2.0*cm, 2.0*cm, 2.0*cm, 2.0*cm, 1.8*cm, 1.8*cm]
     # total width: 4.5+2.2+2.2+2.2+2.0+2.0+2.0+2.0+2.0+1.8+1.8 = 26.7cm — fits A4 landscape (26.7cm usable)
 
+    ch = ParagraphStyle("ch", parent=bold, alignment=TA_CENTER)
     h1 = [
-        Paragraph("<b>supplier</b>", bold),
-        Paragraph("<b>turnover</b>", ParagraphStyle("ch", parent=bold, alignment=TA_CENTER)),
+        Paragraph(_hdr("Lieferant", "supplier"), bold),
+        Paragraph(_hdr("Umsatz", "turnover"), ch),
         "", "",
-        Paragraph("<b>commission budget</b>", ParagraphStyle("ch", parent=bold, alignment=TA_CENTER)),
+        Paragraph(_hdr("Provision-Budget", "commission budget"), ch),
         "",
-        Paragraph("<b>last year</b>", ParagraphStyle("ch", parent=bold, alignment=TA_CENTER)),
-        Paragraph("<b>curr year</b>", ParagraphStyle("ch", parent=bold, alignment=TA_CENTER)),
+        Paragraph(_hdr("Vorjahr", "last year"), ch),
+        Paragraph(_hdr("akt. Jahr", "curr. year"), ch),
         "", "", "",
     ]
     h2 = [
         "",
-        Paragraph("last year", small),
-        Paragraph("current year", small),
-        Paragraph("budget", small),
-        Paragraph("brut", small),
-        Paragraph("net", small),
-        Paragraph("comm. net", small),
-        Paragraph("comm. net", small),
-        Paragraph("comm. brut", small),
-        Paragraph("comm. diff", small),
+        Paragraph(_bi("VJ", "PY"), small),
+        Paragraph(_bi("akt.", "CY"), small),
+        Paragraph("Budget / budget", small),
+        Paragraph(_bi("brutto", "gross"), small),
+        Paragraph(_bi("netto", "net"), small),
+        Paragraph(_bi("Prov. netto", "comm. net"), small),
+        Paragraph(_bi("Prov. netto", "comm. net"), small),
+        Paragraph(_bi("Prov. brutto", "comm. gross"), small),
+        Paragraph(_bi("Prov.-Diff", "comm. diff"), small),
         Paragraph("%", small),
     ]
 
@@ -401,7 +414,7 @@ def build_supplier_stats_pdf(data: dict) -> bytes:
     tot_diff = tot_curr_c - tot_prev_c
     tot_pct = ((tot_curr_c / tot_prev_c - 1) * 100) if tot_prev_c else None
     table_data.append([
-        Paragraph("<b>totals</b>", bold),
+        Paragraph(f"<b>{_bi('Gesamt', 'totals')}</b>", bold),
         Paragraph(_fmt(tot_prev_t), right_bold),
         Paragraph(_fmt(tot_curr_t), right_bold),
         Paragraph("", right_bold),
