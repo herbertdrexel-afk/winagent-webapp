@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import suppliers, customers, commission, sync, stats, mandants, ingest
 from .routers import auth as auth_router, reports as reports_router, settings as settings_router
+from .routers import exchange as exchange_router
 from .routers.sync import test_mandant
 from .auth import get_current_user
 from .database import engine, SessionLocal
@@ -95,10 +96,42 @@ async def _feed_poller():
             logger.warning("Feed-Poller Fehler: %s", e)
 
 
+async def _exchange_rate_updater():
+    """Hält die Wechselkurse aktuell: beim Start einmalig voller Abruf, danach
+    täglich die letzten Monate (Durchschnitt des laufenden Monats aktualisieren)."""
+    import datetime as _dt
+    from .exchange_rates import refresh_rates
+    # Einmaliger Voll-Backfill kurz nach dem Start
+    await asyncio.sleep(30)
+    try:
+        db = SessionLocal()
+        try:
+            res = refresh_rates(db)
+            logger.info("Wechselkurse initial: %s", res)
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning("Wechselkurs-Initialabruf fehlgeschlagen: %s", e)
+    # Danach täglich die letzten ~2 Monate auffrischen
+    while True:
+        await asyncio.sleep(24 * 3600)
+        try:
+            today = _dt.date.today()
+            start = (today.replace(day=1) - _dt.timedelta(days=1)).replace(day=1)
+            db = SessionLocal()
+            try:
+                refresh_rates(db, start=start, end=today)
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning("Wechselkurs-Update fehlgeschlagen: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     asyncio.create_task(_report_scheduler())
     asyncio.create_task(_feed_poller())
+    asyncio.create_task(_exchange_rate_updater())
     yield
 
 # Create any missing tables without touching existing ones
@@ -153,6 +186,7 @@ app.include_router(stats.router, **_auth)
 app.include_router(mandants.router, **_auth)
 app.include_router(reports_router.router, **_auth)
 app.include_router(settings_router.router, **_auth)
+app.include_router(exchange_router.router, **_auth)
 
 # Ingest-Router OHNE JWT-Router-Dependency:
 #  - POST /ingest/file ist Token-gesichert (INGEST_TOKEN), damit Reybex pushen kann
