@@ -266,15 +266,26 @@ def _supplier_rows(db, date_from: date, date_to: date) -> list[dict]:
 
 
 def _customer_rows(db, date_from: date, date_to: date,
-                   sort_by: str = "provision") -> list[dict]:
-    """Direct query for customer turnover using Customer join."""
-    from sqlalchemy import func, case
+                   sort_by: str = "provision",
+                   supplier_codes: list | None = None) -> list[dict]:
+    """Direct query for customer turnover using Customer join.
+    Mit supplier_codes werden nur die Umsätze der ausgewählten Lieferanten gezählt."""
+    from sqlalchemy import func, case, true
     from . import models
 
     ly_from = date_from.replace(year=date_from.year - 1)
     ly_to   = date_to.replace(year=date_to.year - 1)
     range_from = min(date_from, ly_from)
     range_to   = max(date_to, ly_to)
+
+    supplier_ids = None
+    if supplier_codes:
+        supplier_ids = [
+            s.id for s in db.query(models.Supplier.id)
+            .filter(models.Supplier.code.in_(supplier_codes)).all()
+        ]
+        if not supplier_ids:
+            return []
 
     rows = (
         db.query(
@@ -297,6 +308,7 @@ def _customer_rows(db, date_from: date, date_to: date,
         .join(models.Transaction,
               models.Transaction.customer_id == models.Customer.id)
         .filter(models.Transaction.invoice_date.between(range_from, range_to))
+        .filter(models.Transaction.supplier_id.in_(supplier_ids) if supplier_ids else true())
         .group_by(models.Customer.id, models.Customer.name)
         .having(
             func.sum(
@@ -396,8 +408,9 @@ def _build_supplier_summary(db, date_from: date, date_to: date,
 
 
 def _build_customer_turnover(db, date_from: date, date_to: date,
-                              sort_by: str) -> list:
-    rows = _customer_rows(db, date_from, date_to, sort_by)
+                              sort_by: str,
+                              supplier_codes: list | None = None) -> list:
+    rows = _customer_rows(db, date_from, date_to, sort_by, supplier_codes)
     rows_50 = rows[:50]
     if not rows_50:
         return [Paragraph("Keine Kunden-Daten im gewählten Zeitraum.", BODY)]
@@ -661,11 +674,11 @@ def generate_report_pdf(
                 story.append(Spacer(1, 3*mm))
             elif rtype == "customer_provision":
                 story.extend(_build_customer_turnover(
-                    db, date_from, date_to, "provision"))
+                    db, date_from, date_to, "provision", supplier_codes))
                 story.append(Spacer(1, 3*mm))
             elif rtype == "customer_turnover":
                 story.extend(_build_customer_turnover(
-                    db, date_from, date_to, "turnover"))
+                    db, date_from, date_to, "turnover", supplier_codes))
                 story.append(Spacer(1, 3*mm))
             elif rtype == "supplier_detail":
                 story.extend(_build_supplier_detail(
