@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 async def _report_scheduler():
     """Hourly check: send report schedules whose day_of_week + send_hour matches now."""
     import datetime
-    from .report_generator import generate_report_pdf, period_dates
+    from .report_generator import generate_report_pdf, period_dates, supplier_label
     from .email_sender import send_report_email
 
     while True:
@@ -64,7 +64,8 @@ async def _report_scheduler():
                         report_types=s.report_types,
                     )
                     addresses = [r.user.email for r in recipients]
-                    send_report_email(addresses, subject, pdf, period_label, filename)
+                    sup_label = supplier_label(db, s.supplier_codes)
+                    send_report_email(addresses, subject, pdf, period_label, filename, sup_label)
 
                     s.last_sent_at = datetime.datetime.now(datetime.timezone.utc)
                     db.commit()

@@ -275,7 +275,7 @@ def _bg_send(
     """Thread target: generate PDF and send email."""
     import traceback
     from datetime import datetime, timezone
-    from ..report_generator import generate_report_pdf
+    from ..report_generator import generate_report_pdf, supplier_label
     from ..email_sender import send_report_email
 
     db = SessionLocal()
@@ -287,7 +287,8 @@ def _bg_send(
             supplier_codes=supplier_codes,
             report_types=report_types,
         )
-        send_report_email(addresses, subject, pdf, period_label, filename)
+        sup_label = supplier_label(db, supplier_codes)
+        send_report_email(addresses, subject, pdf, period_label, filename, sup_label)
         schedule = db.get(models.ReportSchedule, schedule_id)
         if schedule:
             schedule.last_sent_at = datetime.now(timezone.utc)

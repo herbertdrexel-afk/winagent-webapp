@@ -19,12 +19,24 @@ SMTP_HOST = "smtp.office365.com"
 SMTP_PORT = 587
 
 
+def _report_body(period_label: str, supplier_label: str = "") -> str:
+    """Einheitlicher E-Mail-Text. Erste Zeile nennt die betroffenen Lieferanten."""
+    lines = [f"Lieferanten: {supplier_label or 'Alle Lieferanten'}"]
+    lines.append(f"WinAgent Bericht — Zeitraum: {period_label}")
+    lines.append("")
+    lines.append("Der Bericht ist als PDF-Anhang beigefügt.")
+    lines.append("")
+    lines.append("— WinAgent")
+    return "\n".join(lines)
+
+
 def send_report_email(
     to_addresses: list[str],
     subject: str,
     pdf_bytes: bytes,
     period_label: str,
     filename: str = "winagent_report.pdf",
+    supplier_label: str = "",
 ) -> None:
     if not to_addresses:
         raise ValueError("Keine Empfänger angegeben")
@@ -36,12 +48,12 @@ def send_report_email(
 
     if ms_tenant and ms_client and ms_secret:
         _send_via_graph(ms_tenant, ms_client, ms_secret,
-                        to_addresses, subject, pdf_bytes, period_label, filename)
+                        to_addresses, subject, pdf_bytes, period_label, filename, supplier_label)
     elif resend_key:
         _send_via_resend(resend_key, to_addresses, subject,
-                         pdf_bytes, period_label, filename)
+                         pdf_bytes, period_label, filename, supplier_label)
     else:
-        _send_via_smtp(to_addresses, subject, pdf_bytes, period_label, filename)
+        _send_via_smtp(to_addresses, subject, pdf_bytes, period_label, filename, supplier_label)
 
 
 # ── Microsoft Graph API ───────────────────────────────────────────────────────
@@ -55,6 +67,7 @@ def _send_via_graph(
     pdf_bytes: bytes,
     period_label: str,
     filename: str,
+    supplier_label: str = "",
 ) -> None:
     import httpx
 
@@ -79,11 +92,7 @@ def _send_via_graph(
         )
     access_token = token_resp.json()["access_token"]
 
-    body_text = (
-        f"WinAgent Bericht — Zeitraum: {period_label}\n\n"
-        "Der Bericht ist als PDF-Anhang beigefügt.\n\n"
-        "— WinAgent"
-    )
+    body_text = _report_body(period_label, supplier_label)
 
     # 2. Send mail via Graph
     mail_payload = {
@@ -131,16 +140,13 @@ def _send_via_resend(
     pdf_bytes: bytes,
     period_label: str,
     filename: str,
+    supplier_label: str = "",
 ) -> None:
     import httpx
 
     from_addr = os.environ.get("RESEND_FROM", "WinAgent <onboarding@resend.dev>")
 
-    body_text = (
-        f"WinAgent Bericht — Zeitraum: {period_label}\n\n"
-        "Der Bericht ist als PDF-Anhang beigefügt.\n\n"
-        "— WinAgent"
-    )
+    body_text = _report_body(period_label, supplier_label)
 
     payload = {
         "from": from_addr,
@@ -177,6 +183,7 @@ def _send_via_smtp(
     pdf_bytes: bytes,
     period_label: str,
     filename: str,
+    supplier_label: str = "",
 ) -> None:
     smtp_user = os.environ.get("SMTP_USER", "")
     smtp_pass = os.environ.get("SMTP_PASSWORD", "")
@@ -194,11 +201,7 @@ def _send_via_smtp(
     msg["To"]      = ", ".join(to_addresses)
     msg["Subject"] = subject
 
-    body_text = (
-        f"WinAgent Bericht — Zeitraum: {period_label}\n\n"
-        "Der Bericht ist als PDF-Anhang beigefügt.\n\n"
-        "— WinAgent"
-    )
+    body_text = _report_body(period_label, supplier_label)
     msg.attach(MIMEText(body_text, "plain", "utf-8"))
 
     attachment = MIMEBase("application", "pdf")

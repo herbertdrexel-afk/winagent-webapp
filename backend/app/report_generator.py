@@ -647,6 +647,22 @@ def _build_transactions(db, date_from: date, date_to: date,
     return story
 
 
+def supplier_label(db, supplier_codes: list | None) -> str:
+    """'CODE – Name, …' für die ausgewählten Lieferanten, sonst 'Alle Lieferanten'."""
+    from . import models
+    if not supplier_codes:
+        return "Alle Lieferanten"
+    rows = (
+        db.query(models.Supplier.code, models.Supplier.name)
+        .filter(models.Supplier.code.in_(supplier_codes))
+        .order_by(models.Supplier.code)
+        .all()
+    )
+    if not rows:
+        return "Alle Lieferanten"
+    return ", ".join(f"{c} – {n}" for c, n in rows)
+
+
 # ── Main entry point ──────────────────────────────────────────────────────────
 
 def generate_report_pdf(
