@@ -375,7 +375,7 @@ export default function BankAccountsPage() {
           <div>
             <h2 className="font-semibold text-gray-800">Wechselkurse (Monatsdurchschnitt)</h2>
             <p className="text-xs text-gray-500">
-              EZB-Durchschnittskurse je Monat, EUR je 1 Einheit. Für die Umrechnung von USD/CHF in EUR in den Auswertungen.
+              EZB-Durchschnittskurse je Monat, als Einheiten je 1 EUR (z. B. 1 EUR = 1,16 USD). Umrechnung in EUR = Betrag ÷ Kurs.
             </p>
           </div>
           <button onClick={refreshRates} disabled={exBusy}
@@ -394,7 +394,7 @@ export default function BankAccountsPage() {
                 <tr>
                   <th className="px-3 py-1.5 text-left font-medium">Monat</th>
                   <th className="px-3 py-1.5 text-left font-medium">Währung</th>
-                  <th className="px-3 py-1.5 text-right font-medium">Kurs (EUR je 1)</th>
+                  <th className="px-3 py-1.5 text-right font-medium">Kurs (Einheiten je 1 EUR)</th>
                 </tr>
               </thead>
               <tbody>

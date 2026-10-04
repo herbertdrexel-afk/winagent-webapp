@@ -34,6 +34,7 @@ def refresh(
     db: Session = Depends(get_db),
 ):
     """Durchschnittskurse (ECB) ab dem Cutover-Jahr für alle Fremdwährungen der
-    Transaktionen holen und in die exchange_rates-Tabelle schreiben.
-    Rechnungen vor dem Cutover nutzen weiterhin ihren eigenen KURS."""
-    return refresh_rates(db)
+    Transaktionen holen und in die exchange_rates-Tabelle schreiben (manueller
+    Abruf überschreibt vorhandene Monate). Rechnungen vor dem Cutover nutzen
+    weiterhin ihren eigenen KURS."""
+    return refresh_rates(db, overwrite=True)

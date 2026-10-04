@@ -44,9 +44,10 @@ def transaction_date_range(db) -> tuple[date, date] | None:
 
 
 def _fetch_monthly_avg(currency: str, start: date, end: date) -> dict[tuple[int, int], float]:
-    """Tägliche EUR-Kurse je Währung holen und je Monat mitteln (EUR je 1 Einheit)."""
+    """Tägliche Kurse (Einheiten der Fremdwährung je 1 EUR) holen und je Monat
+    mitteln. Konvention wie im Alt-KURS: z. B. 1 EUR = 1,16 USD."""
     url = f"{FRANKFURTER}/{start.isoformat()}..{end.isoformat()}"
-    resp = httpx.get(url, params={"base": currency, "symbols": "EUR"},
+    resp = httpx.get(url, params={"base": "EUR", "symbols": currency},
                      timeout=30, follow_redirects=True,
                      headers={"User-Agent": "WinAgent/1.0"})
     resp.raise_for_status()
@@ -55,14 +56,14 @@ def _fetch_monthly_avg(currency: str, start: date, end: date) -> dict[tuple[int,
     hi = (end.year, end.month)
     by_month: dict[tuple[int, int], list[float]] = defaultdict(list)
     for ds, obj in rates.items():
-        eur = obj.get("EUR")
-        if eur is None:
+        val = obj.get(currency)   # Einheiten der Fremdwährung je 1 EUR
+        if val is None:
             continue
         y, m, _d = ds.split("-")
         ym = (int(y), int(m))
         if ym < lo or ym > hi:   # Randtage außerhalb des Zeitraums ignorieren
             continue
-        by_month[ym].append(float(eur))
+        by_month[ym].append(float(val))
     return {ym: round(sum(v) / len(v), 5) for ym, v in by_month.items() if v}
 
 
@@ -149,21 +150,23 @@ def rate_lookup(db) -> dict[tuple[str, int, int], float]:
 def to_eur(amount: float, currency: str | None, d: date | None,
            lookup: dict[tuple[str, int, int], float],
            tx_rate: float | None = None) -> float:
-    """Betrag in EUR umrechnen.
+    """Betrag in EUR umrechnen. Kurs-Konvention überall: Einheiten je 1 EUR
+    (z. B. 1 EUR = 1,16 USD) → EUR = Betrag / Kurs.
 
-    - EUR oder unbekannt → unverändert.
-    - Ab CUTOVER_YEAR: ECB-Monatskurs aus der Tabelle (EUR je 1 Einheit) → amount * rate.
-    - Vor CUTOVER_YEAR (oder wenn kein Tabellenkurs vorhanden): der in der Rechnung
-      gespeicherte Alt-KURS (Einheiten je EUR) → amount / tx_rate.
+    Reihenfolge:
+    1. Manuell gesetzter Kurs auf der Rechnung (exchange_rate ≠ 1) hat Vorrang.
+    2. Ab CUTOVER_YEAR sonst der ECB-Monatskurs aus der Tabelle.
+    3. EUR oder kein Kurs bekannt → unverändert.
     """
     cur = (currency or "EUR").strip().upper()
     if cur == "EUR" or d is None:
         return amount
+    # 1. Rechnungs-eigener Kurs (Einheiten je EUR)
+    if tx_rate and tx_rate not in (0, 1):
+        return amount / tx_rate
+    # 2. ECB-Monatskurs aus der Tabelle (Einheiten je EUR)
     if d.year >= CUTOVER_YEAR:
         rate = lookup.get((cur, d.year, d.month))
         if rate:
-            return amount * rate
-    # Alt-Rechnung bzw. kein Tabellenkurs: eigener KURS der Rechnung (Einheiten je EUR)
-    if tx_rate and tx_rate not in (0, 1):
-        return amount / tx_rate
+            return amount / rate
     return amount
