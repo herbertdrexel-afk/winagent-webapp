@@ -128,6 +128,75 @@ def refresh_rates(db, currencies: list[str] | None = None,
             "errors": errors}
 
 
+def derive_used_rates(db, before_year: int = 2026, invert: bool = False,
+                      apply: bool = False, overwrite: bool = False) -> dict:
+    """Aus den bestehenden Transaktionen (Feld exchange_rate = altes KURS) die je
+    (Währung, Monat) verwendeten Kurse ableiten und – bei apply=True – in
+    exchange_rates eintragen. Standard: nur Monate VOR `before_year`.
+
+    `invert=True`, falls das alte KURS 'Einheiten je EUR' ist (dann wird 1/Kurs
+    als 'EUR je 1 Einheit' gespeichert). Abgeschlossene Monate werden nicht
+    überschrieben (außer overwrite=True)."""
+    from sqlalchemy import func, extract
+
+    q = (
+        db.query(
+            models.Transaction.currency.label("cur"),
+            extract("year", models.Transaction.invoice_date).label("y"),
+            extract("month", models.Transaction.invoice_date).label("m"),
+            func.count().label("n"),
+            func.avg(models.Transaction.exchange_rate).label("avg_rate"),
+            func.min(models.Transaction.exchange_rate).label("min_rate"),
+            func.max(models.Transaction.exchange_rate).label("max_rate"),
+        )
+        .filter(models.Transaction.currency.isnot(None))
+        .filter(models.Transaction.currency != "EUR")
+        .filter(models.Transaction.exchange_rate.isnot(None))
+        .filter(models.Transaction.exchange_rate != 1)
+    )
+    if before_year:
+        q = q.filter(extract("year", models.Transaction.invoice_date) < before_year)
+    q = q.group_by("cur", "y", "m").order_by("cur", "y", "m")
+
+    today = date.today()
+    cur_ym = (today.year, today.month)
+    items = []
+    written = skipped = 0
+    for r in q.all():
+        cur = (r.cur or "").strip().upper()
+        if not cur or cur == "EUR":
+            continue
+        y, m = int(r.y), int(r.m)
+        avg = float(r.avg_rate or 0)
+        if avg <= 0:
+            continue
+        stored = round(1.0 / avg, 5) if invert else round(avg, 5)
+        items.append({
+            "currency": cur, "month": f"{y}-{m:02d}", "count": int(r.n),
+            "used_kurs": round(avg, 5),
+            "min_kurs": round(float(r.min_rate or 0), 5),
+            "max_kurs": round(float(r.max_rate or 0), 5),
+            "stored_rate": stored,
+        })
+        if apply:
+            vd = date(y, m, 1)
+            existing = (db.query(models.ExchangeRate)
+                        .filter_by(currency=cur, valid_date=vd).first())
+            if existing:
+                if overwrite or (y, m) == cur_ym:
+                    existing.rate = stored
+                    written += 1
+                else:
+                    skipped += 1
+            else:
+                db.add(models.ExchangeRate(currency=cur, valid_date=vd, rate=stored))
+                written += 1
+    if apply:
+        db.commit()
+    return {"applied": apply, "written": written, "skipped": skipped,
+            "invert": invert, "before_year": before_year, "rows": items}
+
+
 def rate_lookup(db) -> dict[tuple[str, int, int], float]:
     """{(WÄHRUNG, Jahr, Monat): rate} für die Umrechnung in den Berichten."""
     out: dict[tuple[str, int, int], float] = {}
