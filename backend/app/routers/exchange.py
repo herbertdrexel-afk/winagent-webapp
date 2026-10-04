@@ -1,11 +1,11 @@
 """Wechselkurse: Monats-Durchschnittskurse ansehen und aus dem Netz aktualisieren."""
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from .. import models
 from ..auth import get_current_user, require_admin
 from ..database import get_db
-from ..exchange_rates import refresh_rates, derive_used_rates
+from ..exchange_rates import refresh_rates
 
 router = APIRouter(prefix="/exchange-rates", tags=["exchange-rates"])
 
@@ -33,19 +33,7 @@ def refresh(
     _: models.User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """Durchschnittskurse (ECB) für alle Fremdwährungen der Transaktionen holen
-    und in die exchange_rates-Tabelle schreiben."""
+    """Durchschnittskurse (ECB) ab dem Cutover-Jahr für alle Fremdwährungen der
+    Transaktionen holen und in die exchange_rates-Tabelle schreiben.
+    Rechnungen vor dem Cutover nutzen weiterhin ihren eigenen KURS."""
     return refresh_rates(db)
-
-
-@router.post("/derive")
-def derive(
-    before_year: int = Query(2026, description="nur Monate vor diesem Jahr"),
-    invert: bool = Query(False, description="KURS ist Einheiten je EUR → invertieren"),
-    apply: bool = Query(False, description="False = nur Vorschau, True = schreiben"),
-    _: models.User = Depends(require_admin),
-    db: Session = Depends(get_db),
-):
-    """Verwendete Kurse aus den Altdaten (Feld exchange_rate) je Monat ableiten.
-    apply=false liefert eine Vorschau, apply=true schreibt sie in die Tabelle."""
-    return derive_used_rates(db, before_year=before_year, invert=invert, apply=apply)

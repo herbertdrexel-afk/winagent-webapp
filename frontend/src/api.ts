@@ -369,21 +369,8 @@ export const api = {
     refresh: () =>
       fetch(`${BASE}/exchange-rates/refresh`, { method: "POST", headers: authHeaders() })
         .then(async (r) => { if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail ?? `${r.status}`); } return r.json() as Promise<{ written: number; skipped: number; per_currency: Record<string, number>; errors: string[] }>; }),
-    derive: (beforeYear: number, invert: boolean, apply: boolean) =>
-      fetch(`${BASE}/exchange-rates/derive?before_year=${beforeYear}&invert=${invert}&apply=${apply}`,
-            { method: "POST", headers: authHeaders() })
-        .then(async (r) => { if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail ?? `${r.status}`); } return r.json() as Promise<DeriveResult>; }),
   },
 };
-
-export interface DeriveRow {
-  currency: string; month: string; count: number;
-  used_kurs: number; min_kurs: number; max_kurs: number; stored_rate: number;
-}
-export interface DeriveResult {
-  applied: boolean; written: number; skipped: number;
-  invert: boolean; before_year: number; rows: DeriveRow[];
-}
 
 export interface ExchangeRateEntry {
   currency: string;

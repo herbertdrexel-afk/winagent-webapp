@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, type BankAccount, type ExchangeRateEntry, type DeriveRow } from "../api";
+import { api, type BankAccount, type ExchangeRateEntry } from "../api";
 import { useT } from "../context/LocaleContext";
 import { Upload, Trash2, Save, Plus, RefreshCw } from "lucide-react";
 
@@ -52,30 +52,6 @@ export default function BankAccountsPage() {
     } catch (e: unknown) {
       setExMsg(e instanceof Error ? e.message : "Fehler beim Abrufen");
     } finally { setExBusy(false); }
-  }
-
-  // Kurse aus Altdaten ableiten
-  const [derYear, setDerYear]     = useState(2026);
-  const [derInvert, setDerInvert] = useState(false);
-  const [derRows, setDerRows]     = useState<DeriveRow[] | null>(null);
-  const [derBusy, setDerBusy]     = useState(false);
-  const [derMsg, setDerMsg]       = useState<string | null>(null);
-
-  async function derive(apply: boolean) {
-    setDerBusy(true);
-    setDerMsg(null);
-    try {
-      const res = await api.exchange.derive(derYear, derInvert, apply);
-      setDerRows(res.rows);
-      if (apply) {
-        setDerMsg(`${res.written} Kurse übernommen${res.skipped ? ` · ${res.skipped} bereits vorhanden` : ""}`);
-        loadRates();
-      } else {
-        setDerMsg(`Vorschau: ${res.rows.length} Monate gefunden – bitte Kurse prüfen, dann „Übernehmen".`);
-      }
-    } catch (e: unknown) {
-      setDerMsg(e instanceof Error ? e.message : "Fehler");
-    } finally { setDerBusy(false); }
   }
 
   useEffect(() => {
@@ -435,65 +411,9 @@ export default function BankAccountsPage() {
             </table>
           </div>
         )}
-
-        {/* Kurse aus Altdaten ableiten */}
-        <div className="border-t border-gray-100 pt-3 mt-2 space-y-2">
-          <p className="text-sm font-medium text-gray-700">Kurse aus Altdaten übernehmen</p>
-          <p className="text-xs text-gray-500">
-            Nutzt die in den importierten Rechnungen hinterlegten Kurse (Feld KURS) je Monat – für Zeiträume, die nicht neu berechnet werden sollen.
-          </p>
-          <div className="flex items-center gap-3 flex-wrap text-sm">
-            <label className="flex items-center gap-1.5">
-              <span className="text-gray-500">nur vor Jahr</span>
-              <input type="number" value={derYear} onChange={e => setDerYear(parseInt(e.target.value) || 2026)}
-                className="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm" />
-            </label>
-            <label className="flex items-center gap-1.5 text-gray-600">
-              <input type="checkbox" checked={derInvert} onChange={e => setDerInvert(e.target.checked)}
-                className="accent-[#2563eb]" />
-              KURS invertieren (ist „Einheiten je EUR")
-            </label>
-            <button onClick={() => derive(false)} disabled={derBusy}
-              className="border border-gray-300 text-gray-700 px-3 py-1 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50">
-              Vorschau
-            </button>
-            <button onClick={() => derive(true)} disabled={derBusy || !derRows}
-              className="bg-[#2563eb] text-white px-3 py-1 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 disabled:opacity-50">
-              Übernehmen
-            </button>
-          </div>
-          {derMsg && <p className="text-xs text-gray-600">{derMsg}</p>}
-          {derRows && derRows.length > 0 && (
-            <div className="overflow-x-auto max-h-56 overflow-y-auto border border-gray-100 rounded-lg">
-              <table className="w-full text-xs">
-                <thead className="bg-gray-50 text-gray-500 sticky top-0">
-                  <tr>
-                    <th className="px-2 py-1 text-left font-medium">Monat</th>
-                    <th className="px-2 py-1 text-left font-medium">Whg</th>
-                    <th className="px-2 py-1 text-right font-medium">KURS (Daten)</th>
-                    <th className="px-2 py-1 text-right font-medium">→ gespeichert (EUR je 1)</th>
-                    <th className="px-2 py-1 text-right font-medium">Zeilen</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {derRows.map((r, i) => (
-                    <tr key={`${r.currency}-${r.month}`} className={i % 2 ? "bg-gray-50/50" : ""}>
-                      <td className="px-2 py-0.5 text-gray-600">{r.month}</td>
-                      <td className="px-2 py-0.5 font-medium">{r.currency}</td>
-                      <td className="px-2 py-0.5 text-right tabular-nums text-gray-500">
-                        {r.used_kurs.toLocaleString("de-DE", { maximumFractionDigits: 5 })}
-                      </td>
-                      <td className="px-2 py-0.5 text-right tabular-nums">
-                        {r.stored_rate.toLocaleString("de-DE", { maximumFractionDigits: 5 })}
-                      </td>
-                      <td className="px-2 py-0.5 text-right text-gray-400">{r.count}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <p className="text-xs text-gray-400">
+          Hinweis: Rechnungen vor 2026 werden mit dem in den Altdaten gespeicherten Kurs umgerechnet; ab 2026 gelten diese EZB-Monatskurse.
+        </p>
       </div>
     </div>
   );
