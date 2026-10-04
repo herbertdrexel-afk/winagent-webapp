@@ -212,56 +212,46 @@ def _hbar_chart(
 # ── DB query helpers ──────────────────────────────────────────────────────────
 
 def _supplier_rows(db, date_from: date, date_to: date) -> list[dict]:
-    """Direct SQLAlchemy query for supplier stats (avoids stats router dependency)."""
-    from sqlalchemy import func, case
+    """Supplier stats je Lieferant, Beträge in EUR umgerechnet (ab 2026
+    Tabellenkurs, davor Rechnungs-KURS)."""
     from . import models
+    from .exchange_rates import rate_lookup, to_eur
 
     ly_from = date_from.replace(year=date_from.year - 1)
     ly_to   = date_to.replace(year=date_to.year - 1)
+    lookup = rate_lookup(db)
 
-    rows = (
-        db.query(
-            models.Supplier.id,
-            models.Supplier.code,
-            models.Supplier.name,
-            func.coalesce(func.sum(
-                case((models.Transaction.invoice_date.between(date_from, date_to),
-                      models.Transaction.total_amount), else_=0)
-            ), 0).label("curr_turnover"),
-            func.coalesce(func.sum(
-                case((models.Transaction.invoice_date.between(date_from, date_to),
-                      models.Transaction.total_amount *
-                      func.coalesce(models.Transaction.provision_rate, 0) / 100),
-                     else_=0)
-            ), 0).label("curr_commission"),
-            func.coalesce(func.sum(
-                case((models.Transaction.invoice_date.between(ly_from, ly_to),
-                      models.Transaction.total_amount), else_=0)
-            ), 0).label("prev_turnover"),
-            func.coalesce(func.sum(
-                case((models.Transaction.invoice_date.between(ly_from, ly_to),
-                      models.Transaction.total_amount *
-                      func.coalesce(models.Transaction.provision_rate, 0) / 100),
-                     else_=0)
-            ), 0).label("prev_commission"),
-        )
-        .outerjoin(models.Transaction,
-                   models.Transaction.supplier_id == models.Supplier.id)
-        .filter(models.Supplier.is_active == True)
-        .group_by(models.Supplier.id, models.Supplier.code, models.Supplier.name)
-        .order_by(models.Supplier.name)
+    suppliers = (db.query(models.Supplier).filter_by(is_active=True)
+                 .order_by(models.Supplier.name).all())
+    agg = {s.id: {"ct": 0.0, "cc": 0.0, "pt": 0.0, "pc": 0.0} for s in suppliers}
+
+    rng_from, rng_to = min(date_from, ly_from), max(date_to, ly_to)
+    txns = (
+        db.query(models.Transaction.supplier_id, models.Transaction.invoice_date,
+                 models.Transaction.total_amount, models.Transaction.provision_rate,
+                 models.Transaction.currency, models.Transaction.exchange_rate)
+        .filter(models.Transaction.invoice_date.between(rng_from, rng_to))
         .all()
     )
+    for t in txns:
+        a = agg.get(t.supplier_id)
+        if a is None:
+            continue
+        amt = float(t.total_amount or 0); rate = float(t.provision_rate or 0)
+        tx_rate = float(t.exchange_rate) if t.exchange_rate is not None else None
+        eur = to_eur(amt, t.currency, t.invoice_date, lookup, tx_rate)
+        prov_eur = eur * rate / 100
+        d = t.invoice_date
+        if date_from <= d <= date_to:
+            a["ct"] += eur; a["cc"] += prov_eur
+        elif ly_from <= d <= ly_to:
+            a["pt"] += eur; a["pc"] += prov_eur
+
     return [
-        {
-            "code":            r.code,
-            "name":            r.name,
-            "curr_turnover":   float(r.curr_turnover or 0),
-            "curr_commission": float(r.curr_commission or 0),
-            "prev_turnover":   float(r.prev_turnover or 0),
-            "prev_commission": float(r.prev_commission or 0),
-        }
-        for r in rows
+        {"code": s.code, "name": s.name,
+         "curr_turnover": agg[s.id]["ct"], "curr_commission": agg[s.id]["cc"],
+         "prev_turnover": agg[s.id]["pt"], "prev_commission": agg[s.id]["pc"]}
+        for s in suppliers
     ]
 
 
@@ -270,13 +260,14 @@ def _customer_rows(db, date_from: date, date_to: date,
                    supplier_codes: list | None = None) -> list[dict]:
     """Direct query for customer turnover using Customer join.
     Mit supplier_codes werden nur die Umsätze der ausgewählten Lieferanten gezählt."""
-    from sqlalchemy import func, case, true
     from . import models
+    from .exchange_rates import rate_lookup, to_eur
 
     ly_from = date_from.replace(year=date_from.year - 1)
     ly_to   = date_to.replace(year=date_to.year - 1)
     range_from = min(date_from, ly_from)
     range_to   = max(date_to, ly_to)
+    lookup = rate_lookup(db)
 
     supplier_ids = None
     if supplier_codes:
@@ -287,48 +278,45 @@ def _customer_rows(db, date_from: date, date_to: date,
         if not supplier_ids:
             return []
 
-    rows = (
+    q = (
         db.query(
+            models.Customer.id.label("cid"),
             models.Customer.name.label("customer_name"),
-            func.coalesce(func.sum(
-                case((models.Transaction.invoice_date.between(date_from, date_to),
-                      models.Transaction.total_amount), else_=0)
-            ), 0).label("curr_turnover"),
-            func.coalesce(func.sum(
-                case((models.Transaction.invoice_date.between(date_from, date_to),
-                      models.Transaction.total_amount *
-                      func.coalesce(models.Transaction.provision_rate, 0) / 100),
-                     else_=0)
-            ), 0).label("curr_provision"),
-            func.coalesce(func.sum(
-                case((models.Transaction.invoice_date.between(ly_from, ly_to),
-                      models.Transaction.total_amount), else_=0)
-            ), 0).label("prev_turnover"),
+            models.Transaction.invoice_date, models.Transaction.total_amount,
+            models.Transaction.provision_rate, models.Transaction.currency,
+            models.Transaction.exchange_rate,
         )
-        .join(models.Transaction,
-              models.Transaction.customer_id == models.Customer.id)
+        .join(models.Transaction, models.Transaction.customer_id == models.Customer.id)
         .filter(models.Transaction.invoice_date.between(range_from, range_to))
-        .filter(models.Transaction.supplier_id.in_(supplier_ids) if supplier_ids else true())
-        .group_by(models.Customer.id, models.Customer.name)
-        .having(
-            func.sum(
-                case((models.Transaction.invoice_date.between(date_from, date_to),
-                      models.Transaction.total_amount), else_=0)
-            ) > 0
-        )
-        .all()
     )
+    if supplier_ids:
+        q = q.filter(models.Transaction.supplier_id.in_(supplier_ids))
 
-    total_prov = sum(float(r.curr_provision or 0) for r in rows)
+    by_cust: dict = {}
+    for r in q.all():
+        amt = float(r.total_amount or 0); rate = float(r.provision_rate or 0)
+        tx_rate = float(r.exchange_rate) if r.exchange_rate is not None else None
+        eur = to_eur(amt, r.currency, r.invoice_date, lookup, tx_rate)
+        prov_eur = eur * rate / 100
+        d = r.invoice_date
+        x = by_cust.get(r.cid)
+        if x is None:
+            x = {"customer_name": r.customer_name or "–", "ct": 0.0, "cp": 0.0, "pt": 0.0}
+            by_cust[r.cid] = x
+        if date_from <= d <= date_to:
+            x["ct"] += eur; x["cp"] += prov_eur
+        elif ly_from <= d <= ly_to:
+            x["pt"] += eur
+
+    items = [x for x in by_cust.values() if x["ct"] > 0]
+    total_prov = sum(x["cp"] for x in items)
     result = []
-    for r in rows:
-        ct = float(r.curr_turnover or 0)
-        cp = float(r.curr_provision or 0)
-        pt = float(r.prev_turnover or 0)
+    for x in items:
+        ct, cp, pt = x["ct"], x["cp"], x["pt"]
         avg   = (cp / ct * 100) if ct else 0
         share = (cp / total_prov * 100) if total_prov else 0
         result.append({
-            "customer_name":  r.customer_name or "–",
+            "customer_name":  x["customer_name"],
             "curr_turnover":  ct,
             "curr_provision": cp,
             "prev_turnover":  pt,
@@ -466,7 +454,9 @@ def _build_customer_turnover(db, date_from: date, date_to: date,
 
 def _build_supplier_detail(db, year: int, supplier_codes: list | None) -> list:
     from . import models
+    from .exchange_rates import rate_lookup, to_eur
     import calendar
+    lookup = rate_lookup(db)
 
     quarters = [
         ("1.Q",  date(year, 1, 1),  date(year, 3, 31)),
@@ -485,6 +475,8 @@ def _build_supplier_detail(db, year: int, supplier_codes: list | None) -> list:
             models.Transaction.invoice_date,
             models.Transaction.total_amount,
             models.Transaction.provision_rate,
+            models.Transaction.currency,
+            models.Transaction.exchange_rate,
         )
         .filter(models.Transaction.invoice_date.between(
             date(prev_year, 1, 1), date(year, 12, 31)))
@@ -511,8 +503,10 @@ def _build_supplier_detail(db, year: int, supplier_codes: list | None) -> list:
                 continue
             amt  = float(t.total_amount or 0)
             rate = float(t.provision_rate or 0)
-            total += amt
-            prov  += amt * rate / 100
+            tx_rate = float(t.exchange_rate) if t.exchange_rate is not None else None
+            eur = to_eur(amt, t.currency, t.invoice_date, lookup, tx_rate)
+            total += eur
+            prov  += eur * rate / 100
         return total, prov
 
     for s in suppliers:
@@ -647,6 +641,27 @@ def _build_transactions(db, date_from: date, date_to: date,
     return story
 
 
+def _orig_currencies(db, date_from: date, date_to: date,
+                     supplier_codes: list | None) -> list[tuple[str, float]]:
+    """Original-Umsatz je Fremdwährung im Zeitraum (für den EUR-Hinweis)."""
+    from sqlalchemy import func
+    from . import models
+    q = (db.query(models.Transaction.currency,
+                  func.coalesce(func.sum(models.Transaction.total_amount), 0))
+         .filter(models.Transaction.invoice_date.between(date_from, date_to))
+         .filter(models.Transaction.currency.isnot(None))
+         .filter(models.Transaction.currency != "EUR"))
+    if supplier_codes:
+        ids = [s.id for s in db.query(models.Supplier.id)
+               .filter(models.Supplier.code.in_(supplier_codes)).all()]
+        if not ids:
+            return []
+        q = q.filter(models.Transaction.supplier_id.in_(ids))
+    q = q.group_by(models.Transaction.currency)
+    out = [((c or "").strip().upper(), float(v or 0)) for c, v in q.all()]
+    return sorted([x for x in out if x[0] and x[0] != "EUR"], key=lambda x: -x[1])
+
+
 def supplier_label(db, supplier_codes: list | None) -> str:
     """'CODE – Name, …' für die ausgewählten Lieferanten, sonst 'Alle Lieferanten'."""
     from . import models
@@ -680,6 +695,11 @@ def generate_report_pdf(
         ParagraphStyle("title", fontSize=16, textColor=BLUE,
             fontName="Helvetica-Bold", spaceAfter=1*mm)))
     story.append(Paragraph(f"Zeitraum: {period_str}", SMALL))
+    _curs = _orig_currencies(db, date_from, date_to, supplier_codes)
+    if _curs:
+        _parts = " · ".join(f"{_fmt(v)} {c}" for c, v in _curs)
+        story.append(Paragraph(
+            f"Beträge in EUR umgerechnet · Original-Umsatz: {_parts}", SMALL))
     story.append(HRFlowable(width="100%", thickness=1, color=BLUE, spaceAfter=4*mm))
 
     for rtype in active_types:
