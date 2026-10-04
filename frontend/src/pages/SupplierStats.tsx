@@ -35,6 +35,17 @@ function custLabel(r: CustomerRow): string {
 }
 interface DetailQRow  { label: string; prev_turnover: number; budget_turnover: number; curr_turnover: number; prev_commission: number; budget_commission: number; curr_commission: number; }
 interface DetailSupplier { code: string; name: string; rows: DetailQRow[]; }
+interface CurOrig { currency: string; curr_turnover: number; }
+
+function CurrencyNote({ list }: { list: CurOrig[] }) {
+  if (!list.length) return null;
+  return (
+    <p className="text-xs text-gray-400">
+      Beträge in EUR umgerechnet. Original-Umsatz:{" "}
+      {list.map(c => `${fmt(c.curr_turnover)} ${c.currency}`).join(" · ")}
+    </p>
+  );
+}
 
 // ── Tab: Lieferant Statistik ──────────────────────────────────────────────────
 function SupplierSummaryTab() {
@@ -42,6 +53,7 @@ function SupplierSummaryTab() {
   const [from, setFrom] = useState(yearStart());
   const [to,   setTo  ] = useState(today());
   const [rows, setRows] = useState<SupplierRow[]>([]);
+  const [currencies, setCurrencies] = useState<CurOrig[]>([]);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
@@ -51,7 +63,7 @@ function SupplierSummaryTab() {
     setLoading(true);
     try {
       const res = await fetch(`${BASE}/stats/supplier-summary?period_from=${from}&period_to=${to}`, { headers: authHeaders() });
-      if (res.ok) { const d = await res.json(); setRows(d.rows); }
+      if (res.ok) { const d = await res.json(); setRows(d.rows); setCurrencies(d.currencies ?? []); }
     } finally { setLoading(false); }
   }
 
@@ -128,6 +140,7 @@ function SupplierSummaryTab() {
           </tfoot>
         </table>
       </div>
+      <CurrencyNote list={currencies} />
     </div>
   );
 }
@@ -138,6 +151,7 @@ function CustomerTurnoverTab({ sortBy }: { sortBy: "provision" | "turnover" }) {
   const [from, setFrom] = useState(yearStart());
   const [to,   setTo  ] = useState(today());
   const [rows, setRows] = useState<CustomerRow[]>([]);
+  const [currencies, setCurrencies] = useState<CurOrig[]>([]);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
@@ -147,7 +161,7 @@ function CustomerTurnoverTab({ sortBy }: { sortBy: "provision" | "turnover" }) {
     setLoading(true);
     try {
       const res = await fetch(`${BASE}/stats/customer-turnover?period_from=${from}&period_to=${to}&sort_by=${sortBy}`, { headers: authHeaders() });
-      if (res.ok) { const d = await res.json(); setRows(d.rows); }
+      if (res.ok) { const d = await res.json(); setRows(d.rows); setCurrencies(d.currencies ?? []); }
     } finally { setLoading(false); }
   }
 
@@ -250,6 +264,7 @@ function CustomerTurnoverTab({ sortBy }: { sortBy: "provision" | "turnover" }) {
           </table>
         )}
       </div>
+      <CurrencyNote list={currencies} />
     </div>
   );
 }

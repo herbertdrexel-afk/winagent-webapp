@@ -14,7 +14,8 @@ interface StatRow {
   comm_diff: number;
   comm_pct: number | null;
 }
-interface StatData { period_from: string; period_to: string; rows: StatRow[] }
+interface CurOrig { currency: string; curr_turnover: number }
+interface StatData { period_from: string; period_to: string; rows: StatRow[]; currencies?: CurOrig[] }
 
 function fmt(n: number) {
   if (n === 0) return "0";
@@ -447,6 +448,12 @@ export default function Dashboard() {
             )}
           </table>
         </div>
+        {stats?.currencies && stats.currencies.length > 0 && (
+          <div className="px-5 py-2 border-t border-gray-100 text-xs text-gray-400">
+            Beträge in EUR umgerechnet. Original-Umsatz:{" "}
+            {stats.currencies.map(c => `${fmt(c.curr_turnover)} ${c.currency}`).join(" · ")}
+          </div>
+        )}
       </div>
 
     </div>

@@ -43,6 +43,16 @@ def _hdr(de: str, en: str) -> str:
     return f"<b>{_xml(de)}</b><br/><font size='6'>{_xml(en)}</font>"
 
 
+def _currency_note(data: dict) -> str | None:
+    """Hinweis auf Original-Fremdwährungsumsätze (in EUR umgerechnet)."""
+    curs = data.get("currencies") or []
+    if not curs:
+        return None
+    parts = " · ".join(f"{_fmt(c['curr_turnover'])} {_xml(c['currency'])}" for c in curs)
+    return ("Beträge in EUR umgerechnet (ab 2026 EZB-Monatskurs, davor Rechnungskurs). "
+            "Original-Umsatz / converted to EUR, original turnover: " + parts)
+
+
 def _cust_label(r: dict) -> str:
     """Name / Firma inkl. Ort (mit Ländercode), wie im Alt-Report (XML-escaped)."""
     name = (r.get("customer_name") or "–").strip()
@@ -176,6 +186,10 @@ def build_customer_turnover_pdf(data: dict) -> bytes:
         ("VALIGN",     (0,0), (-1,-1), "MIDDLE"),
     ]))
     story.append(t)
+    note = _currency_note(data)
+    if note:
+        story.append(Spacer(1, 0.25*cm))
+        story.append(Paragraph(note, ParagraphStyle("cn", parent=n, fontSize=7, textColor=colors.grey)))
     doc.build(story)
     return buf.getvalue()
 
@@ -457,5 +471,9 @@ def build_supplier_stats_pdf(data: dict) -> bytes:
     ]))
 
     story.append(t)
+    note = _currency_note(data)
+    if note:
+        story.append(Spacer(1, 0.25*cm))
+        story.append(Paragraph(note, ParagraphStyle("cn", parent=normal, fontSize=7, textColor=colors.grey)))
     doc.build(story)
     return buf.getvalue()
