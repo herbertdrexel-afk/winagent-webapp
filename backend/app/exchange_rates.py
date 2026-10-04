@@ -63,11 +63,17 @@ def _fetch_monthly_avg(currency: str, start: date, end: date) -> dict[tuple[int,
 
 
 def refresh_rates(db, currencies: list[str] | None = None,
-                  start: date | None = None, end: date | None = None) -> dict:
+                  start: date | None = None, end: date | None = None,
+                  overwrite: bool = False) -> dict:
     """Durchschnittskurse holen und in exchange_rates upserten.
 
     Ohne Parameter: alle Fremdwährungen aus den Transaktionen, Zeitraum vom
-    ersten bis zum letzten Rechnungsdatum (mind. laufendes Jahr)."""
+    ersten bis zum letzten Rechnungsdatum (mind. laufendes Jahr).
+
+    Abgeschlossene Monate werden NICHT neu berechnet: existiert ein Kurs für
+    einen vergangenen Monat bereits, bleibt er unverändert. Nur fehlende Monate
+    werden ergänzt und der laufende Monat aktualisiert. `overwrite=True` erzwingt
+    das Neuberechnen aller Monate."""
     if currencies is None:
         currencies = transaction_currencies(db) or ["USD", "CHF"]
     # Zeitraum bestimmen
@@ -81,7 +87,10 @@ def refresh_rates(db, currencies: list[str] | None = None,
             start = start or date(today.year, 1, 1)
             end = end or today
     # Bis Monatsende des Endmonats (ECB liefert bis heute)
+    today = date.today()
+    cur_ym = (today.year, today.month)   # laufender Monat darf aktualisiert werden
     written = 0
+    skipped = 0
     per_currency: dict[str, int] = {}
     errors: list[str] = []
     for cur in currencies:
@@ -100,14 +109,19 @@ def refresh_rates(db, currencies: list[str] | None = None,
             existing = (db.query(models.ExchangeRate)
                         .filter_by(currency=cur, valid_date=vd).first())
             if existing:
-                existing.rate = avg
+                # Abgeschlossene Monate NICHT neu kalkulieren – nur laufenden Monat
+                if overwrite or (y, m) == cur_ym:
+                    existing.rate = avg
+                    cnt += 1
+                else:
+                    skipped += 1
             else:
                 db.add(models.ExchangeRate(currency=cur, valid_date=vd, rate=avg))
-            cnt += 1
+                cnt += 1
         per_currency[cur] = cnt
         written += cnt
     db.commit()
-    return {"written": written, "per_currency": per_currency,
+    return {"written": written, "skipped": skipped, "per_currency": per_currency,
             "currencies": currencies,
             "from": start.isoformat() if start else None,
             "to": end.isoformat() if end else None,

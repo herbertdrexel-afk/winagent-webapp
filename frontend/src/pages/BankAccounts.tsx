@@ -46,7 +46,8 @@ export default function BankAccountsPage() {
     try {
       const res = await api.exchange.refresh();
       const errs = res.errors?.length ? ` · Fehler: ${res.errors.join("; ")}` : "";
-      setExMsg(`${res.written} Kurse aktualisiert${errs}`);
+      const skip = res.skipped ? ` · ${res.skipped} abgeschlossene Monate unverändert` : "";
+      setExMsg(`${res.written} Kurse ergänzt/aktualisiert${skip}${errs}`);
       loadRates();
     } catch (e: unknown) {
       setExMsg(e instanceof Error ? e.message : "Fehler beim Abrufen");
