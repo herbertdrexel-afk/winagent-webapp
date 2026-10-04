@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { api, type BankAccount } from "../api";
+import { api, type BankAccount, type ExchangeRateEntry } from "../api";
 import { useT } from "../context/LocaleContext";
-import { Upload, Trash2, Save, Plus } from "lucide-react";
+import { Upload, Trash2, Save, Plus, RefreshCw } from "lucide-react";
 
 const CURRENCIES = ["EUR", "USD", "CHF"];
 const inputCls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30";
@@ -29,6 +29,29 @@ export default function BankAccountsPage() {
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg]             = useState<{ ok: boolean; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Wechselkurse (Monatsdurchschnitt)
+  const [exRates, setExRates] = useState<ExchangeRateEntry[]>([]);
+  const [exBusy, setExBusy]   = useState(false);
+  const [exMsg, setExMsg]     = useState<string | null>(null);
+
+  function loadRates() {
+    api.exchange.list().then(setExRates).catch(() => {});
+  }
+  useEffect(() => { loadRates(); }, []);
+
+  async function refreshRates() {
+    setExBusy(true);
+    setExMsg(null);
+    try {
+      const res = await api.exchange.refresh();
+      const errs = res.errors?.length ? ` · Fehler: ${res.errors.join("; ")}` : "";
+      setExMsg(`${res.written} Kurse aktualisiert${errs}`);
+      loadRates();
+    } catch (e: unknown) {
+      setExMsg(e instanceof Error ? e.message : "Fehler beim Abrufen");
+    } finally { setExBusy(false); }
+  }
 
   useEffect(() => {
     api.settings.getLogoNa().then(l => setNaLogoUrl(l.data_url)).catch(() => {});
@@ -343,6 +366,50 @@ export default function BankAccountsPage() {
             {savingNa ? t.settings.saving : t.settings.saveBanks}
           </button>
         </div>
+      </div>
+
+      {/* Wechselkurse (Monatsdurchschnitt) */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h2 className="font-semibold text-gray-800">Wechselkurse (Monatsdurchschnitt)</h2>
+            <p className="text-xs text-gray-500">
+              EZB-Durchschnittskurse je Monat, EUR je 1 Einheit. Für die Umrechnung von USD/CHF in EUR in den Auswertungen.
+            </p>
+          </div>
+          <button onClick={refreshRates} disabled={exBusy}
+            className="flex items-center gap-1.5 border border-[#2563eb] text-[#2563eb] px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/5 disabled:opacity-50">
+            <RefreshCw size={14} className={exBusy ? "animate-spin" : ""} />
+            {exBusy ? "Hole Kurse…" : "Kurse aus dem Netz aktualisieren"}
+          </button>
+        </div>
+        {exMsg && <p className="text-xs text-gray-600">{exMsg}</p>}
+        {exRates.length === 0 ? (
+          <p className="text-xs text-gray-400">Noch keine Kurse gespeichert – auf „Kurse aktualisieren" klicken.</p>
+        ) : (
+          <div className="overflow-x-auto max-h-72 overflow-y-auto border border-gray-100 rounded-lg">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-500 text-xs sticky top-0">
+                <tr>
+                  <th className="px-3 py-1.5 text-left font-medium">Monat</th>
+                  <th className="px-3 py-1.5 text-left font-medium">Währung</th>
+                  <th className="px-3 py-1.5 text-right font-medium">Kurs (EUR je 1)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {exRates.map((r, i) => (
+                  <tr key={`${r.currency}-${r.month}`} className={i % 2 ? "bg-gray-50/50" : ""}>
+                    <td className="px-3 py-1 text-gray-600">{r.month?.slice(0, 7) ?? "–"}</td>
+                    <td className="px-3 py-1 font-medium">{r.currency}</td>
+                    <td className="px-3 py-1 text-right tabular-nums">
+                      {r.rate != null ? r.rate.toLocaleString("de-DE", { minimumFractionDigits: 4, maximumFractionDigits: 5 }) : "–"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

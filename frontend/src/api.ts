@@ -364,7 +364,19 @@ export const api = {
       fetch(`${BASE}/ingest/log`, { method: "DELETE", headers: authHeaders() })
         .then(async (r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<{ deleted: number }>; }),
   },
+  exchange: {
+    list: () => get<ExchangeRateEntry[]>("/exchange-rates"),
+    refresh: () =>
+      fetch(`${BASE}/exchange-rates/refresh`, { method: "POST", headers: authHeaders() })
+        .then(async (r) => { if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail ?? `${r.status}`); } return r.json() as Promise<{ written: number; per_currency: Record<string, number>; errors: string[] }>; }),
+  },
 };
+
+export interface ExchangeRateEntry {
+  currency: string;
+  month: string | null;
+  rate: number | null;
+}
 
 export interface IngestPullResult {
   status: string;
