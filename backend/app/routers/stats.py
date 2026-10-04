@@ -1,15 +1,20 @@
 """Supplier statistics summary endpoint."""
 from datetime import date
 from typing import Literal
+from collections import defaultdict
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response
-from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 
 from .. import models
 from ..auth import get_current_user, get_allowed_supplier_ids
 from ..database import get_db
+from ..exchange_rates import rate_lookup, to_eur
 from ..pdf_stats import build_supplier_stats_pdf, build_customer_turnover_pdf, build_supplier_detail_pdf
+
+
+def _tx_rate(v):
+    return float(v) if v is not None else None
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -26,64 +31,64 @@ def supplier_summary(
     ly_to = period_to.replace(year=period_to.year - 1)
 
     allowed = get_allowed_supplier_ids(current_user, db)
+    lookup = rate_lookup(db)
 
-    q = (
-        db.query(
-            models.Supplier.id,
-            models.Supplier.code,
-            models.Supplier.name,
-            func.coalesce(func.sum(
-                case((models.Transaction.invoice_date.between(period_from, period_to),
-                      models.Transaction.total_amount), else_=0)
-            ), 0).label("curr_turnover"),
-            func.coalesce(func.sum(
-                case((models.Transaction.invoice_date.between(period_from, period_to),
-                      models.Transaction.total_amount * func.coalesce(models.Transaction.provision_rate, 0) / 100),
-                     else_=0)
-            ), 0).label("curr_commission"),
-            func.coalesce(func.sum(
-                case((models.Transaction.invoice_date.between(ly_from, ly_to),
-                      models.Transaction.total_amount), else_=0)
-            ), 0).label("prev_turnover"),
-            func.coalesce(func.sum(
-                case((models.Transaction.invoice_date.between(ly_from, ly_to),
-                      models.Transaction.total_amount * func.coalesce(models.Transaction.provision_rate, 0) / 100),
-                     else_=0)
-            ), 0).label("prev_commission"),
-        )
-        .outerjoin(models.Transaction, models.Transaction.supplier_id == models.Supplier.id)
-        .filter(models.Supplier.is_active == True)
-    )
+    sup_q = db.query(models.Supplier).filter(models.Supplier.is_active == True)
     if allowed is not None:
-        q = q.filter(models.Supplier.id.in_(allowed))
-    rows = (
-        q.group_by(models.Supplier.id, models.Supplier.code, models.Supplier.name)
-        .order_by(models.Supplier.code)
-        .all()
-    )
+        sup_q = sup_q.filter(models.Supplier.id.in_(allowed))
+    suppliers = sup_q.order_by(models.Supplier.code).all()
+    sup_ids = [s.id for s in suppliers]
+
+    agg = {s.id: {"ct": 0.0, "cc": 0.0, "pt": 0.0, "pc": 0.0} for s in suppliers}
+    cur_orig: dict[str, float] = defaultdict(float)   # Original-Umsatz je Währung (laufend)
+
+    if sup_ids:
+        rng_from, rng_to = min(period_from, ly_from), max(period_to, ly_to)
+        txns = (
+            db.query(
+                models.Transaction.supplier_id, models.Transaction.invoice_date,
+                models.Transaction.total_amount, models.Transaction.provision_rate,
+                models.Transaction.currency, models.Transaction.exchange_rate,
+            )
+            .filter(models.Transaction.supplier_id.in_(sup_ids))
+            .filter(models.Transaction.invoice_date.between(rng_from, rng_to))
+            .all()
+        )
+        for t in txns:
+            a = agg.get(t.supplier_id)
+            if a is None:
+                continue
+            amt = float(t.total_amount or 0)
+            rate = float(t.provision_rate or 0)
+            eur = to_eur(amt, t.currency, t.invoice_date, lookup, _tx_rate(t.exchange_rate))
+            prov_eur = eur * rate / 100
+            d = t.invoice_date
+            if period_from <= d <= period_to:
+                a["ct"] += eur; a["cc"] += prov_eur
+                cur_orig[(t.currency or "EUR").strip().upper()] += amt
+            elif ly_from <= d <= ly_to:
+                a["pt"] += eur; a["pc"] += prov_eur
 
     result = []
-    for r in rows:
-        curr_t = float(r.curr_turnover or 0)
-        curr_c = float(r.curr_commission or 0)
-        prev_t = float(r.prev_turnover or 0)
-        prev_c = float(r.prev_commission or 0)
-        diff = curr_c - prev_c
-        pct = ((curr_c / prev_c - 1) * 100) if prev_c else None
+    for s in suppliers:
+        a = agg[s.id]
+        diff = a["cc"] - a["pc"]
+        pct = ((a["cc"] / a["pc"] - 1) * 100) if a["pc"] else None
         result.append({
-            "code": r.code,
-            "name": r.name,
-            "curr_turnover": curr_t,
-            "curr_commission": curr_c,
-            "prev_turnover": prev_t,
-            "prev_commission": prev_c,
-            "comm_diff": diff,
-            "comm_pct": pct,
+            "code": s.code, "name": s.name,
+            "curr_turnover": a["ct"], "curr_commission": a["cc"],
+            "prev_turnover": a["pt"], "prev_commission": a["pc"],
+            "comm_diff": diff, "comm_pct": pct,
         })
+    currencies = sorted(
+        [{"currency": c, "curr_turnover": round(v, 2)} for c, v in cur_orig.items() if c != "EUR"],
+        key=lambda x: -x["curr_turnover"],
+    )
     return {
         "period_from": period_from.isoformat(),
         "period_to": period_to.isoformat(),
         "rows": result,
+        "currencies": currencies,   # Original-Umsätze je Fremdwährung (in EUR umgerechnet oben)
     }
 
 
@@ -101,20 +106,9 @@ def customer_turnover(
     ly_to = period_to.replace(year=period_to.year - 1)
 
     allowed = get_allowed_supplier_ids(current_user, db)
+    lookup = rate_lookup(db)
 
     T = models.Transaction
-    curr_t = func.coalesce(func.sum(
-        case((T.invoice_date.between(period_from, period_to), T.total_amount), else_=0)
-    ), 0)
-    curr_p = func.coalesce(func.sum(
-        case((T.invoice_date.between(period_from, period_to),
-              T.total_amount * func.coalesce(T.provision_rate, 0) / 100), else_=0)
-    ), 0)
-    prev_t = func.coalesce(func.sum(
-        case((T.invoice_date.between(ly_from, ly_to), T.total_amount), else_=0)
-    ), 0)
-
-    # Gruppierung je Kunde über alle (erlaubten) Lieferanten hinweg.
     q = (
         db.query(
             models.Customer.id.label("cid"),
@@ -122,9 +116,8 @@ def customer_turnover(
             models.Customer.city.label("customer_city"),
             models.Customer.country_code.label("country_code"),
             models.Customer.zip.label("zip"),
-            curr_t.label("curr_turnover"),
-            curr_p.label("curr_provision"),
-            prev_t.label("prev_turnover"),
+            T.invoice_date, T.total_amount, T.provision_rate,
+            T.currency, T.exchange_rate,
         )
         .join(models.Customer, T.customer_id == models.Customer.id)
         .filter(or_(
@@ -134,22 +127,29 @@ def customer_turnover(
     )
     if allowed is not None:
         q = q.filter(T.supplier_id.in_(allowed))
-    rows = q.group_by(
-        models.Customer.id, models.Customer.name, models.Customer.city,
-        models.Customer.country_code, models.Customer.zip,
-    ).all()
 
-    # Nur Kunden mit Aktivität in einer der beiden Perioden
-    items = []
-    for r in rows:
-        ct = float(r.curr_turnover or 0)
-        cp = float(r.curr_provision or 0)
-        pt = float(r.prev_turnover or 0)
-        if ct == 0 and cp == 0 and pt == 0:
-            continue
-        items.append({"ct": ct, "cp": cp, "pt": pt,
-                      "name": r.customer_name, "city": r.customer_city,
-                      "cc": r.country_code, "zip": r.zip})
+    # Je Kunde EUR-umgerechnet aggregieren (ab 2026 Tabellenkurs, davor Rechnungs-KURS)
+    by_cust: dict[int, dict] = {}
+    cur_orig: dict[str, float] = defaultdict(float)
+    for r in q.all():
+        amt = float(r.total_amount or 0)
+        rate = float(r.provision_rate or 0)
+        eur = to_eur(amt, r.currency, r.invoice_date, lookup, _tx_rate(r.exchange_rate))
+        prov_eur = eur * rate / 100
+        d = r.invoice_date
+        x = by_cust.get(r.cid)
+        if x is None:
+            x = {"ct": 0.0, "cp": 0.0, "pt": 0.0,
+                 "name": r.customer_name, "city": r.customer_city,
+                 "cc": r.country_code, "zip": r.zip}
+            by_cust[r.cid] = x
+        if period_from <= d <= period_to:
+            x["ct"] += eur; x["cp"] += prov_eur
+            cur_orig[(r.currency or "EUR").strip().upper()] += amt
+        elif ly_from <= d <= ly_to:
+            x["pt"] += eur
+
+    items = [x for x in by_cust.values() if not (x["ct"] == 0 and x["cp"] == 0 and x["pt"] == 0)]
 
     total_provision = sum(x["cp"] for x in items)
     total_curr = sum(x["ct"] for x in items)
@@ -178,6 +178,10 @@ def customer_turnover(
     else:
         result.sort(key=lambda r: (r["curr_turnover"], r["curr_provision"]), reverse=True)
 
+    currencies = sorted(
+        [{"currency": c, "curr_turnover": round(v, 2)} for c, v in cur_orig.items() if c != "EUR"],
+        key=lambda x: -x["curr_turnover"],
+    )
     return {
         "period_from": period_from.isoformat(),
         "period_to": period_to.isoformat(),
@@ -185,6 +189,7 @@ def customer_turnover(
         "totals": {"curr_turnover": total_curr, "curr_provision": total_provision,
                    "prev_turnover": sum(x["pt"] for x in items)},
         "rows": result,
+        "currencies": currencies,
     }
 
 
@@ -231,6 +236,7 @@ def supplier_detail(
     ]
     prev_year = year - 1
 
+    lookup = rate_lookup(db)
     # Fetch all transactions for both years
     txns = (
         db.query(
@@ -238,6 +244,8 @@ def supplier_detail(
             models.Transaction.invoice_date,
             models.Transaction.total_amount,
             models.Transaction.provision_rate,
+            models.Transaction.currency,
+            models.Transaction.exchange_rate,
         )
         .filter(
             models.Transaction.invoice_date.between(
@@ -274,8 +282,9 @@ def supplier_detail(
                 continue
             amt = float(t.total_amount or 0)
             rate = float(t.provision_rate or 0)
-            total += amt
-            prov += amt * rate / 100
+            eur = to_eur(amt, t.currency, t.invoice_date, lookup, _tx_rate(t.exchange_rate))
+            total += eur
+            prov += eur * rate / 100
         return total, prov
 
     result = []
