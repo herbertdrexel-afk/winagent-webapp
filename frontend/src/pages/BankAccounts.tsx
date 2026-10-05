@@ -54,6 +54,20 @@ export default function BankAccountsPage() {
     } finally { setExBusy(false); }
   }
 
+  const [applyBusy, setApplyBusy] = useState(false);
+  async function applyRatesToTx() {
+    if (!window.confirm("Aktuelle Monatskurse in alle Fremdwährungs-Rechnungen eintragen, bei denen noch kein Kurs (1) steht?")) return;
+    setApplyBusy(true);
+    setExMsg(null);
+    try {
+      const res = await api.exchange.applyToTransactions();
+      const miss = Object.keys(res.missing_months || {}).length;
+      setExMsg(`${res.updated} Rechnungen aktualisiert${miss ? ` · ${miss} Monat(e) ohne Kurs (zuerst „Kurse aktualisieren")` : ""}`);
+    } catch (e: unknown) {
+      setExMsg(e instanceof Error ? e.message : "Fehler");
+    } finally { setApplyBusy(false); }
+  }
+
   useEffect(() => {
     api.settings.getLogoNa().then(l => setNaLogoUrl(l.data_url)).catch(() => {});
     Promise.all([api.settings.getBankAccounts(), api.settings.getLogo(), api.settings.getBankNa()])
@@ -411,6 +425,15 @@ export default function BankAccountsPage() {
             </table>
           </div>
         )}
+        <div className="border-t border-gray-100 pt-3 flex items-center gap-3 flex-wrap">
+          <button onClick={applyRatesToTx} disabled={applyBusy || exRates.length === 0}
+            className="bg-[#2563eb] text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 disabled:opacity-50">
+            {applyBusy ? "Trage ein…" : "Kurse in Rechnungen eintragen"}
+          </button>
+          <span className="text-xs text-gray-500">
+            Schreibt den Monatskurs in alle Fremdwährungs-Rechnungen mit Kurs = 1 und rechnet damit neu um.
+          </span>
+        </div>
         <p className="text-xs text-gray-400">
           Hinweis: Rechnungen vor 2026 werden mit dem in den Altdaten gespeicherten Kurs umgerechnet; ab 2026 gelten diese EZB-Monatskurse.
         </p>

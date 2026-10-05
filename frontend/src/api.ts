@@ -369,6 +369,9 @@ export const api = {
     refresh: () =>
       fetch(`${BASE}/exchange-rates/refresh`, { method: "POST", headers: authHeaders() })
         .then(async (r) => { if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail ?? `${r.status}`); } return r.json() as Promise<{ written: number; skipped: number; per_currency: Record<string, number>; errors: string[] }>; }),
+    applyToTransactions: () =>
+      fetch(`${BASE}/exchange-rates/apply-to-transactions`, { method: "POST", headers: authHeaders() })
+        .then(async (r) => { if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail ?? `${r.status}`); } return r.json() as Promise<{ updated: number; per_currency: Record<string, number>; missing_months: Record<string, number> }>; }),
   },
 };
 

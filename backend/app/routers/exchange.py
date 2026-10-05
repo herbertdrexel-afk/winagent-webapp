@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from .. import models
 from ..auth import get_current_user, require_admin
 from ..database import get_db
-from ..exchange_rates import refresh_rates
+from ..exchange_rates import refresh_rates, apply_rates_to_transactions
 
 router = APIRouter(prefix="/exchange-rates", tags=["exchange-rates"])
 
@@ -38,3 +38,13 @@ def refresh(
     Abruf überschreibt vorhandene Monate). Rechnungen vor dem Cutover nutzen
     weiterhin ihren eigenen KURS."""
     return refresh_rates(db, overwrite=True)
+
+
+@router.post("/apply-to-transactions")
+def apply_to_transactions(
+    _: models.User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Trägt den passenden Monatskurs in alle Fremdwährungs-Rechnungen ein, bei
+    denen noch kein Kurs (leer/1) steht, und rechnet damit neu um."""
+    return apply_rates_to_transactions(db, only_missing=True)

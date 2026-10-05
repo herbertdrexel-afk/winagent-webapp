@@ -266,6 +266,28 @@ export default function InvoiceModal({ invoice, supplierCode, onClose, onSaved, 
                     <Field label="Notizen" className="col-span-3">
                       <input type="text" value={pos.notes ?? ""} onChange={(e) => setPos(idx, "notes", e.target.value)} className={inputCls} />
                     </Field>
+                    {(() => {
+                      const cur = String(pos.currency ?? "").trim().toUpperCase();
+                      if (!cur || cur === "EUR") return null;
+                      const amt = parseFloat(String(pos.total_amount ?? "")) || 0;
+                      const kurs = parseFloat(String(pos.exchange_rate ?? "")) || 0;
+                      const rate = parseFloat(String(pos.provision_rate ?? "")) || 0;
+                      const eur = (kurs > 0 && kurs !== 1) ? amt / kurs : amt;
+                      const provEur = eur * rate / 100;
+                      const f = (n: number) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                      return (
+                        <div className="col-span-3 rounded-lg bg-[#f0f5fb] border border-[#dce8f5] px-3 py-2 text-xs flex items-center justify-between flex-wrap gap-1">
+                          <span className="text-gray-600">
+                            In EUR (≈ Betrag ÷ Kurs):{" "}
+                            <span className="font-semibold text-gray-800">{f(eur)} EUR</span>
+                            <span className="text-gray-400"> · Provision ≈ {f(provEur)} EUR</span>
+                          </span>
+                          {(!kurs || kurs === 1) && (
+                            <span className="text-amber-600">Kurs setzen für Umrechnung (sonst wird 1:1 gerechnet)</span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}

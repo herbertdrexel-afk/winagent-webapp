@@ -137,6 +137,39 @@ def refresh_rates(db, currencies: list[str] | None = None,
             "errors": errors}
 
 
+def apply_rates_to_transactions(db, only_missing: bool = True) -> dict:
+    """Trägt den passenden Monatskurs (aus exchange_rates, Einheiten je EUR) in das
+    Kurs-Feld (exchange_rate) der Fremdwährungs-Rechnungen ein. Standard: nur dort,
+    wo noch kein Kurs steht (leer oder 1). Damit rechnen die Auswertungen die
+    Beträge neu um (der Rechnungs-Kurs hat Vorrang)."""
+    from sqlalchemy import or_
+    lookup = rate_lookup(db)
+    q = (db.query(models.Transaction)
+         .filter(models.Transaction.currency.isnot(None))
+         .filter(models.Transaction.currency != "EUR"))
+    if only_missing:
+        q = q.filter(or_(models.Transaction.exchange_rate.is_(None),
+                         models.Transaction.exchange_rate == 1))
+    updated = 0
+    per_currency: dict[str, int] = defaultdict(int)
+    missing: dict[str, int] = defaultdict(int)
+    for t in q.all():
+        cur = (t.currency or "").strip().upper()
+        d = t.invoice_date
+        if not cur or cur == "EUR" or d is None:
+            continue
+        rate = lookup.get((cur, d.year, d.month))
+        if rate:
+            t.exchange_rate = rate
+            updated += 1
+            per_currency[cur] += 1
+        else:
+            missing[f"{cur} {d.year}-{d.month:02d}"] += 1
+    db.commit()
+    return {"updated": updated, "per_currency": dict(per_currency),
+            "missing_months": dict(missing)}
+
+
 def rate_lookup(db) -> dict[tuple[str, int, int], float]:
     """{(WÄHRUNG, Jahr, Monat): rate} für die Umrechnung in den Berichten."""
     out: dict[tuple[str, int, int], float] = {}
