@@ -6,6 +6,7 @@ from sqlalchemy import func, text, case, extract
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..auth import require_admin
 from ..database import get_db
 
 router = APIRouter(prefix="/customers", tags=["customers"])
@@ -110,6 +111,82 @@ def customer_duplicates(
 
     result.sort(key=lambda g: g["name"].lower())
     return {"cutover_year": cutover_year, "count": len(result), "groups": result}
+
+
+@router.post("/duplicates/cleanup")
+def customer_duplicates_cleanup(
+    cutover_year: int = Query(2026),
+    apply: bool = Query(False, description="False = nur Vorschau, True = ausführen"),
+    _: models.User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Doppelte Adressen bereinigen: In jeder Namensgruppe bleiben die Adressen mit
+    Rechnungen ab `cutover_year`; Adressen OHNE solche Rechnungen werden gelöscht.
+    Ihre Rechnungen (vor dem Stichjahr) werden vorher auf die Adresse mit den
+    meisten Rechnungen ab dem Stichjahr umgehängt. Gruppen ohne Adresse mit
+    Rechnungen ab dem Stichjahr bleiben unberührt."""
+    T = models.Transaction
+    after = {
+        r.customer_id: int(r.n)
+        for r in db.query(T.customer_id, func.count().label("n"))
+        .filter(T.customer_id.isnot(None))
+        .filter(extract("year", T.invoice_date) >= cutover_year)
+        .group_by(T.customer_id).all()
+    }
+    total = {
+        r.customer_id: int(r.n)
+        for r in db.query(T.customer_id, func.count().label("n"))
+        .filter(T.customer_id.isnot(None)).group_by(T.customer_id).all()
+    }
+
+    groups: dict[str, list] = defaultdict(list)
+    for c in db.query(models.Customer).all():
+        if c.name:
+            groups[_norm_name(c.name)].append(c)
+
+    plan = []
+    skipped_groups = 0
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        keepers = [c for c in members if after.get(c.id, 0) > 0]
+        removable = [c for c in members if after.get(c.id, 0) == 0]
+        if not keepers:
+            if any(total.get(c.id, 0) for c in members):
+                skipped_groups += 1   # nichts in 2026 → nicht eindeutig, nicht anfassen
+            continue
+        if not removable:
+            continue
+        target = max(keepers, key=lambda c: after.get(c.id, 0))
+        for c in removable:
+            plan.append({
+                "name": c.name,
+                "delete": {"id": c.id, "code": c.code, "ku_nr": c.ku_nr, "city": c.city},
+                "keep": {"id": target.id, "code": target.code, "ku_nr": target.ku_nr, "city": target.city},
+                "move_transactions": total.get(c.id, 0),
+                "other_keepers": len(keepers) - 1,
+            })
+
+    moved = deleted = 0
+    if apply:
+        for p in plan:
+            cid, tid = p["delete"]["id"], p["keep"]["id"]
+            moved += db.query(models.Transaction).filter_by(customer_id=cid).update({"customer_id": tid})
+            db.query(models.Budget).filter_by(customer_id=cid).update({"customer_id": tid})
+            db.query(models.CommissionStatementItem).filter_by(customer_id=cid).update({"customer_id": tid})
+            cust = db.get(models.Customer, cid)
+            if cust:
+                db.delete(cust)
+                deleted += 1
+        db.commit()
+
+    return {
+        "applied": apply, "cutover_year": cutover_year,
+        "to_delete": len(plan), "transactions_to_move": sum(p["move_transactions"] for p in plan),
+        "skipped_groups_without_cutover_invoices": skipped_groups,
+        "deleted": deleted, "moved_transactions": moved,
+        "plan": plan,
+    }
 
 
 @router.post("", response_model=schemas.CustomerOut, status_code=201)

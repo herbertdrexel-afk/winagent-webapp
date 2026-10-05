@@ -98,6 +98,17 @@ export interface DupGroup {
   address_numbers_before_cutover: (string | null)[];
   customers: DupCustomer[];
 }
+export interface CleanupPlanItem {
+  name: string;
+  delete: { id: number; code: string; ku_nr?: string; city?: string };
+  keep: { id: number; code: string; ku_nr?: string; city?: string };
+  move_transactions: number; other_keepers: number;
+}
+export interface CleanupResult {
+  applied: boolean; to_delete: number; transactions_to_move: number;
+  skipped_groups_without_cutover_invoices: number;
+  deleted: number; moved_transactions: number; plan: CleanupPlanItem[];
+}
 export interface DuplicatesResult { cutover_year: number; count: number; groups: DupGroup[]; }
 
 export interface Transaction {
@@ -206,6 +217,9 @@ export const api = {
     create: (data: Omit<Customer, "id" | "ku_nr">) =>
       post<Customer>("/customers", data),
     duplicates: () => get<DuplicatesResult>("/customers/duplicates"),
+    duplicatesCleanup: (apply: boolean) =>
+      fetch(`${BASE}/customers/duplicates/cleanup?apply=${apply}`, { method: "POST", headers: authHeaders() })
+        .then(async (r) => { if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail ?? `${r.status}`); } return r.json() as Promise<CleanupResult>; }),
     update: (code: string, data: Partial<Omit<Customer, "id" | "code" | "ku_nr">>) =>
       fetch(`${BASE}/customers/${code}`, {
         method: "PATCH",
