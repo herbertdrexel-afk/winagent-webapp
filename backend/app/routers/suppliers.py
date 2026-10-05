@@ -159,7 +159,16 @@ def list_transactions(
         .order_by(models.Transaction.invoice_date)
         .all()
     )
-    return [_tx_to_out(tx) for tx in txs]
+    from ..exchange_rates import rate_lookup, to_eur, effective_rate
+    lookup = rate_lookup(db)
+    out = []
+    for tx in txs:
+        o = _tx_to_out(tx)
+        tr = float(tx.exchange_rate) if tx.exchange_rate is not None else None
+        o.rate_used = round(effective_rate(tx.currency, tx.invoice_date, lookup, tr), 5)
+        o.amount_eur = round(to_eur(float(tx.total_amount or 0), tx.currency, tx.invoice_date, lookup, tr), 2)
+        out.append(o)
+    return out
 
 
 def _parse_num_de(s: object) -> float:

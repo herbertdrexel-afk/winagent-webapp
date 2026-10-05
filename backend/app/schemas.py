@@ -143,6 +143,9 @@ class TransactionOut(BaseModel):
     exchange_rate: Optional[Decimal] = None
     customer_order_no: Optional[str] = None
     notes: Optional[str] = None
+    # Für die Anzeige: tatsächlich verwendeter Kurs und EUR-Betrag
+    rate_used: Optional[float] = None
+    amount_eur: Optional[float] = None
 
 
 class TransactionCreate(BaseModel):

@@ -61,6 +61,8 @@ export interface Invoice {
   customer_name?: string;
   currency?: string;
   total_amount: number;
+  amount_eur: number;
+  rate_used: number | null;   // null = gemischte Kurse in den Positionen
   provision_amount: number;
   provision_rate: number | null;
   positions: Transaction[];
@@ -80,6 +82,8 @@ function groupInvoices(rows: Transaction[]): Invoice[] {
         customer_name: r.customer_name,
         currency: r.currency,
         total_amount: 0,
+        amount_eur: 0,
+        rate_used: null,
         provision_amount: 0,
         provision_rate: null,
         positions: [],
@@ -96,6 +100,10 @@ function groupInvoices(rows: Transaction[]): Invoice[] {
     if (inv.total_amount !== 0) {
       inv.provision_rate = (inv.provision_amount / inv.total_amount) * 100;
     }
+    inv.amount_eur = inv.positions.reduce(
+      (s, p) => s + (parseFloat((p as { amount_eur?: number }).amount_eur as unknown as string) || 0), 0);
+    const rates = new Set(inv.positions.map(p => (p as { rate_used?: number }).rate_used ?? 1));
+    inv.rate_used = rates.size === 1 ? [...rates][0] : null;
   }
   return Array.from(map.values());
 }
@@ -303,14 +311,15 @@ export default function Transactions() {
     : invoices;
 
   const totalsByCurrency = filteredInvoices.reduce<
-    Record<string, { amount: number; provision: number; invoices: number; positions: number }>
+    Record<string, { amount: number; amount_eur: number; provision: number; invoices: number; positions: number }>
   >((acc, inv) => {
     const cur = inv.currency ?? "–";
-    if (!acc[cur]) acc[cur] = { amount: 0, provision: 0, invoices: 0, positions: 0 };
-    acc[cur].amount    += inv.total_amount;
-    acc[cur].provision += inv.provision_amount;
-    acc[cur].invoices  += 1;
-    acc[cur].positions += inv.positions.length;
+    if (!acc[cur]) acc[cur] = { amount: 0, amount_eur: 0, provision: 0, invoices: 0, positions: 0 };
+    acc[cur].amount     += inv.total_amount;
+    acc[cur].amount_eur += inv.amount_eur;
+    acc[cur].provision  += inv.provision_amount;
+    acc[cur].invoices   += 1;
+    acc[cur].positions  += inv.positions.length;
     return acc;
   }, {});
   const currencyTotals = Object.entries(totalsByCurrency).sort(([a], [b]) => a.localeCompare(b));
@@ -554,6 +563,8 @@ export default function Transactions() {
                 t.transactions.pos,
                 t.transactions.currency,
                 t.transactions.amount,
+                "Kurs",
+                "Betrag EUR",
                 t.transactions.provPct,
                 t.transactions.provision,
               ].map((h) => (
@@ -564,11 +575,11 @@ export default function Transactions() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-gray-400">{t.common.loading}</td>
+                <td colSpan={11} className="px-4 py-8 text-center text-gray-400">{t.common.loading}</td>
               </tr>
             ) : filteredInvoices.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
+                <td colSpan={11} className="px-4 py-8 text-center text-gray-400">
                   {!supplierCode
                     ? t.transactions.selectSupplier
                     : isFiltered
@@ -594,6 +605,18 @@ export default function Transactions() {
                   <td className="px-4 py-2 text-gray-600">{inv.currency ?? "–"}</td>
                   <td className="px-4 py-2 text-right font-medium">
                     {formatNum(inv.total_amount)}
+                  </td>
+                  <td className="px-4 py-2 text-right text-gray-500 text-xs">
+                    {(inv.currency ?? "EUR").toUpperCase() === "EUR"
+                      ? "–"
+                      : inv.rate_used == null
+                        ? "gemischt"
+                        : inv.rate_used === 1
+                          ? "–"
+                          : formatNum(inv.rate_used, 4)}
+                  </td>
+                  <td className="px-4 py-2 text-right text-gray-700">
+                    {formatNum(inv.amount_eur)}
                   </td>
                   <td className="px-4 py-2 text-right text-gray-500">
                     {inv.provision_rate != null && inv.provision_rate !== 0
@@ -626,6 +649,10 @@ export default function Transactions() {
                   <td className="px-4 py-2 text-gray-600">{cur}</td>
                   <td className="px-4 py-2 text-right">
                     {formatNum(tot.amount)}
+                  </td>
+                  <td />
+                  <td className="px-4 py-2 text-right text-gray-700">
+                    {formatNum(tot.amount_eur)}
                   </td>
                   <td />
                   <td className="px-4 py-2 text-right text-emerald-700">

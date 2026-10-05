@@ -180,6 +180,23 @@ def rate_lookup(db) -> dict[tuple[str, int, int], float]:
     return out
 
 
+def effective_rate(currency: str | None, d: date | None,
+                   lookup: dict[tuple[str, int, int], float],
+                   tx_rate: float | None = None) -> float:
+    """Der tatsächlich zur Umrechnung verwendete Kurs (Einheiten je 1 EUR).
+    1.0 = keine Umrechnung (EUR oder kein Kurs bekannt)."""
+    cur = (currency or "EUR").strip().upper()
+    if cur == "EUR" or d is None:
+        return 1.0
+    if tx_rate and tx_rate not in (0, 1):
+        return tx_rate
+    if d.year >= CUTOVER_YEAR:
+        rate = lookup.get((cur, d.year, d.month))
+        if rate:
+            return rate
+    return 1.0
+
+
 def to_eur(amount: float, currency: str | None, d: date | None,
            lookup: dict[tuple[str, int, int], float],
            tx_rate: float | None = None) -> float:
