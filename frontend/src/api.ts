@@ -88,6 +88,18 @@ export interface Customer {
   notes?: string;
 }
 
+export interface DupCustomer {
+  id: number; code: string; ku_nr?: string; name: string; city?: string; zip?: string;
+  country_code?: string; tx_total: number; tx_before: number; tx_from_cutover: number;
+  first_invoice?: string | null; last_invoice?: string | null; used_before_cutover: boolean;
+}
+export interface DupGroup {
+  name: string; customer_count: number;
+  address_numbers_before_cutover: (string | null)[];
+  customers: DupCustomer[];
+}
+export interface DuplicatesResult { cutover_year: number; count: number; groups: DupGroup[]; }
+
 export interface Transaction {
   id: number;
   customer_id?: number;
@@ -193,6 +205,7 @@ export const api = {
     },
     create: (data: Omit<Customer, "id" | "ku_nr">) =>
       post<Customer>("/customers", data),
+    duplicates: () => get<DuplicatesResult>("/customers/duplicates"),
     update: (code: string, data: Partial<Omit<Customer, "id" | "code" | "ku_nr">>) =>
       fetch(`${BASE}/customers/${code}`, {
         method: "PATCH",

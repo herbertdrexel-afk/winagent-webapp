@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type Customer } from "../api";
+import { api, type Customer, type DupGroup } from "../api";
 import { useT } from "../context/LocaleContext";
 import CustomerEditModal from "../components/CustomerEditModal";
 
@@ -12,6 +12,18 @@ export default function Customers() {
   const [editing, setEditing] = useState<Customer | null | undefined>(undefined);
   const [selected, setSelected] = useState<Customer | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [dups, setDups] = useState<DupGroup[] | null>(null);
+  const [dupBusy, setDupBusy] = useState(false);
+
+  async function loadDuplicates() {
+    setDupBusy(true);
+    try {
+      const res = await api.customers.duplicates();
+      setDups(res.groups);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Fehler");
+    } finally { setDupBusy(false); }
+  }
   // undefined = geschlossen, null = Neuanlage, Customer = bearbeiten
 
   useEffect(() => {
@@ -86,10 +98,64 @@ export default function Customers() {
           >
             {deleting ? "Löscht…" : t.common.delete}
           </button>
+          <button
+            onClick={() => { if (dups) setDups(null); else loadDuplicates(); }}
+            disabled={dupBusy}
+            className="border border-[#2563eb] text-[#2563eb] px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/5 disabled:opacity-50 transition-colors"
+          >
+            {dupBusy ? "Prüfe…" : dups ? "Duplikate ausblenden" : "Duplikate prüfen"}
+          </button>
         </div>
       </div>
 
       {error && <div className="text-red-600 mb-3">{t.common.error}: {error}</div>}
+
+      {dups && (
+        <div className="bg-white rounded-xl shadow-sm border border-amber-200 mb-4 overflow-hidden">
+          <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-100 text-sm font-semibold text-amber-800">
+            Doppelte Kunden (gleicher Name, mehrere Adressnummern): {dups.length}
+            <span className="font-normal text-amber-700"> · „vor 2026" = in Rechnungen vor 2026 verwendete Adressnummer</span>
+          </div>
+          {dups.length === 0 ? (
+            <div className="px-4 py-6 text-center text-gray-400 text-sm">Keine Duplikate mit Rechnungen gefunden.</div>
+          ) : (
+            <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-500 text-xs sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium">Name</th>
+                    <th className="px-3 py-2 text-left font-medium">Kd-Nr</th>
+                    <th className="px-3 py-2 text-left font-medium">Code</th>
+                    <th className="px-3 py-2 text-left font-medium">Ort</th>
+                    <th className="px-3 py-2 text-right font-medium">Rg. gesamt</th>
+                    <th className="px-3 py-2 text-right font-medium">vor 2026</th>
+                    <th className="px-3 py-2 text-right font-medium">ab 2026</th>
+                    <th className="px-3 py-2 text-left font-medium">Zeitraum</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dups.map((g, gi) => (
+                    g.customers.map((c, ci) => (
+                      <tr key={`${gi}-${c.id}`} className={`${ci === 0 ? "border-t-2 border-amber-200" : "border-t border-gray-100"} ${c.used_before_cutover ? "bg-amber-50/40" : ""}`}>
+                        <td className="px-3 py-1.5">{ci === 0 ? <span className="font-medium">{g.name}</span> : <span className="text-gray-300">↳</span>}</td>
+                        <td className="px-3 py-1.5 font-mono text-xs font-semibold text-[#2563eb]">{c.ku_nr ?? "–"}</td>
+                        <td className="px-3 py-1.5 font-mono text-xs">{c.code}</td>
+                        <td className="px-3 py-1.5 text-gray-600">{[c.zip, c.city].filter(Boolean).join(" ") || "–"}</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums">{c.tx_total}</td>
+                        <td className={`px-3 py-1.5 text-right tabular-nums ${c.tx_before ? "font-semibold text-amber-700" : "text-gray-300"}`}>{c.tx_before || "–"}</td>
+                        <td className={`px-3 py-1.5 text-right tabular-nums ${c.tx_from_cutover ? "text-emerald-700" : "text-gray-300"}`}>{c.tx_from_cutover || "–"}</td>
+                        <td className="px-3 py-1.5 text-xs text-gray-500">
+                          {c.first_invoice ? `${c.first_invoice.slice(0,7)} – ${c.last_invoice?.slice(0,7)}` : "–"}
+                        </td>
+                      </tr>
+                    ))
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
         <table className="w-full text-sm min-w-[560px]">
