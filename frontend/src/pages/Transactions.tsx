@@ -100,10 +100,28 @@ function groupInvoices(rows: Transaction[]): Invoice[] {
     if (inv.total_amount !== 0) {
       inv.provision_rate = (inv.provision_amount / inv.total_amount) * 100;
     }
-    inv.amount_eur = inv.positions.reduce(
-      (s, p) => s + (parseFloat((p as { amount_eur?: number }).amount_eur as unknown as string) || 0), 0);
-    const rates = new Set(inv.positions.map(p => (p as { rate_used?: number }).rate_used ?? 1));
-    inv.rate_used = rates.size === 1 ? [...rates][0] : null;
+    // EUR-Betrag je Position: bevorzugt der eigene Positions-Kurs (wie im Dialog:
+    // Betrag ÷ Kurs), sonst der vom Backend gelieferte Wert (z. B. 2026-Tabellenkurs).
+    const eurRates: number[] = [];
+    inv.amount_eur = inv.positions.reduce((s, p) => {
+      const pp = p as { amount_eur?: number; rate_used?: number; exchange_rate?: number | string; currency?: string; total_amount?: number | string };
+      const cur = String(pp.currency ?? "EUR").trim().toUpperCase();
+      const amt = parseFloat(pp.total_amount as unknown as string) || 0;
+      const er  = parseFloat(pp.exchange_rate as unknown as string) || 0;
+      let eur: number;
+      let used: number;
+      if (cur === "EUR") { eur = amt; used = 1; }
+      else if (er > 0 && er !== 1) { eur = amt / er; used = er; }          // eigener Kurs
+      else {
+        const be = parseFloat(pp.amount_eur as unknown as string);
+        eur = isNaN(be) ? amt : be;                                        // Backend (2026-Tabellenkurs)
+        used = parseFloat(pp.rate_used as unknown as string) || 1;
+      }
+      eurRates.push(used);
+      return s + eur;
+    }, 0);
+    const uniq = new Set(eurRates);
+    inv.rate_used = uniq.size === 1 ? [...uniq][0] : null;
   }
   return Array.from(map.values());
 }
