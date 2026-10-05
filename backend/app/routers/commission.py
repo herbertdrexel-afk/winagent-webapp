@@ -50,17 +50,17 @@ def _get_supplier(db: Session, code: str, user: models.User | None = None) -> mo
     return supplier
 
 
-@router.get("/{supplier_code}/statistic", response_model=schemas.CommissionSummaryResponse)
 def commission_statistic(
     supplier_code: str,
     period_from: date,
     period_to: date,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
-):
-    """
-    Entspricht der alten 'Lieferant Statistik' -> Aufstellung:
-    aggregiert die Transaktionen im Zeitraum pro Kunde + Provisionssatz.
+) -> schemas.CommissionSummaryResponse:
+    """Interner Helfer: aggregiert Transaktionen im Zeitraum pro Kunde +
+    Provisionssatz (pro Währung). Wird nur noch intern verwendet (Entwurf einer
+    Provisionsabrechnung). Die frühere HTTP-Route /statistic wurde entfernt, da
+    ungenutzt; Beträge bleiben hier bewusst in Originalwährung (Rechnungsstellung).
     """
     supplier = _get_supplier(db, supplier_code, current_user)
 
@@ -145,7 +145,7 @@ def create_statement(
     current_user: models.User = Depends(get_current_user),
 ):
     """Legt eine neue Provisionsabrechnung als 'draft' an, befüllt mit den
-    aggregierten Positionen aus der Statistik (siehe /statistic)."""
+    aggregierten Positionen (siehe Helfer commission_statistic)."""
     supplier = _get_supplier(db, payload.supplier_code, current_user)
     summary = commission_statistic(payload.supplier_code, payload.period_from, payload.period_to, db, current_user)
 
