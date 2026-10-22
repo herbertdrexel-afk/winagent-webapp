@@ -1,7 +1,5 @@
-"""WinAgent DBF-/E-Rechnungs-Import (+ Reybex-Verbindungstest)."""
-import os
+"""WinAgent DBF-/E-Rechnungs-Import."""
 import logging
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
@@ -12,15 +10,6 @@ from ..einvoice_parser import parse_einvoice
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/sync", tags=["sync"])
-REYBEX_BASE = "https://core-backend.reybex.com/api"
-
-
-def _reybex_creds() -> tuple[str, str]:
-    username = os.environ.get("REYBEX_USERNAME")
-    password = os.environ.get("REYBEX_PASSWORD")
-    if not username or not password:
-        raise HTTPException(503, "REYBEX_USERNAME / REYBEX_PASSWORD nicht konfiguriert")
-    return username, password
 
 
 @router.post("/dbf/import")
@@ -267,19 +256,3 @@ def import_einvoice_bytes(
         "net_total": float(inv.net_total),
         "currency": inv.currency,
     }
-
-
-
-
-async def test_mandant(mandant_id: str | None = None):
-    """Reybex connection test — checks credentials and returns customer count."""
-    username, password = _reybex_creds()
-    async with httpx.AsyncClient(timeout=15) as client:
-        r = await client.get(
-            f"{REYBEX_BASE}/domains/customer",
-            params={"take": 1, "skip": 0, "responseFormat": "api", "contactType.type": 1},
-            auth=(username, password),
-        )
-    if r.status_code == 200:
-        return {"ok": True, "note": "Reybex-Verbindung OK. Rechnungen bitte als DBF aus Reybex exportieren und über 'Reybex Sync' hochladen."}
-    return {"ok": False, "status": r.status_code, "error": r.text[:200]}

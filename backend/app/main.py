@@ -8,7 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from .routers import suppliers, customers, commission, sync, stats, mandants, ingest
 from .routers import auth as auth_router, reports as reports_router, settings as settings_router
 from .routers import exchange as exchange_router
-from .routers.sync import test_mandant
 from .auth import get_current_user
 from .database import engine, SessionLocal
 from . import models
@@ -79,23 +78,6 @@ async def _report_scheduler():
             logger.warning("Report scheduler outer error: %s", e)
 
 
-async def _feed_poller():
-    """Ruft konfigurierte Reybex-Abhol-Feeds täglich ab und importiert sie."""
-    while True:
-        await asyncio.sleep(24 * 3600)
-        try:
-            from .routers.ingest import pull_all_feeds
-            db = SessionLocal()
-            try:
-                result = pull_all_feeds(db, source="reybex-feed-cron")
-                if result:
-                    logger.info("Feed-Poller: %s", result)
-            finally:
-                db.close()
-        except Exception as e:
-            logger.warning("Feed-Poller Fehler: %s", e)
-
-
 async def _exchange_rate_updater():
     """Hält die Wechselkurse aktuell: beim Start einmalig voller Abruf, danach
     täglich die letzten Monate (Durchschnitt des laufenden Monats aktualisieren)."""
@@ -130,7 +112,6 @@ async def _exchange_rate_updater():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     asyncio.create_task(_report_scheduler())
-    asyncio.create_task(_feed_poller())
     asyncio.create_task(_exchange_rate_updater())
     yield
 
@@ -155,6 +136,9 @@ with engine.connect() as _conn:
     _conn.execute(_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS language VARCHAR(5) DEFAULT 'de'"))
     # Längere Rechnungsnummern zulassen (z. B. ND-TexPack 'CS20260115-01A')
     _conn.execute(_sql("ALTER TABLE transactions ALTER COLUMN invoice_number TYPE VARCHAR(30)"))
+    # Reybex-Feeds werden nicht mehr verwendet: gespeicherte Feed-Links (mit feedToken)
+    # und den alten Kunden-Sync-Status aus den App-Einstellungen entfernen.
+    _conn.execute(_sql("DELETE FROM app_settings WHERE key IN ('reybex_feeds', 'reybex_last_customer_sync')"))
     _conn.commit()
 
 app = FastAPI(
@@ -189,7 +173,7 @@ app.include_router(settings_router.router, **_auth)
 app.include_router(exchange_router.router, **_auth)
 
 # Ingest-Router OHNE JWT-Router-Dependency:
-#  - POST /ingest/file ist Token-gesichert (INGEST_TOKEN), damit Reybex pushen kann
+#  - POST /ingest/file ist Token-gesichert (INGEST_TOKEN); ohne Token abgeschaltet (503)
 #  - GET  /ingest/log  ist per require_admin am Endpoint selbst geschützt
 app.include_router(ingest.router)
 
@@ -200,4 +184,3 @@ def health():
 
 
 # Public test endpoint — no JWT needed, only server-side Reybex credentials
-app.add_api_route("/sync/reybex/test-mandant", test_mandant, methods=["GET"], tags=["sync"])

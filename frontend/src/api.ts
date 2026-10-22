@@ -343,19 +343,6 @@ export const api = {
         .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   },
   ingest: {
-    feeds: () => get<Record<string, { url: string }>>("/ingest/feeds"),
-    setFeeds: (feeds: Record<string, string>) =>
-      fetch(`${BASE}/ingest/feeds`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ feeds }),
-      }).then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json(); }),
-    pull: (code: string) =>
-      fetch(`${BASE}/ingest/feeds/${code}/pull`, { method: "POST", headers: authHeaders() })
-        .then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json() as Promise<IngestPullResult>; }),
-    pullAll: () =>
-      fetch(`${BASE}/ingest/feeds/pull-all`, { method: "POST", headers: authHeaders() })
-        .then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json() as Promise<Record<string, IngestPullResult>>; }),
     log: () => get<IngestLogEntry[]>("/ingest/log"),
     deleteLog: (id: number) =>
       fetch(`${BASE}/ingest/log/${id}`, { method: "DELETE", headers: authHeaders() })
@@ -379,12 +366,6 @@ export interface ExchangeRateEntry {
   currency: string;
   month: string | null;
   rate: number | null;
-}
-
-export interface IngestPullResult {
-  status: string;
-  new?: number; updated?: number; unchanged?: number;
-  skipped?: number; unmatched?: number; imported?: number; detail?: string;
 }
 
 export interface IngestLogEntry {
