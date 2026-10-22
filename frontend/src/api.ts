@@ -328,20 +328,6 @@ export const api = {
       fetch(`${BASE}/settings/logo-na`, { method: "DELETE", headers: authHeaders() })
         .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   },
-  mandants: {
-    list: () => get<ReybexMandant[]>("/mandants"),
-    create: (data: { name: string; mandant_id?: string | null; is_active?: boolean; notes?: string | null; supplier_ids?: number[] }) =>
-      post<ReybexMandant>("/mandants", data),
-    update: (id: number, data: { name?: string; mandant_id?: string | null; is_active?: boolean; notes?: string | null; supplier_ids?: number[] }) =>
-      fetch(`${BASE}/mandants/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify(data),
-      }).then(async (r) => { if (!r.ok) { const e = await r.json(); throw new Error(e.detail ?? r.statusText); } return r.json() as Promise<ReybexMandant>; }),
-    delete: (id: number) =>
-      fetch(`${BASE}/mandants/${id}`, { method: "DELETE", headers: authHeaders() })
-        .then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
-  },
   ingest: {
     log: () => get<IngestLogEntry[]>("/ingest/log"),
     deleteLog: (id: number) =>
@@ -381,15 +367,6 @@ export interface InvoiceSummary {
   period_to: string;
   next_pr_seq: number;
   totals: { currency: string; total_amount: number; provision_amount: number }[];
-}
-
-export interface ReybexMandant {
-  id: number;
-  name: string;
-  mandant_id: string | null;
-  is_active: boolean;
-  notes: string | null;
-  suppliers: { id: number; code: string; name: string }[];
 }
 
 export interface ReportRecipient {

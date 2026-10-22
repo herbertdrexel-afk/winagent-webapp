@@ -110,15 +110,12 @@ const de = {
   },
   customers: {
     title: "Kunden",
-    sync: "Reybex-Sync",
     newCustomer: "+ Neuer Kunde",
     code: "Code",
     name: "Name",
     country: "Land",
     city: "Stadt",
     phone: "Telefon",
-    syncing: "Synchronisieren…",
-    lastSync: (s: string) => `Letzter Sync: ${s}`,
     noData: "Keine Kunden gefunden.",
   },
   transactions: {
@@ -451,15 +448,12 @@ const en: typeof de = {
   },
   customers: {
     title: "Customers",
-    sync: "Reybex Sync",
     newCustomer: "+ New Customer",
     code: "Code",
     name: "Name",
     country: "Country",
     city: "City",
     phone: "Phone",
-    syncing: "Syncing…",
-    lastSync: (s: string) => `Last sync: ${s}`,
     noData: "No customers found.",
   },
   transactions: {

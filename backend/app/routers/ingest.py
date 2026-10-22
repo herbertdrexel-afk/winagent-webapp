@@ -163,7 +163,7 @@ async def ingest_file(
             "detail": row.detail}
 
 
-# ── Reybex-Abhol-Feeds (Pull): pro Lieferant eine dataExportFeed-URL ──────────
+# ── Import-Protokoll ──────────────────────────────────────────────────────────
 
 @router.get("/log")
 def ingest_log(

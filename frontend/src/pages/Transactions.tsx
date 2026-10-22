@@ -376,7 +376,7 @@ export default function Transactions() {
             <button
               onClick={() => dbfInputRef.current?.click()}
               disabled={!supplierCode || dbfImporting}
-              title="Reybex DBF-Export hochladen"
+              title="DBF-Datei importieren"
               className="border border-violet-600 text-violet-700 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-violet-50 disabled:opacity-40 transition-colors"
             >
               {dbfImporting ? "⏳…" : "🔄 DBF"}

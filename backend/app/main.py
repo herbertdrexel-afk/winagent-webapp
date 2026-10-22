@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import suppliers, customers, commission, sync, stats, mandants, ingest
+from .routers import suppliers, customers, commission, sync, stats, ingest
 from .routers import auth as auth_router, reports as reports_router, settings as settings_router
 from .routers import exchange as exchange_router
 from .auth import get_current_user
@@ -167,7 +167,6 @@ app.include_router(customers.router, **_auth)
 app.include_router(commission.router, **_auth)
 app.include_router(sync.router, **_auth)
 app.include_router(stats.router, **_auth)
-app.include_router(mandants.router, **_auth)
 app.include_router(reports_router.router, **_auth)
 app.include_router(settings_router.router, **_auth)
 app.include_router(exchange_router.router, **_auth)
@@ -181,6 +180,3 @@ app.include_router(ingest.router)
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-
-# Public test endpoint — no JWT needed, only server-side Reybex credentials
