@@ -56,20 +56,23 @@ async def _report_scheduler():
                     subject = f"WinAgent Bericht – {period_label}"
                     filename = f"winagent_bericht_{date_from.isoformat()}_{date_to.isoformat()}.pdf"
 
-                    pdf = generate_report_pdf(
-                        db,
-                        date_from=date_from,
-                        date_to=date_to,
-                        supplier_codes=s.supplier_codes,
-                        report_types=s.report_types,
-                    )
-                    addresses = [r.user.email for r in recipients]
-                    sup_label = supplier_label(db, s.supplier_codes)
-                    send_report_email(addresses, subject, pdf, period_label, filename, sup_label)
-
-                    s.last_sent_at = datetime.datetime.now(datetime.timezone.utc)
-                    db.commit()
-                    logger.info("Report '%s' sent to %s", s.name, addresses)
+                    sid, sname = s.id, s.name
+                    try:
+                        pdf = generate_report_pdf(
+                            db,
+                            date_from=date_from,
+                            date_to=date_to,
+                            supplier_codes=s.supplier_codes,
+                            report_types=s.report_types,
+                        )
+                        addresses = [r.user.email for r in recipients]
+                        sup_label = supplier_label(db, s.supplier_codes)
+                        send_report_email(addresses, subject, pdf, period_label, filename, sup_label)
+                        models.record_report_result(db, sid, ok=True)
+                        logger.info("Report '%s' sent to %s", sname, addresses)
+                    except Exception as e:
+                        models.record_report_result(db, sid, ok=False, error=e)
+                        logger.error("Report '%s' failed: %s", sname, e)
             except Exception as e:
                 logger.warning("Report scheduler error: %s", e)
             finally:
@@ -136,6 +139,9 @@ with engine.connect() as _conn:
     _conn.execute(_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS language VARCHAR(5) DEFAULT 'de'"))
     # Längere Rechnungsnummern zulassen (z. B. ND-TexPack 'CS20260115-01A')
     _conn.execute(_sql("ALTER TABLE transactions ALTER COLUMN invoice_number TYPE VARCHAR(30)"))
+    _conn.execute(_sql("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS last_attempt_at TIMESTAMPTZ"))
+    _conn.execute(_sql("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS last_status VARCHAR(10)"))
+    _conn.execute(_sql("ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS last_error TEXT"))
     # Reybex-Feeds werden nicht mehr verwendet: gespeicherte Feed-Links (mit feedToken)
     # und den alten Kunden-Sync-Status aus den App-Einstellungen entfernen.
     _conn.execute(_sql("DELETE FROM app_settings WHERE key IN ('reybex_feeds', 'reybex_last_customer_sync')"))

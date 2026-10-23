@@ -28,6 +28,7 @@ export default function Reports() {
   const [form, setForm] = useState<ReportScheduleCreate>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState<number | null>(null);
+  const [pendingIds, setPendingIds] = useState<number[]>([]);
 
   function load() {
     setLoading(true);
@@ -102,15 +103,32 @@ export default function Reports() {
     }
   }
 
+  // Fragt das Ergebnis des Hintergrund-Versands ab (max. ca. 90 s), bis ein neuer Versuch gemeldet wird.
+  async function waitForResult(id: number, prevAttempt: string | null) {
+    setPendingIds(p => [...p, id]);
+    try {
+      for (let i = 0; i < 18; i++) {
+        await new Promise(r => setTimeout(r, 5000));
+        const list = await api.reports.list();
+        const cur = list.find(x => x.id === id);
+        if (cur && (cur.last_attempt_at ?? null) !== prevAttempt) {
+          setSchedules(list);
+          return;
+        }
+      }
+    } catch { /* Ergebnis bleibt "unbekannt" */ }
+    finally { setPendingIds(p => p.filter(x => x !== id)); }
+  }
+
   async function sendNow(s: ReportSchedule) {
     setSending(s.id);
     setError(null);
     setSuccess(null);
     try {
+      const prevAttempt = s.last_attempt_at ?? null;
       const res = await api.reports.sendNow(s.id);
-      setSchedules(prev => prev.map(x => x.id === s.id
-        ? { ...x, last_sent_at: new Date().toISOString() } : x));
       setSuccess(t.reports.reportSent(s.name, res.sent_to.join(", "), res.period));
+      void waitForResult(s.id, prevAttempt);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : t.reports.sendingError);
     } finally {
@@ -228,6 +246,18 @@ export default function Reports() {
                     {t.reports.lastSent(new Date(s.last_sent_at).toLocaleString("de-DE"))}
                   </div>
                 )}
+                {pendingIds.includes(s.id) ? (
+                  <div className="text-[11px] text-blue-600 mt-1 animate-pulse">{t.reports.resultPending}</div>
+                ) : s.last_status === "ok" && s.last_attempt_at ? (
+                  <div className="text-[11px] text-emerald-700 mt-1">
+                    ✓ {t.reports.resultOk(new Date(s.last_attempt_at).toLocaleString("de-DE"))}
+                  </div>
+                ) : s.last_status === "error" && s.last_attempt_at ? (
+                  <div className="text-[11px] text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1 mt-1 max-w-xl break-words">
+                    ✗ {t.reports.resultError(new Date(s.last_attempt_at).toLocaleString("de-DE"))}
+                    {s.last_error ? <div className="mt-0.5 text-red-600">{s.last_error}</div> : null}
+                  </div>
+                ) : null}
               </div>
 
               <div className="flex items-center gap-2 shrink-0">

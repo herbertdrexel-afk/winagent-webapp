@@ -51,6 +51,9 @@ class ScheduleOut(BaseModel):
     supplier_codes: list[str] | None = None
     report_types: list[str] | None = None
     last_sent_at: str | None = None
+    last_attempt_at: str | None = None
+    last_status: str | None = None
+    last_error: str | None = None
     recipients: list[RecipientOut] = []
 
     class Config:
@@ -105,6 +108,9 @@ def _to_out(s: models.ReportSchedule) -> dict:
         "supplier_codes": s.supplier_codes,
         "report_types": s.report_types,
         "last_sent_at": s.last_sent_at.isoformat() if s.last_sent_at else None,
+        "last_attempt_at": s.last_attempt_at.isoformat() if s.last_attempt_at else None,
+        "last_status": s.last_status,
+        "last_error": s.last_error,
         "recipients": [
             {"id": r.id, "user_id": r.user_id,
              "username": r.user.username, "email": r.user.email}
@@ -289,12 +295,10 @@ def _bg_send(
         )
         sup_label = supplier_label(db, supplier_codes)
         send_report_email(addresses, subject, pdf, period_label, filename, sup_label)
-        schedule = db.get(models.ReportSchedule, schedule_id)
-        if schedule:
-            schedule.last_sent_at = datetime.now(timezone.utc)
-            db.commit()
+        models.record_report_result(db, schedule_id, ok=True)
         logger.info("Report sent to %s", addresses)
     except Exception as e:
         logger.error("Background send failed: %s\n%s", e, traceback.format_exc())
+        models.record_report_result(db, schedule_id, ok=False, error=e)
     finally:
         db.close()

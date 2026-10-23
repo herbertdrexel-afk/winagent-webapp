@@ -77,6 +77,26 @@ def log_ingest(db, filename, source, file_type, status="ok",
         db.rollback()
 
 
+def record_report_result(db, schedule_id, ok: bool, error=None):
+    """Ergebnis eines Berichtsversands am Zeitplan speichern (für die Anzeige in der App).
+    Fehler beim Speichern dürfen den Ablauf nicht stören."""
+    from datetime import datetime, timezone
+    try:
+        db.rollback()                      # evtl. offene, fehlgeschlagene Transaktion verwerfen
+        sched = db.get(ReportSchedule, schedule_id)
+        if sched is None:
+            return
+        now = datetime.now(timezone.utc)
+        sched.last_attempt_at = now
+        sched.last_status = "ok" if ok else "error"
+        sched.last_error = None if ok else (str(error or "Unbekannter Fehler")[:500])
+        if ok:
+            sched.last_sent_at = now
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
 class Country(Base):
     __tablename__ = "countries"
     code = Column(String(3), primary_key=True)
@@ -313,6 +333,9 @@ class ReportSchedule(Base):
     supplier_codes = Column(JSONB)   # null = all active suppliers
     report_types = Column(JSONB)     # null = all; list of: supplier_summary, customer_provision, customer_turnover, supplier_detail
     last_sent_at = Column(DateTime(timezone=True))
+    last_attempt_at = Column(DateTime(timezone=True))   # letzter Versandversuch (ok oder Fehler)
+    last_status = Column(String(10))                    # 'ok' | 'error'
+    last_error = Column(Text)                           # Fehlertext des letzten Versuchs
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     recipients = relationship("ReportRecipient", back_populates="schedule",

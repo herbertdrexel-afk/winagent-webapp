@@ -386,6 +386,9 @@ export interface ReportSchedule {
   supplier_codes?: string[] | null;
   report_types?: string[] | null;
   last_sent_at?: string | null;
+  last_attempt_at?: string | null;
+  last_status?: string | null;
+  last_error?: string | null;
   recipients: ReportRecipient[];
 }
 
