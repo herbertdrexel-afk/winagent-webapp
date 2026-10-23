@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import os
+import re
 import smtplib
 from email import encoders
 from email.mime.base import MIMEBase
@@ -17,6 +18,32 @@ from email.mime.text import MIMEText
 
 SMTP_HOST = "smtp.office365.com"
 SMTP_PORT = 587
+
+
+_GUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+
+def _clean(v: str) -> str:
+    """Whitespace/Zeilenumbrüche und ein umschließendes Anführungszeichen-Paar entfernen
+    (typische Fehler beim Eintragen von Variablen)."""
+    v = (v or "").strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        v = v[1:-1].strip()
+    return v
+
+
+def _secret_hint(raw: str, cleaned: str) -> str:
+    """Diagnose-Hinweis zu MS_CLIENT_SECRET, ohne den Wert preiszugeben."""
+    parts = [f"MS_CLIENT_SECRET hat {len(cleaned)} Zeichen"]
+    if raw != cleaned:
+        parts.append("enthielt Leerzeichen/Zeilenumbruch/Anführungszeichen (wurden entfernt)")
+    if _GUID.match(cleaned):
+        parts.append("hat die Form einer GUID = vermutlich die Secret-ID statt des Secret-WERTS")
+    elif "~" in cleaned:
+        parts.append("enthält '~' (sieht wie ein Wert aus)")
+    else:
+        parts.append("enthält kein '~' (Entra-Secret-Werte enthalten meist eines)")
+    return "Hinweis: " + "; ".join(parts) + "."
 
 
 def _report_body(period_label: str, supplier_label: str = "") -> str:
@@ -41,14 +68,20 @@ def send_report_email(
     if not to_addresses:
         raise ValueError("Keine Empfänger angegeben")
 
-    ms_tenant = os.environ.get("MS_TENANT_ID", "")
-    ms_client = os.environ.get("MS_CLIENT_ID", "")
-    ms_secret = os.environ.get("MS_CLIENT_SECRET", "")
+    ms_tenant = _clean(os.environ.get("MS_TENANT_ID", ""))
+    ms_client = _clean(os.environ.get("MS_CLIENT_ID", ""))
+    ms_secret_raw = os.environ.get("MS_CLIENT_SECRET", "")
+    ms_secret = _clean(ms_secret_raw)
     resend_key = os.environ.get("RESEND_API_KEY", "")
 
     if ms_tenant and ms_client and ms_secret:
-        _send_via_graph(ms_tenant, ms_client, ms_secret,
-                        to_addresses, subject, pdf_bytes, period_label, filename, supplier_label)
+        try:
+            _send_via_graph(ms_tenant, ms_client, ms_secret,
+                            to_addresses, subject, pdf_bytes, period_label, filename, supplier_label)
+        except RuntimeError as e:
+            if "invalid_client" in str(e):
+                raise RuntimeError(f"{_secret_hint(ms_secret_raw, ms_secret)} | {e}") from None
+            raise
     elif resend_key:
         _send_via_resend(resend_key, to_addresses, subject,
                          pdf_bytes, period_label, filename, supplier_label)
