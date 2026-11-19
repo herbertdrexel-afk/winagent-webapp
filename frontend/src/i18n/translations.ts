@@ -275,7 +275,7 @@ const de = {
     bic: "BIC / SWIFT",
     saveBanks: "Bankkonten speichern",
     naTitle: "Bankverbindung NA AG (alternatives Layout)",
-    naHint: "Aussteller und Bank für das alternative Rechnungs-Layout (Button „PDF 2“). Leer = es wird die Standard-Bankverbindung verwendet.",
+    naHint: "Aussteller und Bank für das alternative Rechnungs-Layout (Button „PDF NAAG“). Leer = es wird die Standard-Bankverbindung verwendet.",
     naLogo: "NA-Logo (Kopf des Alt-Layouts)",
     naName: "Aussteller / Firma",
     naLines: "Adresse (eine Zeile je Feld)",
@@ -285,6 +285,32 @@ const de = {
     add: "+ Hinzufügen",
     remove: "Entfernen",
     currency: "Währung",
+    deleteLogoConfirm: "Logo löschen?",
+    bankPlaceholder: "z. B. UBS Europe",
+    naBankPlaceholder: "z. B. UBS Switzerland AG",
+    naLinesPlaceholder: "Obere Bahnhofstr. 36
+CH-9500 WIL
+Schweiz",
+    exTitle: "Wechselkurse (Monatsdurchschnitt)",
+    exIntro: "EZB-Durchschnittskurse je Monat, als Einheiten je 1 EUR (z. B. 1 EUR = 1,16 USD). Umrechnung in EUR = Betrag ÷ Kurs.",
+    exRefresh: "Kurse aus dem Netz aktualisieren",
+    exRefreshing: "Hole Kurse…",
+    exNone: "Noch keine Kurse gespeichert – auf „Kurse aus dem Netz aktualisieren“ klicken.",
+    exMonth: "Monat",
+    exRateCol: "Kurs (Einheiten je 1 EUR)",
+    exApply: "Kurse in Rechnungen eintragen",
+    exApplying: "Trage ein…",
+    exApplyHint: "Schreibt den Monatskurs in alle Fremdwährungs-Rechnungen mit Kurs = 1 und rechnet damit neu um.",
+    exApplyConfirm: "Aktuelle Monatskurse in alle Fremdwährungs-Rechnungen eintragen, bei denen noch kein Kurs (1) steht?",
+    exNote: "Hinweis: Rechnungen vor 2026 werden mit dem in den Altdaten gespeicherten Kurs umgerechnet; ab 2026 gelten diese EZB-Monatskurse.",
+    exFetchError: "Fehler beim Abrufen",
+    exRefreshed: (n: number, skipped: number, errors: string[]) =>
+      `${n} Kurse ergänzt/aktualisiert` +
+      (skipped ? ` · ${skipped} abgeschlossene Monate unverändert` : "") +
+      (errors.length ? ` · Fehler: ${errors.join("; ")}` : ""),
+    exApplied: (n: number, missingMonths: number) =>
+      `${n} Rechnungen aktualisiert` +
+      (missingMonths ? ` · ${missingMonths} Monat(e) ohne Kurs (zuerst „Kurse aus dem Netz aktualisieren“)` : ""),
   },
   users: {
     title: "Benutzerverwaltung",
@@ -617,7 +643,7 @@ const en: typeof de = {
     bic: "BIC / SWIFT",
     saveBanks: "Save bank accounts",
     naTitle: "Bank details NA AG (alternative layout)",
-    naHint: "Issuer and bank for the alternative invoice layout (\"PDF 2\" button). Empty = the standard bank details are used.",
+    naHint: "Issuer and bank for the alternative invoice layout (\"PDF NAAG\" button). Empty = the standard bank details are used.",
     naLogo: "NA logo (header of the alt layout)",
     naName: "Issuer / company",
     naLines: "Address (one line per row)",
@@ -627,6 +653,32 @@ const en: typeof de = {
     add: "+ Add",
     remove: "Remove",
     currency: "Currency",
+    deleteLogoConfirm: "Delete logo?",
+    bankPlaceholder: "e.g. UBS Europe",
+    naBankPlaceholder: "e.g. UBS Switzerland AG",
+    naLinesPlaceholder: "Obere Bahnhofstr. 36
+CH-9500 WIL
+Switzerland",
+    exTitle: "Exchange rates (monthly average)",
+    exIntro: "ECB monthly average rates, as units per 1 EUR (e.g. 1 EUR = 1.16 USD). Conversion to EUR = amount ÷ rate.",
+    exRefresh: "Update rates from the internet",
+    exRefreshing: "Fetching rates…",
+    exNone: "No rates saved yet – click “Update rates from the internet”.",
+    exMonth: "Month",
+    exRateCol: "Rate (units per 1 EUR)",
+    exApply: "Enter rates into invoices",
+    exApplying: "Entering…",
+    exApplyHint: "Writes the monthly rate into all foreign-currency invoices with rate = 1 and recalculates them.",
+    exApplyConfirm: "Enter the current monthly rates into all foreign-currency invoices that still have no rate (1)?",
+    exNote: "Note: invoices before 2026 are converted with the rate stored in the legacy data; from 2026 these ECB monthly rates apply.",
+    exFetchError: "Error fetching rates",
+    exRefreshed: (n: number, skipped: number, errors: string[]) =>
+      `${n} rates added/updated` +
+      (skipped ? ` · ${skipped} closed months unchanged` : "") +
+      (errors.length ? ` · Errors: ${errors.join("; ")}` : ""),
+    exApplied: (n: number, missingMonths: number) =>
+      `${n} invoices updated` +
+      (missingMonths ? ` · ${missingMonths} month(s) without a rate (first “Update rates from the internet”)` : ""),
   },
   users: {
     title: "User Management",

@@ -45,26 +45,24 @@ export default function BankAccountsPage() {
     setExMsg(null);
     try {
       const res = await api.exchange.refresh();
-      const errs = res.errors?.length ? ` · Fehler: ${res.errors.join("; ")}` : "";
-      const skip = res.skipped ? ` · ${res.skipped} abgeschlossene Monate unverändert` : "";
-      setExMsg(`${res.written} Kurse ergänzt/aktualisiert${skip}${errs}`);
+      setExMsg(t.settings.exRefreshed(res.written, res.skipped ?? 0, res.errors ?? []));
       loadRates();
     } catch (e: unknown) {
-      setExMsg(e instanceof Error ? e.message : "Fehler beim Abrufen");
+      setExMsg(e instanceof Error ? e.message : t.settings.exFetchError);
     } finally { setExBusy(false); }
   }
 
   const [applyBusy, setApplyBusy] = useState(false);
   async function applyRatesToTx() {
-    if (!window.confirm("Aktuelle Monatskurse in alle Fremdwährungs-Rechnungen eintragen, bei denen noch kein Kurs (1) steht?")) return;
+    if (!window.confirm(t.settings.exApplyConfirm)) return;
     setApplyBusy(true);
     setExMsg(null);
     try {
       const res = await api.exchange.applyToTransactions();
       const miss = Object.keys(res.missing_months || {}).length;
-      setExMsg(`${res.updated} Rechnungen aktualisiert${miss ? ` · ${miss} Monat(e) ohne Kurs (zuerst „Kurse aktualisieren")` : ""}`);
+      setExMsg(t.settings.exApplied(res.updated, miss));
     } catch (e: unknown) {
-      setExMsg(e instanceof Error ? e.message : "Fehler");
+      setExMsg(e instanceof Error ? e.message : t.common.error);
     } finally { setApplyBusy(false); }
   }
 
@@ -149,10 +147,10 @@ export default function BankAccountsPage() {
   }
 
   async function handleLogoDelete() {
-    if (!confirm("Logo löschen?")) return;
+    if (!confirm(t.settings.deleteLogoConfirm)) return;
     await api.settings.deleteLogo();
     setLogoUrl(null);
-    setMsg({ ok: true, text: "Logo gelöscht." });
+    setMsg({ ok: true, text: t.settings.logoDeleted });
   }
 
   async function handleNaLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -170,10 +168,10 @@ export default function BankAccountsPage() {
   }
 
   async function handleNaLogoDelete() {
-    if (!confirm("Logo löschen?")) return;
+    if (!confirm(t.settings.deleteLogoConfirm)) return;
     await api.settings.deleteLogoNa();
     setNaLogoUrl(null);
-    setMsg({ ok: true, text: "Logo gelöscht." });
+    setMsg({ ok: true, text: t.settings.logoDeleted });
   }
 
   if (loading) return <div className="text-gray-400 p-8">{t.common.loading}</div>;
@@ -256,7 +254,7 @@ export default function BankAccountsPage() {
                 <label className="block text-xs text-gray-500 mb-1">{t.settings.bank}</label>
                 <input type="text" value={accounts[cur]?.bank ?? ""}
                   onChange={e => setField(cur, "bank", e.target.value)}
-                  className={inputCls} placeholder="z.B. UBS Europe" />
+                  className={inputCls} placeholder={t.settings.bankPlaceholder} />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">IBAN</label>
@@ -325,7 +323,7 @@ export default function BankAccountsPage() {
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t.settings.naLines}</label>
             <textarea value={naLines} onChange={e => setNaLines(e.target.value)} rows={3}
-              className={inputCls} placeholder={"Obere Bahnhofstr. 36\nCH-9500 WIL\nSchweiz"} />
+              className={inputCls} placeholder={t.settings.naLinesPlaceholder} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -355,7 +353,7 @@ export default function BankAccountsPage() {
                   <label className="block text-xs text-gray-500 mb-1">{t.settings.bank}</label>
                   <input type="text" value={naAccounts[cur]?.bank ?? ""}
                     onChange={e => setNaField(cur, "bank", e.target.value)}
-                    className={inputCls} placeholder="z.B. UBS Switzerland AG" />
+                    className={inputCls} placeholder={t.settings.naBankPlaceholder} />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">IBAN</label>
@@ -387,28 +385,26 @@ export default function BankAccountsPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h2 className="font-semibold text-gray-800">Wechselkurse (Monatsdurchschnitt)</h2>
-            <p className="text-xs text-gray-500">
-              EZB-Durchschnittskurse je Monat, als Einheiten je 1 EUR (z. B. 1 EUR = 1,16 USD). Umrechnung in EUR = Betrag ÷ Kurs.
-            </p>
+            <h2 className="font-semibold text-gray-800">{t.settings.exTitle}</h2>
+            <p className="text-xs text-gray-500">{t.settings.exIntro}</p>
           </div>
           <button onClick={refreshRates} disabled={exBusy}
             className="flex items-center gap-1.5 border border-[#2563eb] text-[#2563eb] px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/5 disabled:opacity-50">
             <RefreshCw size={14} className={exBusy ? "animate-spin" : ""} />
-            {exBusy ? "Hole Kurse…" : "Kurse aus dem Netz aktualisieren"}
+            {exBusy ? t.settings.exRefreshing : t.settings.exRefresh}
           </button>
         </div>
         {exMsg && <p className="text-xs text-gray-600">{exMsg}</p>}
         {exRates.length === 0 ? (
-          <p className="text-xs text-gray-400">Noch keine Kurse gespeichert – auf „Kurse aktualisieren" klicken.</p>
+          <p className="text-xs text-gray-400">{t.settings.exNone}</p>
         ) : (
           <div className="overflow-x-auto max-h-72 overflow-y-auto border border-gray-100 rounded-lg">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-500 text-xs sticky top-0">
                 <tr>
-                  <th className="px-3 py-1.5 text-left font-medium">Monat</th>
-                  <th className="px-3 py-1.5 text-left font-medium">Währung</th>
-                  <th className="px-3 py-1.5 text-right font-medium">Kurs (Einheiten je 1 EUR)</th>
+                  <th className="px-3 py-1.5 text-left font-medium">{t.settings.exMonth}</th>
+                  <th className="px-3 py-1.5 text-left font-medium">{t.settings.currency}</th>
+                  <th className="px-3 py-1.5 text-right font-medium">{t.settings.exRateCol}</th>
                 </tr>
               </thead>
               <tbody>
@@ -428,15 +424,11 @@ export default function BankAccountsPage() {
         <div className="border-t border-gray-100 pt-3 flex items-center gap-3 flex-wrap">
           <button onClick={applyRatesToTx} disabled={applyBusy || exRates.length === 0}
             className="bg-[#2563eb] text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[#2563eb]/80 disabled:opacity-50">
-            {applyBusy ? "Trage ein…" : "Kurse in Rechnungen eintragen"}
+            {applyBusy ? t.settings.exApplying : t.settings.exApply}
           </button>
-          <span className="text-xs text-gray-500">
-            Schreibt den Monatskurs in alle Fremdwährungs-Rechnungen mit Kurs = 1 und rechnet damit neu um.
-          </span>
+          <span className="text-xs text-gray-500">{t.settings.exApplyHint}</span>
         </div>
-        <p className="text-xs text-gray-400">
-          Hinweis: Rechnungen vor 2026 werden mit dem in den Altdaten gespeicherten Kurs umgerechnet; ab 2026 gelten diese EZB-Monatskurse.
-        </p>
+        <p className="text-xs text-gray-400">{t.settings.exNote}</p>
       </div>
     </div>
   );
