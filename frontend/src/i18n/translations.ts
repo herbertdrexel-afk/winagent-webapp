@@ -288,9 +288,7 @@ const de = {
     deleteLogoConfirm: "Logo löschen?",
     bankPlaceholder: "z. B. UBS Europe",
     naBankPlaceholder: "z. B. UBS Switzerland AG",
-    naLinesPlaceholder: "Obere Bahnhofstr. 36
-CH-9500 WIL
-Schweiz",
+    naLinesPlaceholder: "Obere Bahnhofstr. 36\nCH-9500 WIL\nSchweiz",
     exTitle: "Wechselkurse (Monatsdurchschnitt)",
     exIntro: "EZB-Durchschnittskurse je Monat, als Einheiten je 1 EUR (z. B. 1 EUR = 1,16 USD). Umrechnung in EUR = Betrag ÷ Kurs.",
     exRefresh: "Kurse aus dem Netz aktualisieren",
@@ -656,9 +654,7 @@ const en: typeof de = {
     deleteLogoConfirm: "Delete logo?",
     bankPlaceholder: "e.g. UBS Europe",
     naBankPlaceholder: "e.g. UBS Switzerland AG",
-    naLinesPlaceholder: "Obere Bahnhofstr. 36
-CH-9500 WIL
-Switzerland",
+    naLinesPlaceholder: "Obere Bahnhofstr. 36\nCH-9500 WIL\nSwitzerland",
     exTitle: "Exchange rates (monthly average)",
     exIntro: "ECB monthly average rates, as units per 1 EUR (e.g. 1 EUR = 1.16 USD). Conversion to EUR = amount ÷ rate.",
     exRefresh: "Update rates from the internet",
