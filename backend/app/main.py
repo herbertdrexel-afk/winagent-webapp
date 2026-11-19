@@ -85,28 +85,14 @@ async def _exchange_rate_updater():
     """Hält die Wechselkurse aktuell: beim Start einmalig voller Abruf, danach
     täglich die letzten Monate (Durchschnitt des laufenden Monats aktualisieren)."""
     import datetime as _dt
-    from .exchange_rates import refresh_rates, CUTOVER_YEAR
-    MARKER = "fx_units_per_eur_v1"
+    from .exchange_rates import refresh_rates
     # Einmaliger Voll-Backfill kurz nach dem Start
     await asyncio.sleep(30)
     try:
         db = SessionLocal()
         try:
-            first_run = db.get(models.AppSetting, MARKER) is None
-            if first_run:
-                # Einmalige Bereinigung: Kurse vor dem Stichjahr gehören nicht in die Tabelle
-                # (dort gilt der Rechnungs-KURS); ab dem Stichjahr alle Monate in der
-                # Konvention 'Einheiten je 1 EUR' neu schreiben (alte Werte standen umgekehrt).
-                deleted = (db.query(models.ExchangeRate)
-                           .filter(models.ExchangeRate.valid_date < _dt.date(CUTOVER_YEAR, 1, 1))
-                           .delete(synchronize_session=False))
-                db.commit()
-                logger.info("Wechselkurse: %s Zeilen vor %s entfernt", deleted, CUTOVER_YEAR)
-            res = refresh_rates(db, overwrite=first_run)
+            res = refresh_rates(db)
             logger.info("Wechselkurse initial: %s", res)
-            if first_run and not res.get("errors") and res.get("written", 0) > 0:
-                db.add(models.AppSetting(key=MARKER, value={"done": True}))
-                db.commit()
         finally:
             db.close()
     except Exception as e:
